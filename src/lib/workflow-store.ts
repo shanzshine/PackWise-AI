@@ -5,6 +5,7 @@
  */
 
 const KEY = "packwise_analysis";
+const IMG_KEY = "packwise_image";
 
 export interface AttachmentZone {
   zone: string;
@@ -21,6 +22,20 @@ export interface AnalysisResult {
   productType: string;
   dimensions: string;
   analysedAt: string;
+
+  // XGBoost features
+  product_family: string;
+  articulation: string;
+  pose: string;
+  product_weight_g: number;
+  height_cm: number;
+  center_of_gravity: string;
+  hair_length: string;
+  dress_length: string;
+  accessory_count: number;
+  accessory_weight_g: number;
+  selected_accessories: string[];
+  cvDetections?: any[];
 
   // Detected elements
   accessories: string[];
@@ -42,6 +57,18 @@ export const DEMO_RESULT: AnalysisResult = {
   dimensions: "28 × 8 × 5 cm",
   analysedAt: new Date().toISOString(),
 
+  product_family: "Fashionistas",
+  articulation: "Standard",
+  pose: "Arms Open",
+  product_weight_g: 120,
+  height_cm: 29.0,
+  center_of_gravity: "Center",
+  hair_length: "Long",
+  dress_length: "Short",
+  accessory_count: 5,
+  accessory_weight_g: 30,
+  selected_accessories: ["Handbag", "Shoes", "Glasses", "Crown", "Dress Stand"],
+
   accessories: ["Handbag", "Shoes", "Glasses", "Crown", "Dress Stand"],
   bodyRegions: ["Head / Hair", "Torso / Waist", "Right Arm", "Left Arm", "Right Leg", "Left Leg"],
 
@@ -59,7 +86,15 @@ export const DEMO_RESULT: AnalysisResult = {
 };
 
 export function saveAnalysis(result: AnalysisResult) {
-  try { localStorage.setItem(KEY, JSON.stringify(result)); } catch {}
+  try {
+    // Store image separately in sessionStorage (avoids localStorage 5MB limit)
+    if (result.imageDataUrl) {
+      sessionStorage.setItem(IMG_KEY, result.imageDataUrl);
+    }
+    // Store everything else in localStorage (without the heavy image data)
+    const { imageDataUrl, ...rest } = result;
+    localStorage.setItem(KEY, JSON.stringify(rest));
+  } catch (e) { console.warn("saveAnalysis failed", e); }
 }
 
 export function loadAnalysis(): AnalysisResult | null {
@@ -75,6 +110,9 @@ export function loadAnalysis(): AnalysisResult | null {
     if (!parsed.attachmentZones || !Array.isArray(parsed.attachmentZones)) {
       return null;
     }
+    // Re-attach the image from sessionStorage
+    const img = sessionStorage.getItem(IMG_KEY);
+    if (img) parsed.imageDataUrl = img;
     return parsed as AnalysisResult;
   } catch { return null; }
 }
