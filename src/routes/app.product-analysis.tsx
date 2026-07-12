@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
-  Upload, Sparkles, CheckCircle2, Ruler, Zap, ChevronRight, RotateCcw,
-  ImageIcon, ScanLine, ShieldAlert, AlertTriangle, Info, Brain,
+  Sparkles, CheckCircle2, ChevronRight, RotateCcw,
+  ScanLine, ShieldAlert, AlertTriangle, Brain, Plus, X, Upload, ImageIcon, Camera,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,17 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 import { Progress } from "@/components/ui/progress";
-import { saveAnalysis, type AnalysisResult, type AttachmentZone } from "@/lib/workflow-store";
+import { saveAnalysis, type AnalysisResult } from "@/lib/workflow-store";
 
 export const Route = createFileRoute("/app/product-analysis")({
   head: () => ({ meta: [{ title: "Pose & Doll Analysis — PackWise AI" }] }),
   component: ProductAnalysisPage,
 });
-
-const CATEGORIES = [
-  "Collectible Doll", "Fashion Doll", "Action Figure",
-  "Plush Toy", "Playset", "Electronic Toy", "Other",
-];
 
 const WORKFLOW_STEPS = [
   { label: "Pose & Doll Analysis", active: true  },
@@ -33,21 +28,10 @@ const WORKFLOW_STEPS = [
 
 const ANALYSIS_STEPS = [
   "Detecting doll body regions",
-  "Mapping pose geometry",
+  "Mapping strap zones via YOLO",
   "Identifying accessories",
-  "Estimating attachment zones",
-  "Computing movement risk",
-  "Predicting accessory loss risk",
+  "Extracting engineering features",
 ];
-
-const RISK_COLOR: Record<string, string> = {
-  low:    "bg-[color:var(--success)]/10 text-[color:var(--success)] border-transparent",
-  medium: "bg-[color:var(--warning)]/15 text-[color:var(--warning-foreground)] border-transparent",
-  high:   "bg-destructive/10 text-destructive border-transparent",
-};
-const RISK_DOT: Record<string, string> = {
-  low: "bg-[color:var(--success)]", medium: "bg-[color:var(--warning)]", high: "bg-destructive",
-};
 
 type Stage = "form" | "analysing" | "results";
 
@@ -69,31 +53,59 @@ function WorkflowBar({ steps }: { steps: typeof WORKFLOW_STEPS }) {
   );
 }
 
-function ScoreBar({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-xs">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-semibold">{value}</span>
-      </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${value}%` }} />
-      </div>
-    </div>
-  );
-}
-
 function ProductAnalysisPage() {
-  const navigate   = useNavigate();
-  const fileRef    = useRef<HTMLInputElement>(null);
-  const [stage, setStage]         = useState<Stage>("form");
-  const [productName, setProductName] = useState("");
-  const [sku, setSku]             = useState("");
-  const [category, setCategory]   = useState(CATEGORIES[0]);
+  const navigate = useNavigate();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [stage, setStage] = useState<Stage>("form");
+  const [progress, setProgress] = useState(0);
+  
+  // Image Upload
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
-  const [progress, setProgress]   = useState(0);
-  const [result, setResult]       = useState<AnalysisResult | null>(null);
+
+  // Camera
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Master data
+  const [productFamilies, setProductFamilies] = useState<any[]>([]);
+  const [masterAccessories, setMasterAccessories] = useState<any[]>([]);
+
+  // Form state
+  const [productFamily, setProductFamily] = useState("");
+  const [articulation, setArticulation] = useState("");
+  const [pose, setPose] = useState("Arms Open"); // Mocked for now
+  const [hairLength, setHairLength] = useState("Short");
+  const [dressLength, setDressLength] = useState("Short");
+  const [centerOfGravity, setCenterOfGravity] = useState("Center");
+  const [heightCm, setHeightCm] = useState<number>(29.0);
+  const [weightG, setWeightG] = useState<number>(120);
+  
+  // Accessories State
+  const [selectedAccessories, setSelectedAccessories] = useState<{name: string, weight: number}[]>([]);
+  const [accSearch, setAccSearch] = useState("");
+
+  useEffect(() => {
+    async function loadMasterData() {
+      try {
+        const pfRes = await fetch("http://127.0.0.1:8000/api/product-families");
+        const accRes = await fetch("http://127.0.0.1:8000/api/accessories");
+        if (pfRes.ok) {
+          const pfData = await pfRes.json();
+          setProductFamilies(pfData);
+          if (pfData.length > 0) {
+            handleFamilyChange(pfData[0].product_family, pfData);
+          }
+        }
+        if (accRes.ok) {
+          setMasterAccessories(await accRes.json());
+        }
+      } catch (e) {
+        console.error("Failed to load master data", e);
+      }
+    }
+    loadMasterData();
+  }, []);
 
   const handleFile = (f: File) => {
     setImageFile(f);
@@ -102,137 +114,364 @@ function ProductAnalysisPage() {
     reader.readAsDataURL(f);
   };
 
-  const handleAnalyse = () => {
-    if (!productName.trim()) return;
+  const startCamera = async () => {
+    setIsCameraActive(true);
+    setImageDataUrl(null);
+    setImageFile(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (e) {
+      console.error("Camera access failed", e);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(t => t.stop());
+    }
+    setIsCameraActive(false);
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.drawImage(videoRef.current, 0, 0);
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], "camera_capture.jpg", { type: "image/jpeg" });
+          handleFile(file);
+        }
+      }, "image/jpeg");
+    }
+    stopCamera();
+  };
+
+  const handleFamilyChange = (fam: string, familiesData = productFamilies) => {
+    setProductFamily(fam);
+    const details = familiesData.find((f) => f.product_family === fam);
+    if (details) {
+      setArticulation(details.articulation || "Standard");
+      setHeightCm(details.default_height_cm || 29.0);
+      setWeightG(details.default_weight_max || 120);
+      if (details.center_of_gravity) setCenterOfGravity(details.center_of_gravity);
+    }
+  };
+
+  const addAccessory = (acc: any) => {
+    setSelectedAccessories([...selectedAccessories, { name: acc.accessory_name, weight: acc.weight_g }]);
+    setAccSearch("");
+  };
+
+  const removeAccessory = (idx: number) => {
+    setSelectedAccessories(selectedAccessories.filter((_, i) => i !== idx));
+  };
+
+  const loadDemo = () => {
+    handleFamilyChange("Fashionistas", productFamilies);
+    setHairLength("Long");
+    setDressLength("Short");
+    setSelectedAccessories([
+      { name: "Handbag", weight: 8 },
+      { name: "Shoes", weight: 15 },
+    ]);
+  };
+
+  const handleAnalyse = async () => {
     setStage("analysing");
     setProgress(0);
     const ticks = [15, 32, 50, 66, 82, 100];
-    ticks.forEach((p, i) => setTimeout(() => setProgress(p), (i + 1) * 520));
+    ticks.forEach((p, i) => setTimeout(() => setProgress(p), (i + 1) * 700)); // slightly slower to wait for CV
+    
+    let detections = [];
+
+    if (imageFile) {
+        try {
+            const formData = new FormData();
+            formData.append("file", imageFile);
+            const res = await fetch("http://127.0.0.1:8000/api/analyze-image", {
+                method: "POST",
+                body: formData
+            });
+            if (res.ok) {
+                const cvData = await res.json();
+                if (cvData.detections) {
+                    detections = cvData.detections;
+                    console.log("YOLO Strap Detections:", detections);
+                }
+            }
+        } catch (e) {
+            console.error("YOLO CV failed", e);
+        }
+    }
+
     setTimeout(() => {
       const r: AnalysisResult = {
-        productName: productName.trim(),
-        category,
-        imageDataUrl,
-        productType: category,
-        dimensions: "28 × 8 × 5 cm",
+        productName: `${productFamily} Doll`,
+        category: "Fashion Doll",
+        imageDataUrl: imageDataUrl,
+        productType: "Doll",
+        dimensions: `${heightCm}cm`,
         analysedAt: new Date().toISOString(),
-        accessories: ["Handbag", "Shoes", "Glasses", "Crown", "Dress Stand"],
-        bodyRegions: ["Head / Hair", "Torso / Waist", "Right Arm", "Left Arm", "Right Leg", "Left Leg"],
-        attachmentZones: [
-          { zone: "Hair",        bodyRegion: "Head / Hair",   riskLevel: "medium", recommendedMethod: "Elastic Strap" },
-          { zone: "Waist",       bodyRegion: "Torso / Waist", riskLevel: "low",    recommendedMethod: "PET Support"   },
-          { zone: "Right Wrist", bodyRegion: "Right Arm",     riskLevel: "high",   recommendedMethod: "EVA Strap"     },
-          { zone: "Left Foot",   bodyRegion: "Left Leg",      riskLevel: "low",    recommendedMethod: "No Attachment Required" },
-        ],
-        poseComplexityScore: 82,
-        poseStabilityScore:  76,
-        movementRiskScore:   44,
-        accessoryLossRisk:   61,
+
+        product_family: productFamily,
+        articulation: articulation,
+        pose: pose,
+        product_weight_g: weightG,
+        height_cm: heightCm,
+        center_of_gravity: centerOfGravity,
+        hair_length: hairLength,
+        dress_length: dressLength,
+        accessory_count: selectedAccessories.length,
+        accessory_weight_g: selectedAccessories.reduce((acc, curr) => acc + curr.weight, 0),
+        selected_accessories: selectedAccessories.map((a) => a.name),
+        cvDetections: detections,
+
+        accessories: selectedAccessories.map((a) => a.name),
+        bodyRegions: ["Head", "Torso", "Arms", "Legs"],
+        attachmentZones: [],
+        poseComplexityScore: 0,
+        poseStabilityScore: 0,
+        movementRiskScore: 0,
+        accessoryLossRisk: 0,
       };
+      
       saveAnalysis(r);
-      setResult(r);
-      setStage("results");
-    }, 3600);
+      navigate({ to: "/app/packaging-planner" });
+    }, 4500);
   };
 
-  const handleReset = () => {
-    setStage("form"); setProductName(""); setSku(""); setCategory(CATEGORIES[0]);
-    setImageFile(null); setImageDataUrl(null); setProgress(0); setResult(null);
-  };
+  if (stage === "analysing") return (
+    <div className="space-y-6">
+      <PageHeader title="Computer Vision Inference" description="YOLOv8 is analyzing the image for strap locations..." />
+      <WorkflowBar steps={WORKFLOW_STEPS} />
+      <div className="flex min-h-[55vh] flex-col items-center justify-center gap-8">
+        <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-[color:var(--primary-soft)]">
+          <ScanLine className="h-10 w-10 animate-pulse text-primary" />
+          <div className="absolute inset-0 animate-ping rounded-full bg-primary/10" />
+        </div>
+        <div className="w-full max-w-md space-y-4 text-center">
+          <h2 className="text-xl font-semibold">Running PyTorch Model…</h2>
+          <p className="text-sm text-muted-foreground">Detecting optimal strap zones and extracting features.</p>
+          <Progress value={progress} className="h-2" />
+          <p className="text-xs text-muted-foreground">{progress}% complete</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
+          {ANALYSIS_STEPS.map((step, i) => (
+            <div key={step} className={`flex items-center gap-2 rounded-lg border border-border/70 px-3 py-2 text-xs transition ${progress >= (i + 1) * 20 ? "border-[color:var(--success)]/40 bg-[color:var(--success)]/5 text-[color:var(--success)]" : "text-muted-foreground"}`}>
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />{step}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 
-  // ─── Form ──────────────────────────────────────────────────────────────────
-  if (stage === "form") return (
+  return (
     <div className="space-y-6">
       <PageHeader
-        title="Pose & Doll Analysis"
-        description="Upload a doll image and enter product details — PackWise AI will detect body regions, attachment zones, and risk scores."
-        actions={<Badge variant="outline" className="border-border/70 font-normal"><Sparkles className="mr-1 h-3 w-3 text-primary" />AI-Powered</Badge>}
+        title="Product & CV Analysis"
+        description="Upload an image for the YOLO model to detect strap zones, and enter product details."
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={loadDemo}>
+              Load Demo Product
+            </Button>
+            <Badge variant="outline" className="border-border/70 font-normal"><Sparkles className="mr-1 h-3 w-3 text-primary" />AI-Powered</Badge>
+          </div>
+        }
       />
       <WorkflowBar steps={WORKFLOW_STEPS} />
 
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="space-y-5 lg:col-span-3">
-          {/* Product Details */}
-          <Card className="border-border/70 shadow-none">
-            <CardHeader>
-              <CardTitle className="text-base">Product Details</CardTitle>
-              <CardDescription>Enter the product information to identify the packaging context.</CardDescription>
+          
+          <Card className="border-border/70 shadow-none overflow-hidden">
+            <CardHeader className="bg-muted/30 pb-4 border-b flex flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="text-base">Provide Doll Image</CardTitle>
+                <CardDescription>Upload or capture a front-facing image for YOLO.</CardDescription>
+              </div>
+              <div className="flex bg-background border border-border/50 rounded-lg overflow-hidden">
+                <button 
+                  onClick={() => { if(isCameraActive) stopCamera(); }}
+                  className={`px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 ${!isCameraActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'}`}
+                >
+                  <Upload className="h-3.5 w-3.5" /> Upload
+                </button>
+                <button 
+                  onClick={startCamera}
+                  className={`px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 ${isCameraActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'}`}
+                >
+                  <Camera className="h-3.5 w-3.5" /> Camera
+                </button>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="product-name">Product Name</Label>
-                  <Input id="product-name" placeholder="e.g. Glamour Doll – Sparkle Edition" value={productName} onChange={(e) => setProductName(e.target.value)} />
+            <CardContent className="p-0">
+              {isCameraActive ? (
+                <div className="relative flex flex-col items-center bg-black min-h-[300px]">
+                  <video 
+                    ref={videoRef} 
+                    autoPlay 
+                    playsInline 
+                    className="max-h-[400px] w-full object-contain"
+                  />
+                  <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+                    <Button onClick={capturePhoto} className="rounded-full h-12 w-12 p-0 border-4 border-white/20 hover:border-white/40 bg-white hover:bg-gray-200">
+                      <div className="h-full w-full rounded-full bg-transparent" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="product-sku">SKU / Product Code</Label>
-                  <Input id="product-sku" placeholder="e.g. GD-SPK-2025" value={sku} onChange={(e) => setSku(e.target.value)} />
+              ) : (
+                <div className="p-6">
+                  <div onClick={() => fileRef.current?.click()}
+                    onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f?.type.startsWith("image/")) handleFile(f); }}
+                    onDragOver={(e) => e.preventDefault()}
+                    className="relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border/70 bg-muted/30 px-6 py-12 text-center transition hover:border-primary/50 hover:bg-[color:var(--primary-soft)]/30">
+                    {imageDataUrl ? (
+                      <div className="relative group">
+                        <img src={imageDataUrl} alt="Preview" className="max-h-48 rounded-lg object-contain" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                          <span className="text-white text-xs font-medium">Click to replace</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[color:var(--primary-soft)] text-primary">
+                          <Upload className="h-6 w-6" />
+                        </div>
+                        <p className="mt-3 text-sm font-medium">Drop your image here, or <span className="text-primary underline underline-offset-2">browse</span></p>
+                        <p className="mt-1 text-xs text-muted-foreground">PNG, JPG up to 10 MB</p>
+                      </>
+                    )}
+                    <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+                  </div>
+                  {imageFile && (
+                    <p className="mt-2 text-xs text-muted-foreground text-center">
+                      <CheckCircle2 className="mr-1 inline h-3.5 w-3.5 text-[color:var(--success)]" />
+                      {imageFile.name} ready for processing
+                    </p>
+                  )}
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="product-category">Product Category</Label>
-                <select id="product-category" value={category} onChange={(e) => setCategory(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
-                  {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Image Upload */}
-          <Card className="border-border/70 shadow-none">
-            <CardHeader>
-              <CardTitle className="text-base">Doll Image</CardTitle>
-              <CardDescription>Upload a clear front-facing photo. AI will detect body regions and pose geometry.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div onClick={() => fileRef.current?.click()}
-                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f?.type.startsWith("image/")) handleFile(f); }}
-                onDragOver={(e) => e.preventDefault()}
-                className="relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border/70 bg-muted/30 px-6 py-12 text-center transition hover:border-primary/50 hover:bg-[color:var(--primary-soft)]/30">
-                {imageDataUrl ? (
-                  <img src={imageDataUrl} alt="Preview" className="max-h-48 rounded-lg object-contain" />
-                ) : (
-                  <>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[color:var(--primary-soft)] text-primary">
-                      <Upload className="h-6 w-6" />
-                    </div>
-                    <p className="mt-3 text-sm font-medium">Drop your image here, or <span className="text-primary underline underline-offset-2">browse</span></p>
-                    <p className="mt-1 text-xs text-muted-foreground">PNG, JPG, WEBP up to 10 MB</p>
-                  </>
-                )}
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-              </div>
-              {imageFile && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  <CheckCircle2 className="mr-1 inline h-3.5 w-3.5 text-[color:var(--success)]" />
-                  {imageFile.name} ready for analysis
-                </p>
               )}
             </CardContent>
           </Card>
 
-          <Button size="lg" className="w-full" onClick={handleAnalyse} disabled={!productName.trim()}>
-            <ScanLine className="h-4 w-4" /> Run Pose & Doll Analysis
+          <Card className="border-border/70 shadow-none">
+            <CardHeader>
+              <CardTitle className="text-base">Product Identity</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Product Family</Label>
+                  <select value={productFamily} onChange={(e) => handleFamilyChange(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none">
+                    {productFamilies.map((f) => <option key={f.product_family} value={f.product_family}>{f.product_family}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Articulation</Label>
+                  <select value={articulation} onChange={(e) => setArticulation(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none">
+                    {Array.from(new Set(productFamilies.map(f => f.articulation))).map((a: any) => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Hair Length</Label>
+                  <select value={hairLength} onChange={(e) => setHairLength(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none">
+                    {["Short", "Medium", "Long", "Very Long"].map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Dress Length</Label>
+                  <select value={dressLength} onChange={(e) => setDressLength(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none">
+                    {["Short", "Knee", "Long"].map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Center of Gravity</Label>
+                  <select value={centerOfGravity} onChange={(e) => setCenterOfGravity(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none">
+                    {["Center", "Back", "Left"].map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/70 shadow-none">
+            <CardHeader>
+              <CardTitle className="text-base">Accessories</CardTitle>
+              <CardDescription>Select accessories to include. Weight and count will be calculated automatically.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Search Accessory Database</Label>
+                <Input placeholder="Type to search (e.g., Handbag)" value={accSearch} onChange={(e) => setAccSearch(e.target.value)} />
+                {accSearch && (
+                  <div className="mt-1 rounded-md border border-border p-2 max-h-40 overflow-y-auto">
+                    {masterAccessories
+                      .filter(a => a.accessory_name.toLowerCase().includes(accSearch.toLowerCase()))
+                      .map(a => (
+                        <div key={a.accessory_name} onClick={() => addAccessory(a)} className="cursor-pointer p-1.5 text-sm hover:bg-muted/50 rounded flex justify-between">
+                          <span>{a.accessory_name}</span>
+                          <span className="text-muted-foreground">{a.weight_g}g</span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              {selectedAccessories.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Selected Accessories</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedAccessories.map((acc, idx) => (
+                      <Badge key={idx} variant="secondary" className="flex items-center gap-1 bg-[color:var(--primary-soft)] text-primary">
+                        {acc.name} ({acc.weight}g)
+                        <X className="h-3 w-3 cursor-pointer hover:text-destructive" onClick={() => removeAccessory(idx)} />
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Button size="lg" className="w-full" onClick={handleAnalyse}>
+            <ScanLine className="mr-2 h-4 w-4" /> Run Computer Vision & Analytics
           </Button>
         </div>
 
-        {/* Info Panel */}
         <div className="space-y-4 lg:col-span-2">
           <Card className="border-border/70 shadow-none bg-[color:var(--primary-soft)]/40">
             <CardHeader>
               <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
                 <Brain className="h-4 w-4" />
               </div>
-              <CardTitle className="text-base mt-2">What AI detects</CardTitle>
+              <CardTitle className="text-base mt-2">YOLO Strap Detection</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                The integrated PyTorch YOLO model analyzes your uploaded image to detect ideal strap zones (e.g., Head Strap, Waist Strap).
+              </p>
               {[
-                { icon: ScanLine,     label: "Body Regions",      desc: "Head, torso, arms, legs — 6 primary zones mapped" },
-                { icon: Zap,          label: "Attachment Zones",   desc: "Specific points where attachment elements are required" },
-                { icon: Ruler,        label: "Pose Complexity",    desc: "0–100 score based on pose geometry and risk factors" },
-                { icon: ShieldAlert,  label: "Movement Risk",      desc: "Probability of pose distortion during shipping & display" },
-                { icon: AlertTriangle,label: "Accessory Loss Risk",desc: "Predicted loss probability per detected accessory" },
+                { icon: Brain, label: "PyTorch Inference", desc: "best_strap.pt running live on the backend." },
+                { icon: ShieldAlert, label: "Bounding Boxes", desc: "Coordinates and confidence scores are extracted and passed to the planner." },
+                { icon: ScanLine, label: "XGBoost Integration", desc: "CV results complement the XGBoost Packaging Recommendation models." }
               ].map(({ icon: Icon, label, desc }) => (
                 <div key={label} className="flex items-start gap-3">
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
@@ -244,232 +483,6 @@ function ProductAnalysisPage() {
                   </div>
                 </div>
               ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/70 shadow-none">
-            <CardContent className="p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recent Analyses</p>
-              <div className="mt-3 space-y-2">
-                {[
-                  { name: "Glamour Doll Ltd. Ed.", zones: 4, risk: "medium" },
-                  { name: "Action Hero Series 7",  zones: 3, risk: "high"   },
-                  { name: "Princess Castle Playset",zones: 6, risk: "low"   },
-                ].map((a) => (
-                  <div key={a.name} className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-foreground truncate">{a.name}</p>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Badge variant="secondary" className="text-[10px]">{a.zones} zones</Badge>
-                      <div className={`h-1.5 w-1.5 rounded-full ${RISK_DOT[a.risk]}`} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
-
-  // ─── Analysing ─────────────────────────────────────────────────────────────
-  if (stage === "analysing") return (
-    <div className="space-y-6">
-      <PageHeader title="Pose & Doll Analysis" description="AI is processing your doll image — this takes about 3 seconds." />
-      <WorkflowBar steps={WORKFLOW_STEPS} />
-      <div className="flex min-h-[55vh] flex-col items-center justify-center gap-8">
-        <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-[color:var(--primary-soft)]">
-          <ScanLine className="h-10 w-10 animate-pulse text-primary" />
-          <div className="absolute inset-0 animate-ping rounded-full bg-primary/10" />
-        </div>
-        <div className="w-full max-w-md space-y-4 text-center">
-          <h2 className="text-xl font-semibold">Analysing doll pose…</h2>
-          <p className="text-sm text-muted-foreground">Detecting body regions, mapping attachment zones, and computing risk scores.</p>
-          <Progress value={progress} className="h-2" />
-          <p className="text-xs text-muted-foreground">{progress}% complete</p>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {ANALYSIS_STEPS.map((step, i) => (
-            <div key={step} className={`flex items-center gap-2 rounded-lg border border-border/70 px-3 py-2 text-xs transition ${progress >= (i + 1) * 16 ? "border-[color:var(--success)]/40 bg-[color:var(--success)]/5 text-[color:var(--success)]" : "text-muted-foreground"}`}>
-              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />{step}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  // ─── Results ───────────────────────────────────────────────────────────────
-  if (!result) return null;
-
-  const riskLabel = (s: number) => s < 35 ? "Low" : s < 65 ? "Medium" : "High";
-  const riskBadge = (s: number) => s < 35 ? RISK_COLOR.low : s < 65 ? RISK_COLOR.medium : RISK_COLOR.high;
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Pose & Doll Analysis"
-        description={`Analysis complete for: ${result.productName}`}
-        actions={
-          <Button variant="outline" size="sm" onClick={handleReset}>
-            <RotateCcw className="h-4 w-4" /> New Analysis
-          </Button>
-        }
-      />
-      <WorkflowBar steps={[{ label: "Pose & Doll Analysis", active: true }, ...WORKFLOW_STEPS.slice(1)]} />
-
-      {/* KPI Row */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          { label: "Pose Complexity",    value: `${result.poseComplexityScore}/100`, sub: result.poseComplexityScore > 70 ? "High complexity" : "Moderate", color: "text-[color:var(--warning-foreground)]" },
-          { label: "Movement Risk",      value: `${result.movementRiskScore}/100`,   sub: riskLabel(result.movementRiskScore), color: result.movementRiskScore >= 65 ? "text-destructive" : result.movementRiskScore >= 35 ? "text-[color:var(--warning-foreground)]" : "text-[color:var(--success)]" },
-          { label: "Accessory Loss Risk",value: `${result.accessoryLossRisk}/100`,   sub: riskLabel(result.accessoryLossRisk), color: result.accessoryLossRisk >= 65 ? "text-destructive" : result.accessoryLossRisk >= 35 ? "text-[color:var(--warning-foreground)]" : "text-[color:var(--success)]" },
-          { label: "Pose Stability",     value: `${result.poseStabilityScore}/100`,  sub: result.poseStabilityScore >= 80 ? "Good" : "Needs improvement", color: result.poseStabilityScore >= 80 ? "text-[color:var(--success)]" : "text-[color:var(--warning-foreground)]" },
-        ].map(({ label, value, sub, color }) => (
-          <Card key={label} className="border-border/70 shadow-none">
-            <CardContent className="p-5">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-              <p className={`mt-1 text-2xl font-bold tracking-tight ${color}`}>{value}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-5">
-        {/* Left: Image + Accessories */}
-        <div className="space-y-4 lg:col-span-2">
-          <Card className="border-border/70 shadow-none">
-            <CardHeader><CardTitle className="text-base">Product Preview</CardTitle></CardHeader>
-            <CardContent>
-              {imageDataUrl ? (
-                <img src={imageDataUrl} alt={result.productName} className="w-full rounded-lg object-contain max-h-56" />
-              ) : (
-                <div className="flex h-48 items-center justify-center rounded-lg bg-[color:var(--primary-soft)]/40">
-                  <div className="text-center">
-                    <ImageIcon className="mx-auto h-10 w-10 text-primary/40" />
-                    <p className="mt-2 text-xs text-muted-foreground">No image uploaded</p>
-                    <p className="text-xs text-muted-foreground">Analysed from product data</p>
-                  </div>
-                </div>
-              )}
-              <div className="mt-4 space-y-1">
-                <p className="text-sm font-semibold">{result.productName}</p>
-                <p className="text-xs text-muted-foreground">{result.category} · {result.dimensions}</p>
-                <p className="text-xs text-muted-foreground">Analysed {new Date(result.analysedAt).toLocaleString()}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/70 shadow-none">
-            <CardHeader>
-              <CardTitle className="text-base">Detected Accessories</CardTitle>
-              <CardDescription>{result.accessories.length} items identified — see accessory loss risk below</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {result.accessories.map((a) => (
-                  <Badge key={a} variant="secondary" className="bg-[color:var(--primary-soft)] text-primary">{a}</Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/70 shadow-none">
-            <CardHeader>
-              <CardTitle className="text-base">Detected Body Regions</CardTitle>
-              <CardDescription>{result.bodyRegions.length} regions mapped</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {result.bodyRegions.map((r) => (
-                  <Badge key={r} variant="outline" className="border-border/70 text-xs font-normal">{r}</Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right: Zones + Insights */}
-        <div className="space-y-4 lg:col-span-3">
-          <Card className="border-border/70 shadow-none">
-            <CardHeader>
-              <CardTitle className="text-base">Attachment Zones</CardTitle>
-              <CardDescription>AI-identified zones requiring attachment elements, sorted by risk level.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {result.attachmentZones.map((z: AttachmentZone) => (
-                  <div key={z.zone} className="flex items-center gap-3 rounded-lg border border-border/60 p-3">
-                    <div className={`h-2.5 w-2.5 shrink-0 rounded-full ${RISK_DOT[z.riskLevel]}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold">{z.zone}</p>
-                        <Badge variant="outline" className={`text-[10px] font-medium ${RISK_COLOR[z.riskLevel]}`}>
-                          {z.riskLevel} risk
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{z.bodyRegion}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xs font-medium text-foreground">{z.recommendedMethod}</p>
-                      <p className="text-[10px] text-muted-foreground">AI recommended</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Score Breakdown */}
-          <Card className="border-border/70 shadow-none">
-            <CardHeader>
-              <CardTitle className="text-base">Score Breakdown</CardTitle>
-              <CardDescription>AI-computed scores across pose quality dimensions.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <ScoreBar label="Pose Complexity"     value={result.poseComplexityScore} color="bg-[color:var(--warning)]" />
-              <ScoreBar label="Movement Risk"        value={result.movementRiskScore}   color="bg-[color:var(--chart-3)]" />
-              <ScoreBar label="Accessory Loss Risk"  value={result.accessoryLossRisk}   color="bg-[color:var(--chart-4)]" />
-              <ScoreBar label="Pose Stability"       value={result.poseStabilityScore}  color="bg-[color:var(--success)]" />
-            </CardContent>
-          </Card>
-
-          {/* AI Insights */}
-          <Card className="border-[color:var(--primary)]/20 bg-[color:var(--primary-soft)]/30 shadow-none">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                  <Brain className="h-3.5 w-3.5" />
-                </div>
-                <CardTitle className="text-base">AI Insights</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {[
-                { level: "high",   text: "High movement risk at Right Wrist — elevated pose angle increases displacement probability. EVA strap recommended." },
-                { level: "medium", text: "Hair zone shows medium risk due to styling height. Elastic strap will maintain pose without damaging styling texture." },
-                { level: "low",    text: "Waist region is geometrically stable. PET support provides sufficient attachment at minimal material cost." },
-                { level: "medium", text: "Crown accessory has 81% predicted loss risk. Consider dedicated blister support or compartment for this item." },
-              ].map((ins, i) => (
-                <div key={i} className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-background p-3">
-                  <div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${RISK_DOT[ins.level]}`} />
-                  <p className="text-xs leading-relaxed text-foreground">{ins.text}</p>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* CTA */}
-          <Card className="border-[color:var(--primary)]/30 bg-[color:var(--primary-soft)]/50 shadow-none">
-            <CardContent className="flex items-center justify-between gap-4 p-5">
-              <div>
-                <p className="text-sm font-semibold">Ready to generate an attachment plan?</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">AI will assign an attachment method to each identified zone.</p>
-              </div>
-              <Button size="sm" onClick={() => navigate({ to: "/app/packaging-planner" })} className="shrink-0">
-                Attachment Planner <ChevronRight className="h-4 w-4" />
-              </Button>
             </CardContent>
           </Card>
         </div>
