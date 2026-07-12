@@ -1,0 +1,99 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="d1" name="1. Auth &amp; Account Flow">
+    <mxGraphModel pageWidth="1100" pageHeight="1700"><root>
+      <mxCell id="0"/><mxCell id="1" parent="0"/>
+      <mxCell id="a" value="Admin wants to create a new account" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1"><mxGeometry x="240" y="20" width="220" height="50" as="geometry"/></mxCell>
+      <mxCell id="b" value="Admin inputs Email, Name, Role, Password" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="240" y="110" width="220" height="60" as="geometry"/></mxCell>
+      <mxCell id="c" value="System hashes password &amp; saves user to database" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="240" y="220" width="220" height="60" as="geometry"/></mxCell>
+      <mxCell id="d" value="PE / PM logs in" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1"><mxGeometry x="275" y="330" width="150" height="50" as="geometry"/></mxCell>
+      <mxCell id="e" value="PE/PM logs in with Email + Password" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="240" y="430" width="220" height="60" as="geometry"/></mxCell>
+      <mxCell id="f" value="Are credentials valid?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="270" y="550" width="160" height="70" as="geometry"/></mxCell>
+      <mxCell id="g" value="Redirect to Dashboard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="60" y="690" width="190" height="60" as="geometry"/></mxCell>
+      <mxCell id="h" value="Display error message" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="460" y="690" width="190" height="60" as="geometry"/></mxCell>
+      <mxCell id="p" value="Does user want to change password?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="45" y="820" width="220" height="80" as="geometry"/></mxCell>
+      <mxCell id="i" value="User goes to Settings → Change Password" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="35" y="970" width="220" height="60" as="geometry"/></mxCell>
+      <mxCell id="j" value="User inputs Current Password + New Password" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="35" y="1080" width="220" height="60" as="geometry"/></mxCell>
+      <mxCell id="k" value="System updates password hash in database" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="35" y="1190" width="220" height="60" as="geometry"/></mxCell>
+      <mxCell id="l" value="Done – user ready to use the system" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="35" y="1310" width="220" height="55" as="geometry"/></mxCell>
+      <mxCell id="m" value="User reports to Admin offline / via chat" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="590" y="450" width="210" height="65" as="geometry"/></mxCell>
+      <mxCell id="n" value="Admin searches user in User Management, clicks Reset Password" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="590" y="575" width="210" height="80" as="geometry"/></mxCell>
+      <mxCell id="o" value="Admin creates new Password &amp; gives it to user" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="590" y="715" width="210" height="65" as="geometry"/></mxCell>
+      <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="a" target="b" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="b" target="c" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="c" target="d" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="d" target="e" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="e" target="f" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e6" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0;exitY=0.5;exitPerimeter=0;" edge="1" source="f" target="g" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e7" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;exitPerimeter=0;" edge="1" source="f" target="h" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;" edge="1" source="h" target="e" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="g" target="p" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e10" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;exitPerimeter=0;" edge="1" source="p" target="l" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e11" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=1;exitPerimeter=0;" edge="1" source="p" target="i" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="i" target="j" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="j" target="k" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="k" target="l" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e15" value="forgot password" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;exitX=1;exitY=0.5;exitPerimeter=0;" edge="1" source="e" target="m" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e16" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="m" target="n" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e17" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="n" target="o" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e18" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;" edge="1" source="o" target="e" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    </root></mxGraphModel>
+  </diagram>
+  <diagram id="d2" name="2. Packing Engineer Flow">
+    <mxGraphModel pageWidth="900" pageHeight="1500"><root>
+      <mxCell id="0"/><mxCell id="1" parent="0"/>
+      <mxCell id="a" value="PE starts a new plan" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1"><mxGeometry x="240" y="20" width="220" height="50" as="geometry"/></mxCell>
+      <mxCell id="b" value="PE creates New Packaging Plan &amp; uploads prototype photo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="240" y="110" width="220" height="65" as="geometry"/></mxCell>
+      <mxCell id="c" value="PE fills metadata checkboxes (Long Hair, Detachable Accessories, etc)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="240" y="225" width="220" height="70" as="geometry"/></mxCell>
+      <mxCell id="d" value="YOLO model detects 4 joint targets: Neck, Waist, Wrist, Ankle" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="240" y="345" width="220" height="70" as="geometry"/></mxCell>
+      <mxCell id="e" value="System generates bounding boxes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="240" y="465" width="220" height="60" as="geometry"/></mxCell>
+      <mxCell id="f" value="System calculates estimated cost (bounding boxes × strap price + additional costs)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="240" y="575" width="220" height="80" as="geometry"/></mxCell>
+      <mxCell id="g" value="PE reviews bounding boxes &amp; cost estimation on screen" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="240" y="705" width="220" height="70" as="geometry"/></mxCell>
+      <mxCell id="h" value="Is AI detection accurate?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="270" y="835" width="160" height="75" as="geometry"/></mxCell>
+      <mxCell id="ii" value="PE clicks Submit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="60" y="980" width="190" height="60" as="geometry"/></mxCell>
+      <mxCell id="jj" value="PE manually adjusts: add / delete / reposition boxes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="440" y="975" width="220" height="70" as="geometry"/></mxCell>
+      <mxCell id="kk" value="System saves plan, status = Pending Approval" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="50" y="1095" width="210" height="70" as="geometry"/></mxCell>
+      <mxCell id="ll" value="Plan enters PM queue" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="75" y="1225" width="175" height="50" as="geometry"/></mxCell>
+      <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="a" target="b" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="b" target="c" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="c" target="d" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="d" target="e" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="e" target="f" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="f" target="g" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="g" target="h" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e8" value="Yes" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0;exitY=0.5;exitPerimeter=0;" edge="1" source="h" target="ii" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e9" value="No" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;exitPerimeter=0;" edge="1" source="h" target="jj" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;" edge="1" source="jj" target="g" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="ii" target="kk" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="kk" target="ll" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    </root></mxGraphModel>
+  </diagram>
+  <diagram id="d3" name="3. PM Approval Flow">
+    <mxGraphModel pageWidth="900" pageHeight="1200"><root>
+      <mxCell id="0"/><mxCell id="1" parent="0"/>
+      <mxCell id="a" value="PM opens approval menu" style="ellipse;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1"><mxGeometry x="250" y="20" width="200" height="50" as="geometry"/></mxCell>
+      <mxCell id="b" value="PM opens Pending Approvals menu" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="240" y="110" width="220" height="60" as="geometry"/></mxCell>
+      <mxCell id="c" value="PM selects the document submitted by PE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="240" y="220" width="220" height="70" as="geometry"/></mxCell>
+      <mxCell id="d" value="PM reviews AI detection, metadata, &amp; cost breakdown" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="240" y="340" width="220" height="75" as="geometry"/></mxCell>
+      <mxCell id="ee" value="Is the plan approved?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="270" y="475" width="160" height="75" as="geometry"/></mxCell>
+      <mxCell id="f" value="PM clicks Approve" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="60" y="620" width="190" height="60" as="geometry"/></mxCell>
+      <mxCell id="g" value="Status = Finalized / Approved, data is locked" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="35" y="740" width="235" height="70" as="geometry"/></mxCell>
+      <mxCell id="hh" value="Ready for report generation &amp; production" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="45" y="870" width="210" height="70" as="geometry"/></mxCell>
+      <mxCell id="ii" value="Done" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="85" y="1000" width="160" height="50" as="geometry"/></mxCell>
+      <mxCell id="j" value="PM clicks Reject &amp; inputs revision notes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="445" y="620" width="220" height="75" as="geometry"/></mxCell>
+      <mxCell id="k" value="Status = Rejected / Need Revision" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="445" y="745" width="220" height="70" as="geometry"/></mxCell>
+      <mxCell id="l" value="PE revises plan &amp; resubmits (back to Flow 2)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1"><mxGeometry x="430" y="875" width="240" height="75" as="geometry"/></mxCell>
+      <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="a" target="b" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="b" target="c" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="c" target="d" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="d" target="ee" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e5" value="Approve" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0;exitY=0.5;exitPerimeter=0;" edge="1" source="ee" target="f" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e6" value="Reject" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;exitPerimeter=0;" edge="1" source="ee" target="j" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="f" target="g" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="g" target="hh" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="hh" target="ii" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="j" target="k" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;html=1;" edge="1" source="k" target="l" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="e12" value="resubmitted plan" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;exitX=1;exitY=0.5;exitPerimeter=0;entryX=1;entryY=0.5;entryPerimeter=0;" edge="1" source="l" target="d" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    </root></mxGraphModel>
+  </diagram>
+</mxfile>

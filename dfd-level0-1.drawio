@@ -1,0 +1,72 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="dfd0" name="DFD Level 0 – Context Diagram">
+    <mxGraphModel pageWidth="950" pageHeight="700"><root>
+      <mxCell id="0"/><mxCell id="1" parent="0"/>
+      <mxCell id="sys" value="0&#xa;PackWise AI System" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="325" y="270" width="260" height="120" as="geometry"/></mxCell>
+      <mxCell id="e_admin" value="Admin" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#333333;fontStyle=1;fontSize=12;" vertex="1" parent="1"><mxGeometry x="60" y="60" width="130" height="50" as="geometry"/></mxCell>
+      <mxCell id="e_pe" value="Packing Engineer" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#333333;fontStyle=1;fontSize=12;" vertex="1" parent="1"><mxGeometry x="60" y="560" width="150" height="50" as="geometry"/></mxCell>
+      <mxCell id="e_pm" value="Product Manager" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#333333;fontStyle=1;fontSize=12;" vertex="1" parent="1"><mxGeometry x="730" y="60" width="150" height="50" as="geometry"/></mxCell>
+      <mxCell id="e_ai" value="YOLO AI Model" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#333333;fontStyle=1;fontSize=12;" vertex="1" parent="1"><mxGeometry x="730" y="560" width="140" height="50" as="geometry"/></mxCell>
+      <mxCell id="f1" value="User data, role assignment" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="e_admin" target="sys" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f2" value="Confirmation, reports" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="sys" target="e_admin" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f3" value="Login, plan data, prototype photo, adjustments" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="e_pe" target="sys" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f4" value="AI results, cost estimation, approval status" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="sys" target="e_pe" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f5" value="Login, approval decision, revision notes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="e_pm" target="sys" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f6" value="Pending plans, plan details, reports" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="sys" target="e_pm" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f7" value="Detection results (joint targets)" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="e_ai" target="sys" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f8" value="Prototype image" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="sys" target="e_ai" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    </root></mxGraphModel>
+  </diagram>
+
+  <diagram id="dfd1" name="DFD Level 1 – Main Processes">
+    <mxGraphModel pageWidth="1300" pageHeight="950"><root>
+      <mxCell id="0"/><mxCell id="1" parent="0"/>
+      <!-- EXTERNAL ENTITIES -->
+      <mxCell id="e_adm" value="Admin" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1"><mxGeometry x="30" y="60" width="110" height="45" as="geometry"/></mxCell>
+      <mxCell id="e_pe2" value="Packing Engineer" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1"><mxGeometry x="30" y="650" width="130" height="45" as="geometry"/></mxCell>
+      <mxCell id="e_pm2" value="Product Manager" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1130" y="400" width="130" height="45" as="geometry"/></mxCell>
+      <mxCell id="e_ai2" value="YOLO AI Model" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#333333;fontStyle=1;fontSize=11;" vertex="1" parent="1"><mxGeometry x="1130" y="120" width="120" height="45" as="geometry"/></mxCell>
+      <!-- DATA STORES -->
+      <mxCell id="d1" value="D1  User Database" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1"><mxGeometry x="30" y="310" width="170" height="38" as="geometry"/></mxCell>
+      <mxCell id="d2" value="D2  Packaging Plan" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1"><mxGeometry x="430" y="160" width="170" height="38" as="geometry"/></mxCell>
+      <mxCell id="d3" value="D3  Bounding Boxes" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1"><mxGeometry x="800" y="160" width="170" height="38" as="geometry"/></mxCell>
+      <mxCell id="d4" value="D4  Cost Estimation" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1"><mxGeometry x="800" y="560" width="165" height="38" as="geometry"/></mxCell>
+      <mxCell id="d5" value="D5  Approval Records" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1"><mxGeometry x="430" y="760" width="170" height="38" as="geometry"/></mxCell>
+      <!-- PROCESSES -->
+      <mxCell id="p1" value="1.0&#xa;User Authentication" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1"><mxGeometry x="220" y="60" width="175" height="70" as="geometry"/></mxCell>
+      <mxCell id="p2" value="2.0&#xa;User Management" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1"><mxGeometry x="220" y="280" width="175" height="70" as="geometry"/></mxCell>
+      <mxCell id="p3" value="3.0&#xa;Plan Management" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1"><mxGeometry x="500" y="380" width="175" height="70" as="geometry"/></mxCell>
+      <mxCell id="p4" value="4.0&#xa;AI Detection &amp;&#xa;Analysis" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1"><mxGeometry x="850" y="280" width="175" height="80" as="geometry"/></mxCell>
+      <mxCell id="p5" value="5.0&#xa;Approval Management" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1"><mxGeometry x="850" y="500" width="175" height="70" as="geometry"/></mxCell>
+      <mxCell id="p6" value="6.0&#xa;Report Generation" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1"><mxGeometry x="500" y="650" width="175" height="70" as="geometry"/></mxCell>
+      <!-- FLOWS: Admin -->
+      <mxCell id="f10" value="credentials" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="e_adm" target="p1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f11" value="new user data" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="e_adm" target="p2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f12" value="user record" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="p2" target="d1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <!-- FLOWS: Auth -->
+      <mxCell id="f13" value="user lookup" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="d1" target="p1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <!-- FLOWS: PE -->
+      <mxCell id="f14" value="credentials" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="e_pe2" target="p1" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f15" value="plan data, photo, metadata" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="e_pe2" target="p3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f16" value="plan record" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="p3" target="d2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f17" value="prototype image" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="p3" target="p4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f18" value="image to analyse" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="p4" target="e_ai2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f19" value="detection results" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="e_ai2" target="p4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f20" value="bounding boxes" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="p4" target="d3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f21" value="cost record" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="p4" target="d4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f22" value="AI results, cost" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="p4" target="p3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f23" value="AI results, cost" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="p3" target="e_pe2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <!-- FLOWS: Submit + Approval -->
+      <mxCell id="f24" value="submitted plan" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="p3" target="p5" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f25" value="approval decision" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="e_pm2" target="p5" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f26" value="plan details" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="p5" target="e_pm2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f27" value="approval record" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="p5" target="d5" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f28" value="approval status" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="p5" target="p3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <!-- FLOWS: Reports -->
+      <mxCell id="f29" value="report request" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="e_pe2" target="p6" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f30" value="report request" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="e_pm2" target="p6" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f31" value="plan data" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="d2" target="p6" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <mxCell id="f32" value="approval data" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=9;" edge="1" source="d5" target="p6" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    </root></mxGraphModel>
+  </diagram>
+</mxfile>

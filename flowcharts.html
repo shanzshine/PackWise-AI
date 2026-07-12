@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PackWise AI – System Flowcharts</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f4f6fb;
+      color: #1a1d2e;
+      padding: 48px 32px;
+    }
+
+    h1.doc-title {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1a1d2e;
+      margin-bottom: 48px;
+      letter-spacing: -0.3px;
+    }
+
+    .chart-section {
+      background: #ffffff;
+      border: 1px solid #e2e6f0;
+      border-radius: 16px;
+      padding: 40px 32px;
+      margin-bottom: 40px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+
+    .chart-section h2 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 32px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e2e6f0;
+      letter-spacing: 0.1px;
+    }
+
+    .mermaid {
+      display: flex;
+      justify-content: center;
+      overflow-x: auto;
+    }
+
+    .mermaid svg {
+      max-width: 100%;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <h1 class="doc-title">PackWise AI — System Flowcharts</h1>
+
+  <!-- Flow 1 -->
+  <div class="chart-section">
+    <h2>1. Authentication &amp; Account Flow</h2>
+    <div class="mermaid">
+%%{init: {"flowchart": {"curve": "linear", "nodeSpacing": 50, "rankSpacing": 60}} }%%
+flowchart TD
+    A([Admin wants to create a new account])
+    --> B["Admin inputs Email, Name, Role, Password"]
+    --> C["System hashes password & saves user to database"]
+    --> D([PE / PM logs in])
+    --> E["PE/PM logs in with Email + Password"]
+
+    E --> F{Are credentials valid?}
+    F -- Yes --> G["Redirect to Dashboard"]
+    F -- No --> H["Display error message"]
+    H --> E
+
+    G --> P{"Does user want to change password?"}
+    P -- No --> L([Done – user is ready to use the system])
+    P -- Yes --> I["User goes to Settings → Change Password"]
+    --> J["User inputs Current Password + New Password"]
+    --> K["System updates password hash in database"]
+    --> L
+
+    E -. forgot password .-> M["User reports to Admin offline / via chat"]
+    --> N["Admin searches user in User Management,\nclicks Reset Password"]
+    --> O["Admin creates new Password & gives it to user"]
+    --> E
+    </div>
+  </div>
+
+  <!-- Flow 2 -->
+  <div class="chart-section">
+    <h2>2. Packing Engineer Flow (AI &amp; Calculation)</h2>
+    <div class="mermaid">
+%%{init: {"flowchart": {"curve": "linear", "nodeSpacing": 50, "rankSpacing": 60}} }%%
+flowchart TD
+    A([PE starts a new plan])
+    --> B["PE creates New Packaging Plan & uploads prototype photo"]
+    --> C["PE fills metadata checkboxes\n(Long Hair, Detachable Accessories, etc)"]
+    --> D["YOLO model detects 4 joint targets:\nNeck, Waist, Wrist, Ankle"]
+    --> E["System generates bounding boxes"]
+    --> F["System calculates estimated cost\n(bounding boxes × strap price + additional costs)"]
+    --> G["PE reviews bounding boxes & cost estimation on screen"]
+    --> H{Is AI detection accurate?}
+
+    H -- Yes --> I["PE clicks Submit"]
+    H -- No --> J["PE manually adjusts:\nadd / delete / reposition boxes"]
+    J --> G
+
+    I --> K["System saves plan, status = Pending Approval"]
+    --> L([Plan enters PM queue])
+    </div>
+  </div>
+
+  <!-- Flow 3 -->
+  <div class="chart-section">
+    <h2>3. Product Manager Approval Flow</h2>
+    <div class="mermaid">
+%%{init: {"flowchart": {"curve": "linear", "nodeSpacing": 50, "rankSpacing": 60}} }%%
+flowchart TD
+    A([PM opens approval menu])
+    --> B["PM opens Pending Approvals menu"]
+    --> C["PM selects the document submitted by PE"]
+    --> D["PM reviews AI detection, metadata, & cost breakdown"]
+    --> E{Is the plan approved?}
+
+    E -- Approve --> F["PM clicks Approve"]
+    --> G["Status = Finalized / Approved, data is locked"]
+    --> H["Ready for report generation & production"]
+    --> I([Done])
+
+    E -- Reject --> J["PM clicks Reject & inputs revision notes"]
+    --> K["Status = Rejected / Need Revision"]
+    --> L["PE revises plan & resubmits (back to Flow 2)"]
+    -. resubmitted plan .-> D
+    </div>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      themeVariables: {
+        primaryColor: '#dbeafe',
+        primaryTextColor: '#1e3a5f',
+        primaryBorderColor: '#93c5fd',
+        lineColor: '#6b7280',
+        secondaryColor: '#fef3c7',
+        tertiaryColor: '#f0fdf4',
+        fontFamily: 'Inter, sans-serif',
+        fontSize: '14px',
+      },
+      flowchart: {
+        curve: 'linear',
+        nodeSpacing: 50,
+        rankSpacing: 65,
+        useMaxWidth: true,
+      }
+    });
+  </script>
+</body>
+</html>

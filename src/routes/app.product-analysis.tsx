@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 import { Progress } from "@/components/ui/progress";
 import { saveAnalysis, type AnalysisResult } from "@/lib/workflow-store";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/app/product-analysis")({
   head: () => ({ meta: [{ title: "Pose & Doll Analysis — PackWise AI" }] }),
@@ -58,6 +59,12 @@ function ProductAnalysisPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<Stage>("form");
   const [progress, setProgress] = useState(0);
+  const [poseStatus, setPoseStatus] = useState<{left_arm_up: boolean, right_arm_up: boolean} | null>(null);
+  const [detectedPoses, setDetectedPoses] = useState<string[]>([]);
+  const [detectedStraps, setDetectedStraps] = useState<{class_name: string, confidence: number, box?: any}[]>([]);
+  const [annotatedImage, setAnnotatedImage] = useState<string | null>(null);
+  const [rawKeypoints, setRawKeypoints] = useState<any[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Image Upload
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -202,10 +209,19 @@ function ProductAnalysisPage() {
             });
             if (res.ok) {
                 const cvData = await res.json();
-                if (cvData.detections) {
-                    detections = cvData.detections;
-                    console.log("YOLO Strap Detections:", detections);
+                if (cvData.detected_straps) {
+                    detections = cvData.detected_straps;
+                    console.log("YOLO Detections:", detections);
                 }
+                if (cvData.pose_status) setPoseStatus(cvData.pose_status);
+                if (cvData.detected_poses) setDetectedPoses(cvData.detected_poses);
+                if (cvData.detected_straps) setDetectedStraps(cvData.detected_straps);
+                if (cvData.raw_keypoints) setRawKeypoints(cvData.raw_keypoints);
+                if (cvData.image_base64) setAnnotatedImage(cvData.image_base64);
+                
+                // Switch to results stage after progress finishes
+                setTimeout(() => setStage("results"), 4200); 
+                return;
             }
         } catch (e) {
             console.error("YOLO CV failed", e);
@@ -247,6 +263,144 @@ function ProductAnalysisPage() {
       navigate({ to: "/app/packaging-planner" });
     }, 4500);
   };
+
+  const handleContinue = async () => {
+    setIsSaving(true);
+    
+    // Save to Supabase (Database Temanmu)
+    try {
+      const { error } = await supabase.from('product_analyses').insert([
+        {
+          product_name: `${productFamily} Doll`,
+          detected_poses: detectedPoses,
+          raw_keypoints: rawKeypoints
+        }
+      ]);
+      
+      if (error) {
+        console.error("Supabase Error:", error);
+        alert("Gagal simpan ke Supabase! (Cek Console) Apakah tabelnya sudah dibuat temanmu?");
+      } else {
+        console.log("Sukses! 17 Titik YOLO dan Pose tersimpan di Supabase.");
+      }
+    } catch (err) {
+      console.error("Supabase Exception:", err);
+    }
+    
+    setIsSaving(false);
+
+    const r: AnalysisResult = {
+      productName: `${productFamily} Doll`,
+      category: "Fashion Doll",
+      imageDataUrl: imageDataUrl,
+      productType: "Doll",
+      dimensions: `${heightCm}cm`,
+      analysedAt: new Date().toISOString(),
+
+      product_family: productFamily,
+      articulation: articulation,
+      pose: poseStatus ? (poseStatus.left_arm_up || poseStatus.right_arm_up ? "Arms Up" : "Arms Down") : pose,
+      product_weight_g: weightG,
+      height_cm: heightCm,
+      center_of_gravity: centerOfGravity,
+      hair_length: hairLength,
+      dress_length: dressLength,
+      accessory_count: selectedAccessories.length,
+      accessory_weight_g: selectedAccessories.reduce((acc, curr) => acc + curr.weight, 0),
+      selected_accessories: selectedAccessories.map((a) => a.name),
+      cvDetections: detectedStraps,
+
+      accessories: selectedAccessories.map((a) => a.name),
+      bodyRegions: ["Head", "Torso", "Arms", "Legs"],
+      attachmentZones: [],
+      poseComplexityScore: 0,
+      poseStabilityScore: 0,
+      movementRiskScore: 0,
+      accessoryLossRisk: 0,
+    };
+    saveAnalysis(r);
+    navigate({ to: "/app/packaging-planner" });
+  };
+
+  if (stage === "results") return (
+    <div className="space-y-6">
+      <PageHeader title="Analysis Complete" description="Review the detected pose and YOLOv8 skeleton visualization." />
+      <WorkflowBar steps={WORKFLOW_STEPS} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+         <Card className="border-border/70 shadow-none">
+            <CardHeader><CardTitle className="text-base">Skeleton Pose Visualization</CardTitle></CardHeader>
+            <CardContent className="flex justify-center p-4 bg-muted/20">
+               {annotatedImage ? (
+                   <img src={annotatedImage} alt="Annotated" className="max-h-96 rounded-lg object-contain border shadow-sm" />
+               ) : (
+                   <div className="flex items-center justify-center h-48 w-full bg-muted/50 rounded-lg text-muted-foreground text-sm">Image not available</div>
+               )}
+            </CardContent>
+         </Card>
+         <Card className="border-border/70 shadow-none">
+            <CardHeader>
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[color:var(--success)] text-white mb-2">
+                <CheckCircle2 className="h-4 w-4" />
+              </div>
+              <CardTitle className="text-base">Raw AI Detections (As-Is State)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex flex-wrap gap-2 mb-2">
+                    {detectedPoses.length > 0 ? detectedPoses.map(pose => (
+                        <Badge key={pose} variant="default" className="text-sm px-3 py-1 bg-[color:var(--primary-soft)] text-primary border-transparent">
+                            {pose}
+                        </Badge>
+                    )) : (
+                        <span className="text-sm text-muted-foreground">No specific pose detected.</span>
+                    )}
+                </div>
+                
+                <div className="pt-2 pb-2 border-t border-border/60 mt-2">
+                    <h4 className="text-sm font-medium mb-3 text-foreground flex items-center gap-2"><ScanLine className="h-4 w-4 text-primary" /> Detected Straps (YOLOv8)</h4>
+                    <div className="flex flex-wrap gap-2">
+                        {detectedStraps && detectedStraps.length > 0 ? detectedStraps.map((strap, idx) => (
+                            <Badge key={idx} variant="outline" className="text-sm px-3 py-1 border-[color:var(--primary)] text-primary bg-[color:var(--primary-soft)]/30">
+                                {strap.class_name.replace('_', ' ').toUpperCase()} ({(strap.confidence * 100).toFixed(0)}%)
+                            </Badge>
+                        )) : (
+                            <span className="text-sm text-muted-foreground">No straps detected.</span>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex justify-between items-center p-3 border border-border/60 rounded-lg bg-background">
+                    <span className="text-sm font-medium">Left Arm Raised</span>
+                    <Badge variant={poseStatus?.left_arm_up ? "default" : "secondary"}>
+                        {poseStatus?.left_arm_up ? "Yes" : "No"}
+                    </Badge>
+                </div>
+                <div className="flex justify-between items-center p-3 border border-border/60 rounded-lg bg-background">
+                    <span className="text-sm font-medium">Right Arm Raised</span>
+                    <Badge variant={poseStatus?.right_arm_up ? "default" : "secondary"}>
+                        {poseStatus?.right_arm_up ? "Yes" : "No"}
+                    </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  * Calculated mathematically by comparing relative distances between wrists, shoulders, and hips.
+                </p>
+                <div className="pt-4 flex gap-3">
+                  <Button variant="outline" className="w-full" onClick={() => {
+                    setStage("form");
+                    setAnnotatedImage(null);
+                    setImageDataUrl(null);
+                    setImageFile(null);
+                  }}>
+                    <RotateCcw className="mr-2 h-4 w-4" /> Re-upload Image
+                  </Button>
+                  <Button className="w-full" onClick={handleContinue} disabled={isSaving}>
+                    {isSaving ? "Saving..." : "Proceed to Planner"} <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+            </CardContent>
+         </Card>
+      </div>
+    </div>
+  );
 
   if (stage === "analysing") return (
     <div className="space-y-6">

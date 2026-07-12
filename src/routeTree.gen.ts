@@ -26,6 +26,7 @@ import { Route as AppPackagingPreviewRouteImport } from './routes/app.packaging-
 import { Route as AppPackagingPlannerRouteImport } from './routes/app.packaging-planner'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppCostAnalysisRouteImport } from './routes/app.cost-analysis'
+import { Route as AppAssemblyCalculatorRouteImport } from './routes/app.assembly-calculator'
 import { Route as AppApprovalsRouteImport } from './routes/app.approvals'
 import { Route as AppApprovalsIdRouteImport } from './routes/app.approvals.$id'
 
@@ -114,6 +115,11 @@ const AppCostAnalysisRoute = AppCostAnalysisRouteImport.update({
   path: '/cost-analysis',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAssemblyCalculatorRoute = AppAssemblyCalculatorRouteImport.update({
+  id: '/assembly-calculator',
+  path: '/assembly-calculator',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppApprovalsRoute = AppApprovalsRouteImport.update({
   id: '/approvals',
   path: '/approvals',
@@ -130,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/app/approvals': typeof AppApprovalsRouteWithChildren
+  '/app/assembly-calculator': typeof AppAssemblyCalculatorRoute
   '/app/cost-analysis': typeof AppCostAnalysisRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/packaging-planner': typeof AppPackagingPlannerRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/app/approvals': typeof AppApprovalsRouteWithChildren
+  '/app/assembly-calculator': typeof AppAssemblyCalculatorRoute
   '/app/cost-analysis': typeof AppCostAnalysisRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/packaging-planner': typeof AppPackagingPlannerRoute
@@ -172,6 +180,7 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/app/approvals': typeof AppApprovalsRouteWithChildren
+  '/app/assembly-calculator': typeof AppAssemblyCalculatorRoute
   '/app/cost-analysis': typeof AppCostAnalysisRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/packaging-planner': typeof AppPackagingPlannerRoute
@@ -195,6 +204,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/login'
     | '/app/approvals'
+    | '/app/assembly-calculator'
     | '/app/cost-analysis'
     | '/app/dashboard'
     | '/app/packaging-planner'
@@ -215,6 +225,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/app/approvals'
+    | '/app/assembly-calculator'
     | '/app/cost-analysis'
     | '/app/dashboard'
     | '/app/packaging-planner'
@@ -236,6 +247,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/login'
     | '/app/approvals'
+    | '/app/assembly-calculator'
     | '/app/cost-analysis'
     | '/app/dashboard'
     | '/app/packaging-planner'
@@ -380,6 +392,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCostAnalysisRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/assembly-calculator': {
+      id: '/app/assembly-calculator'
+      path: '/assembly-calculator'
+      fullPath: '/app/assembly-calculator'
+      preLoaderRoute: typeof AppAssemblyCalculatorRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/approvals': {
       id: '/app/approvals'
       path: '/approvals'
@@ -411,6 +430,7 @@ const AppApprovalsRouteWithChildren = AppApprovalsRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppApprovalsRoute: typeof AppApprovalsRouteWithChildren
+  AppAssemblyCalculatorRoute: typeof AppAssemblyCalculatorRoute
   AppCostAnalysisRoute: typeof AppCostAnalysisRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppPackagingPlannerRoute: typeof AppPackagingPlannerRoute
@@ -429,6 +449,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppApprovalsRoute: AppApprovalsRouteWithChildren,
+  AppAssemblyCalculatorRoute: AppAssemblyCalculatorRoute,
   AppCostAnalysisRoute: AppCostAnalysisRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppPackagingPlannerRoute: AppPackagingPlannerRoute,

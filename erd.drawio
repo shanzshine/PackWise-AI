@@ -1,0 +1,48 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="erd1" name="ERD – PackWise AI">
+    <mxGraphModel pageWidth="1400" pageHeight="1000"><root>
+      <mxCell id="0"/><mxCell id="1" parent="0"/>
+
+      <!-- USER -->
+      <mxCell id="u_h" value="USER" style="text;html=1;strokeColor=#6c8ebf;fillColor=#dae8fc;align=center;verticalAlign=middle;fontStyle=1;fontSize=13;overflow=hidden;" vertex="1" parent="1"><mxGeometry x="40" y="160" width="250" height="34" as="geometry"/></mxCell>
+      <mxCell id="u_f" value="PK  user_id          INT&#xa;     email            VARCHAR (UNIQUE)&#xa;     name             VARCHAR&#xa;     role             ENUM&#xa;     password_hash    VARCHAR&#xa;FK  created_by       INT&#xa;     created_at       DATETIME&#xa;     updated_at       DATETIME" style="text;html=0;strokeColor=#6c8ebf;fillColor=#ffffff;align=left;verticalAlign=top;spacingLeft=8;overflow=hidden;fontSize=11;fontFamily=Courier New;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="1"><mxGeometry x="40" y="194" width="250" height="176" as="geometry"/></mxCell>
+
+      <!-- PACKAGING_PLAN -->
+      <mxCell id="pp_h" value="PACKAGING_PLAN" style="text;html=1;strokeColor=#82b366;fillColor=#d5e8d4;align=center;verticalAlign=middle;fontStyle=1;fontSize=13;overflow=hidden;" vertex="1" parent="1"><mxGeometry x="420" y="60" width="280" height="34" as="geometry"/></mxCell>
+      <mxCell id="pp_f" value="PK  plan_id              INT&#xa;     title                VARCHAR&#xa;     prototype_photo_url  VARCHAR&#xa;     status               ENUM&#xa;FK  pe_id                INT&#xa;     created_at           DATETIME&#xa;     submitted_at         DATETIME&#xa;     updated_at           DATETIME" style="text;html=0;strokeColor=#82b366;fillColor=#ffffff;align=left;verticalAlign=top;spacingLeft=8;overflow=hidden;fontSize=11;fontFamily=Courier New;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="1"><mxGeometry x="420" y="94" width="280" height="176" as="geometry"/></mxCell>
+
+      <!-- PLAN_METADATA -->
+      <mxCell id="pm_h" value="PLAN_METADATA" style="text;html=1;strokeColor=#d6b656;fillColor=#ffe6cc;align=center;verticalAlign=middle;fontStyle=1;fontSize=13;overflow=hidden;" vertex="1" parent="1"><mxGeometry x="840" y="30" width="260" height="34" as="geometry"/></mxCell>
+      <mxCell id="pm_f" value="PK  metadata_id      INT&#xa;FK  plan_id          INT&#xa;     attribute_key    VARCHAR&#xa;     attribute_value  BOOLEAN" style="text;html=0;strokeColor=#d6b656;fillColor=#ffffff;align=left;verticalAlign=top;spacingLeft=8;overflow=hidden;fontSize=11;fontFamily=Courier New;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="1"><mxGeometry x="840" y="64" width="260" height="88" as="geometry"/></mxCell>
+
+      <!-- BOUNDING_BOX -->
+      <mxCell id="bb_h" value="BOUNDING_BOX" style="text;html=1;strokeColor=#9673a6;fillColor=#e1d5e7;align=center;verticalAlign=middle;fontStyle=1;fontSize=13;overflow=hidden;" vertex="1" parent="1"><mxGeometry x="840" y="210" width="260" height="34" as="geometry"/></mxCell>
+      <mxCell id="bb_f" value="PK  box_id      INT&#xa;FK  plan_id     INT&#xa;     joint_type  ENUM&#xa;     x           FLOAT&#xa;     y           FLOAT&#xa;     width       FLOAT&#xa;     height      FLOAT&#xa;     source      ENUM&#xa;     created_at  DATETIME" style="text;html=0;strokeColor=#9673a6;fillColor=#ffffff;align=left;verticalAlign=top;spacingLeft=8;overflow=hidden;fontSize=11;fontFamily=Courier New;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="1"><mxGeometry x="840" y="244" width="260" height="198" as="geometry"/></mxCell>
+
+      <!-- COST_ESTIMATION -->
+      <mxCell id="ce_h" value="COST_ESTIMATION" style="text;html=1;strokeColor=#b46504;fillColor=#fff2cc;align=center;verticalAlign=middle;fontStyle=1;fontSize=13;overflow=hidden;" vertex="1" parent="1"><mxGeometry x="840" y="520" width="260" height="34" as="geometry"/></mxCell>
+      <mxCell id="ce_f" value="PK  estimation_id    INT&#xa;FK  plan_id          INT&#xa;     strap_unit_price DECIMAL&#xa;     additional_costs DECIMAL&#xa;     total_cost       DECIMAL&#xa;     calculated_at    DATETIME" style="text;html=0;strokeColor=#b46504;fillColor=#ffffff;align=left;verticalAlign=top;spacingLeft=8;overflow=hidden;fontSize=11;fontFamily=Courier New;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="1"><mxGeometry x="840" y="554" width="260" height="132" as="geometry"/></mxCell>
+
+      <!-- APPROVAL -->
+      <mxCell id="ap_h" value="APPROVAL" style="text;html=1;strokeColor=#b85450;fillColor=#f8cecc;align=center;verticalAlign=middle;fontStyle=1;fontSize=13;overflow=hidden;" vertex="1" parent="1"><mxGeometry x="420" y="390" width="280" height="34" as="geometry"/></mxCell>
+      <mxCell id="ap_f" value="PK  approval_id     INT&#xa;FK  plan_id         INT&#xa;FK  pm_id           INT&#xa;     decision        ENUM&#xa;     revision_notes  TEXT&#xa;     reviewed_at     DATETIME" style="text;html=0;strokeColor=#b85450;fillColor=#ffffff;align=left;verticalAlign=top;spacingLeft=8;overflow=hidden;fontSize=11;fontFamily=Courier New;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;" vertex="1" parent="1"><mxGeometry x="420" y="424" width="280" height="132" as="geometry"/></mxCell>
+
+      <!-- EDGES -->
+      <!-- USER self-ref: Admin creates User -->
+      <mxCell id="e_uu" value="Admin creates" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0;exitY=0.3;exitPerimeter=0;entryX=0;entryY=0;entryPerimeter=0;startArrow=ERmandOne;startFill=0;endArrow=ERmany;endFill=0;" edge="1" source="u_f" target="u_f" parent="1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="10" y="210"/><mxPoint x="10" y="140"/><mxPoint x="155" y="140"/><mxPoint x="155" y="194"/></Array></mxGeometry></mxCell>
+      <!-- USER → PACKAGING_PLAN (PE creates plans) -->
+      <mxCell id="e_upp" value="PE creates" style="edgeStyle=orthogonalEdgeStyle;html=1;startArrow=ERmandOne;startFill=0;endArrow=ERmany;endFill=0;" edge="1" source="u_f" target="pp_f" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <!-- PACKAGING_PLAN → PLAN_METADATA -->
+      <mxCell id="e_pppm" value="has" style="edgeStyle=orthogonalEdgeStyle;html=1;startArrow=ERmandOne;startFill=0;endArrow=ERmany;endFill=0;" edge="1" source="pp_f" target="pm_f" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <!-- PACKAGING_PLAN → BOUNDING_BOX -->
+      <mxCell id="e_ppbb" value="has" style="edgeStyle=orthogonalEdgeStyle;html=1;startArrow=ERmandOne;startFill=0;endArrow=ERmany;endFill=0;" edge="1" source="pp_f" target="bb_f" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <!-- PACKAGING_PLAN → COST_ESTIMATION (1-to-1) -->
+      <mxCell id="e_ppce" value="has" style="edgeStyle=orthogonalEdgeStyle;html=1;startArrow=ERmandOne;startFill=0;endArrow=ERmandOne;endFill=0;" edge="1" source="pp_f" target="ce_f" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <!-- PACKAGING_PLAN → APPROVAL -->
+      <mxCell id="e_ppap" value="reviewed via" style="edgeStyle=orthogonalEdgeStyle;html=1;startArrow=ERmandOne;startFill=0;endArrow=ERmany;endFill=0;" edge="1" source="pp_f" target="ap_f" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+      <!-- USER (PM) → APPROVAL -->
+      <mxCell id="e_uap" value="PM reviews" style="edgeStyle=orthogonalEdgeStyle;html=1;startArrow=ERmandOne;startFill=0;endArrow=ERmany;endFill=0;" edge="1" source="u_f" target="ap_f" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    </root></mxGraphModel>
+  </diagram>
+</mxfile>
