@@ -17,21 +17,21 @@ import type { AuthUser } from "@/lib/auth";
 
 const statusStyles: Record<string, string> = {
   Optimized: "bg-[color:var(--success)]/10 text-[color:var(--success)] border-transparent",
-  Review:    "bg-[color:var(--warning)]/15 text-[color:var(--warning-foreground)] border-transparent",
-  Pending:   "bg-muted text-muted-foreground border-transparent",
+  Review: "bg-[color:var(--warning)]/15 text-[color:var(--warning-foreground)] border-transparent",
+  Pending: "bg-muted text-muted-foreground border-transparent",
 };
 
 const riskColors: Record<string, string> = {
-  low:    "text-[color:var(--success)]",
+  low: "text-[color:var(--success)]",
   medium: "text-[color:var(--warning-foreground)]",
-  high:   "text-destructive",
+  high: "text-destructive",
 };
 
 const ZONE_SUMMARY = [
-  { zone: "Hair",        method: "Elastic Strap",  risk: "medium", stability: 85 },
-  { zone: "Waist",       method: "PET Support",    risk: "low",    stability: 94 },
-  { zone: "Right Wrist", method: "EVA Strap",      risk: "high",   stability: 90 },
-  { zone: "Left Foot",   method: "No Attachment",   risk: "low",    stability: 100 },
+  { zone: "Hair", method: "Elastic Strap", risk: "medium", stability: 85 },
+  { zone: "Waist", method: "PET Support", risk: "low", stability: 94 },
+  { zone: "Right Wrist", method: "EVA Strap", risk: "high", stability: 90 },
+  { zone: "Left Foot", method: "No Attachment", risk: "low", stability: 100 },
 ];
 
 export function EngineerDashboard({ user }: { user: AuthUser }) {
@@ -56,10 +56,10 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
 
       {/* KPI Row */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="ACTIVE ANALYSES"        value="4"    icon={Activity}    hint="Products currently in optimization" />
-        <KpiCard label="ATTACHMENT ZONES MAPPED" value="47"  icon={ScanLine}    hint="AI-identified zones across all SKUs" />
-        <KpiCard label="AVG. RISK REDUCTION"    value="71%"  icon={ShieldAlert} hint="Vs. unplanned attachment baseline" />
-        <KpiCard label="POSE CONFIGURATIONS"    value="24"   icon={Sparkles}    hint="Alternative plans generated this month" />
+        <KpiCard label="ACTIVE ANALYSES" value="4" icon={Activity} hint="Products currently in optimization" />
+        <KpiCard label="ATTACHMENT ZONES MAPPED" value="47" icon={ScanLine} hint="AI-identified zones across all SKUs" />
+        <KpiCard label="AVG. RISK REDUCTION" value="71%" icon={ShieldAlert} hint="Vs. unplanned attachment baseline" />
+        <KpiCard label="POSE CONFIGURATIONS" value="24" icon={Sparkles} hint="Alternative plans generated this month" />
       </div>
 
       {/* Approvals Status */}
@@ -142,8 +142,8 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
                   <XAxis dataKey="month" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
                   <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
                   <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-card)", fontSize: 12 }} />
-                  <Area type="monotone" dataKey="riskReduction"  name="Risk Reduction %"  stroke="var(--color-chart-1)" strokeWidth={2} fill="url(#g1)" />
-                  <Area type="monotone" dataKey="poseStability"  name="Pose Stability %"  stroke="var(--color-chart-2)" strokeWidth={2} fill="url(#g2)" />
+                  <Area type="monotone" dataKey="riskReduction" name="Risk Reduction %" stroke="var(--color-chart-1)" strokeWidth={2} fill="url(#g1)" />
+                  <Area type="monotone" dataKey="poseStability" name="Pose Stability %" stroke="var(--color-chart-2)" strokeWidth={2} fill="url(#g2)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -187,11 +187,11 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
         <CardContent>
           <div className="flex items-center gap-0">
             {[
-              { label: "Pose & Doll Analysis", done: true,  url: "/app/product-analysis",  icon: ScanLine   },
-              { label: "Attachment Planner",    done: true,  url: "/app/packaging-planner", icon: Link2      },
-              { label: "Attachment Visualizer", done: false, url: "/app/packaging-preview", icon: Link2      },
-              { label: "Risk Assessment",      done: false, url: "/app/risk-assessment",   icon: ShieldAlert },
-              { label: "Cost & Sustainability",done: false, url: "/app/cost-analysis",     icon: Activity   },
+              { label: "Pose & Doll Analysis", done: true, url: "/app/product-analysis", icon: ScanLine },
+              { label: "Attachment Planner", done: true, url: "/app/packaging-planner", icon: Link2 },
+              { label: "Attachment Visualizer", done: false, url: "/app/packaging-preview", icon: Link2 },
+              { label: "Risk Assessment", done: false, url: "/app/risk-assessment", icon: ShieldAlert },
+              { label: "Cost & Sustainability", done: false, url: "/app/cost-analysis", icon: Activity },
             ].map((step, i, arr) => (
               <div key={step.label} className="flex flex-1 items-center">
                 <Link to={step.url} className="group flex flex-col items-center gap-1.5 px-2 text-center">
@@ -265,11 +265,10 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
               <div key={z.zone} className="rounded-lg border border-border/70 p-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold">{z.zone}</p>
-                  <Badge variant="outline" className={`border-transparent text-[10px] font-medium capitalize ${
-                    z.risk === "high" ? "bg-destructive/10 text-destructive" :
-                    z.risk === "medium" ? "bg-[color:var(--warning)]/15 text-[color:var(--warning-foreground)]" :
-                    "bg-[color:var(--success)]/10 text-[color:var(--success)]"
-                  }`}>{z.risk} risk</Badge>
+                  <Badge variant="outline" className={`border-transparent text-[10px] font-medium capitalize ${z.risk === "high" ? "bg-destructive/10 text-destructive" :
+                      z.risk === "medium" ? "bg-[color:var(--warning)]/15 text-[color:var(--warning-foreground)]" :
+                        "bg-[color:var(--success)]/10 text-[color:var(--success)]"
+                    }`}>{z.risk} risk</Badge>
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">{z.method}</p>
                 <div className="mt-3 space-y-1">

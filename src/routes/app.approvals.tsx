@@ -60,7 +60,7 @@ function ApprovalsPage() {
                   <p className="text-[10px] font-medium uppercase text-muted-foreground">Risk Level</p>
                   <p className={`text-sm font-medium ${req.risk === "Low" ? "text-[color:var(--success)]" : req.risk === "Medium" ? "text-[color:var(--warning-foreground)]" : "text-destructive"}`}>{req.risk}</p>
                 </div>
-                
+
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                   {req.status === "Pending" ? (
                     <Button size="sm" className="w-full sm:w-auto" asChild>

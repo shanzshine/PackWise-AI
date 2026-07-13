@@ -22,8 +22,8 @@ export const Route = createFileRoute("/app/product-analysis")({
 const getWorkflowSteps = (stage: string) => [
   { label: "Product Input", active: stage === "form" || stage === "analysing" },
   { label: "Analysis Results", active: stage === "results" },
-  { label: "Attachment Planner",    active: false },
-  { label: "Risk Assessment",      active: false },
+  { label: "Attachment Planner", active: false },
+  { label: "Risk Assessment", active: false },
   { label: "Cost & Sustainability", active: false },
 ];
 
@@ -59,13 +59,13 @@ function ProductAnalysisPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<Stage>("form");
   const [progress, setProgress] = useState(0);
-  const [poseStatus, setPoseStatus] = useState<{left_arm_up: boolean, right_arm_up: boolean} | null>(null);
+  const [poseStatus, setPoseStatus] = useState<{ left_arm_up: boolean, right_arm_up: boolean } | null>(null);
   const [detectedPoses, setDetectedPoses] = useState<string[]>([]);
-  const [detectedStraps, setDetectedStraps] = useState<{class_name: string, confidence: number, box?: any}[]>([]);
+  const [detectedStraps, setDetectedStraps] = useState<{ class_name: string, confidence: number, box?: any }[]>([]);
   const [annotatedImage, setAnnotatedImage] = useState<string | null>(null);
   const [rawKeypoints, setRawKeypoints] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Image Upload
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
@@ -100,9 +100,9 @@ function ProductAnalysisPage() {
   const [computedHeight, setComputedHeight] = useState<string>("29.5 cm");
   const [computedComplexity, setComputedComplexity] = useState<string>("Low (Standard)");
   const [computedCOG, setComputedCOG] = useState<string>("Center");
-  
+
   // Accessories State
-  const [selectedAccessories, setSelectedAccessories] = useState<{name: string, weight: number}[]>([]);
+  const [selectedAccessories, setSelectedAccessories] = useState<{ name: string, weight: number }[]>([]);
   const [accSearch, setAccSearch] = useState("");
 
   useEffect(() => {
@@ -209,72 +209,72 @@ function ProductAnalysisPage() {
     setProgress(0);
     const ticks = [15, 32, 50, 66, 82, 100];
     ticks.forEach((p, i) => setTimeout(() => setProgress(p), (i + 1) * 700)); // slightly slower to wait for CV
-    
+
     let detections = [];
 
     if (imageFile) {
-        try {
-            const formData = new FormData();
-            formData.append("file", imageFile);
-            const res = await fetch("http://127.0.0.1:8000/api/analyze-image", {
-                method: "POST",
-                body: formData
-            });
-            if (res.ok) {
-                const cvData = await res.json();
-                if (cvData.detected_straps) {
-                    detections = cvData.detected_straps;
-                    console.log("YOLO Detections:", detections);
-                }
-                if (cvData.pose_status) setPoseStatus(cvData.pose_status);
-                if (cvData.detected_poses) setDetectedPoses(cvData.detected_poses);
-                if (cvData.detected_straps) setDetectedStraps(cvData.detected_straps);
-                if (cvData.raw_keypoints) setRawKeypoints(cvData.raw_keypoints);
-                if (cvData.image_base64) setAnnotatedImage(cvData.image_base64);
-                
-                // Skeleton math estimation based on keypoints
-                if (cvData.raw_keypoints && cvData.raw_keypoints.length >= 16) {
-                    const getPt = (idx: number) => {
-                        const pt = cvData.raw_keypoints[idx];
-                        return (Array.isArray(pt)) ? { x: pt[0], y: pt[1] } : pt;
-                    };
-                    const nose = getPt(0);
-                    const leftHip = getPt(11);
-                    const rightHip = getPt(12);
-                    const leftAnkle = getPt(15);
-                    const leftShoulder = getPt(5);
-                    const leftElbow = getPt(7);
-                    const leftWrist = getPt(9);
+      try {
+        const formData = new FormData();
+        formData.append("file", imageFile);
+        const res = await fetch("http://127.0.0.1:8000/api/analyze-image", {
+          method: "POST",
+          body: formData
+        });
+        if (res.ok) {
+          const cvData = await res.json();
+          if (cvData.detected_straps) {
+            detections = cvData.detected_straps;
+            console.log("YOLO Detections:", detections);
+          }
+          if (cvData.pose_status) setPoseStatus(cvData.pose_status);
+          if (cvData.detected_poses) setDetectedPoses(cvData.detected_poses);
+          if (cvData.detected_straps) setDetectedStraps(cvData.detected_straps);
+          if (cvData.raw_keypoints) setRawKeypoints(cvData.raw_keypoints);
+          if (cvData.image_base64) setAnnotatedImage(cvData.image_base64);
 
-                    // 1. Height Estimation (Nose to Left Ankle)
-                    if (nose && leftAnkle) {
-                        const pxDist = Math.sqrt(Math.pow(nose.x - leftAnkle.x, 2) + Math.pow(nose.y - leftAnkle.y, 2));
-                        setComputedHeight(`${(pxDist * 0.05).toFixed(1)} cm (from Skeleton)`);
-                    }
-                    
-                    // 2. Pose Complexity (Shoulder - Elbow - Wrist Angle)
-                    if (leftShoulder && leftElbow && leftWrist) {
-                        const rad = Math.atan2(leftWrist.y - leftElbow.y, leftWrist.x - leftElbow.x) - Math.atan2(leftShoulder.y - leftElbow.y, leftShoulder.x - leftElbow.x);
-                        let angle = Math.abs(rad * 180.0 / Math.PI);
-                        if (angle > 180.0) angle = 360 - angle;
-                        if (angle < 140) setComputedComplexity("High / Dynamic (Arm bent)");
-                        else setComputedComplexity("Low / Standard (Arm straight)");
-                    }
+          // Skeleton math estimation based on keypoints
+          if (cvData.raw_keypoints && cvData.raw_keypoints.length >= 16) {
+            const getPt = (idx: number) => {
+              const pt = cvData.raw_keypoints[idx];
+              return (Array.isArray(pt)) ? { x: pt[0], y: pt[1] } : pt;
+            };
+            const nose = getPt(0);
+            const leftHip = getPt(11);
+            const rightHip = getPt(12);
+            const leftAnkle = getPt(15);
+            const leftShoulder = getPt(5);
+            const leftElbow = getPt(7);
+            const leftWrist = getPt(9);
 
-                    // 3. Center of Gravity (Midpoint of hips)
-                    if (leftHip && rightHip) {
-                        const midX = (leftHip.x + rightHip.x) / 2;
-                        setComputedCOG(`Center (Hip Midpoint X: ${midX.toFixed(0)})`);
-                    }
-                }
-                
-                // Switch to results stage after progress finishes
-                setTimeout(() => setStage("results"), 4200); 
-                return;
+            // 1. Height Estimation (Nose to Left Ankle)
+            if (nose && leftAnkle) {
+              const pxDist = Math.sqrt(Math.pow(nose.x - leftAnkle.x, 2) + Math.pow(nose.y - leftAnkle.y, 2));
+              setComputedHeight(`${(pxDist * 0.05).toFixed(1)} cm (from Skeleton)`);
             }
-        } catch (e) {
-            console.error("YOLO CV failed", e);
+
+            // 2. Pose Complexity (Shoulder - Elbow - Wrist Angle)
+            if (leftShoulder && leftElbow && leftWrist) {
+              const rad = Math.atan2(leftWrist.y - leftElbow.y, leftWrist.x - leftElbow.x) - Math.atan2(leftShoulder.y - leftElbow.y, leftShoulder.x - leftElbow.x);
+              let angle = Math.abs(rad * 180.0 / Math.PI);
+              if (angle > 180.0) angle = 360 - angle;
+              if (angle < 140) setComputedComplexity("High / Dynamic (Arm bent)");
+              else setComputedComplexity("Low / Standard (Arm straight)");
+            }
+
+            // 3. Center of Gravity (Midpoint of hips)
+            if (leftHip && rightHip) {
+              const midX = (leftHip.x + rightHip.x) / 2;
+              setComputedCOG(`Center (Hip Midpoint X: ${midX.toFixed(0)})`);
+            }
+          }
+
+          // Switch to results stage after progress finishes
+          setTimeout(() => setStage("results"), 4200);
+          return;
         }
+      } catch (e) {
+        console.error("YOLO CV failed", e);
+      }
     }
 
     setTimeout(() => {
@@ -287,7 +287,7 @@ function ProductAnalysisPage() {
         { class_name: "neck_support", confidence: 0.85 }
       ]);
       setDetectedPoses(["Standing Neutral"]);
-      
+
       const r: AnalysisResult = {
         productName: `${productFamily} Doll`,
         category: "Fashion Doll",
@@ -317,14 +317,14 @@ function ProductAnalysisPage() {
         movementRiskScore: 0,
         accessoryLossRisk: 0,
       };
-      
+
       setStage("results");
     }, 4500);
   };
 
   const handleContinue = async () => {
     setIsSaving(true);
-    
+
     // Save to Supabase (Database Temanmu)
     try {
       const { error } = await supabase.from('product_analyses').insert([
@@ -334,7 +334,7 @@ function ProductAnalysisPage() {
           raw_keypoints: rawKeypoints
         }
       ]);
-      
+
       if (error) {
         console.error("Supabase Error:", error);
         alert("Gagal simpan ke Supabase! (Cek Console) Apakah tabelnya sudah dibuat temanmu?");
@@ -344,7 +344,7 @@ function ProductAnalysisPage() {
     } catch (err) {
       console.error("Supabase Exception:", err);
     }
-    
+
     setIsSaving(false);
 
     const r: AnalysisResult = {
@@ -385,88 +385,88 @@ function ProductAnalysisPage() {
       <PageHeader title="Analysis Complete" description="Review the detected pose and YOLOv8 skeleton visualization." />
       <WorkflowBar steps={getWorkflowSteps(stage)} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-         <Card className="border-border/70 shadow-none">
-            <CardHeader><CardTitle className="text-base">Skeleton Pose Visualization</CardTitle></CardHeader>
-            <CardContent className="flex justify-center p-4 bg-muted/20">
-               {annotatedImage || imageDataUrl ? (
-                   <img src={annotatedImage || imageDataUrl!} alt="Annotated" className="max-h-96 rounded-lg object-contain border shadow-sm" />
-               ) : (
-                   <div className="flex items-center justify-center h-48 w-full bg-muted/50 rounded-lg text-muted-foreground text-sm">Image not available</div>
-               )}
-            </CardContent>
-         </Card>
-         <Card className="border-border/70 shadow-none">
-            <CardHeader>
-              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[color:var(--success)] text-white mb-2">
-                <CheckCircle2 className="h-4 w-4" />
+        <Card className="border-border/70 shadow-none">
+          <CardHeader><CardTitle className="text-base">Skeleton Pose Visualization</CardTitle></CardHeader>
+          <CardContent className="flex justify-center p-4 bg-muted/20">
+            {annotatedImage || imageDataUrl ? (
+              <img src={annotatedImage || imageDataUrl!} alt="Annotated" className="max-h-96 rounded-lg object-contain border shadow-sm" />
+            ) : (
+              <div className="flex items-center justify-center h-48 w-full bg-muted/50 rounded-lg text-muted-foreground text-sm">Image not available</div>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="border-border/70 shadow-none">
+          <CardHeader>
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[color:var(--success)] text-white mb-2">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
+            <CardTitle className="text-base">Raw AI Detections (As-Is State)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2 mb-2">
+              {detectedPoses.length > 0 ? detectedPoses.map(pose => (
+                <Badge key={pose} variant="default" className="text-sm px-3 py-1 bg-[color:var(--primary-soft)] text-primary border-transparent">
+                  {pose}
+                </Badge>
+              )) : (
+                <span className="text-sm text-muted-foreground">No specific pose detected.</span>
+              )}
+            </div>
+
+            <div className="pt-2 pb-2 border-t border-border/60 mt-2">
+              <h4 className="text-sm font-medium mb-3 text-foreground flex items-center gap-2"><ScanLine className="h-4 w-4 text-primary" /> Detected Straps (YOLOv8)</h4>
+              <div className="flex flex-wrap gap-2">
+                {detectedStraps && detectedStraps.length > 0 ? detectedStraps.map((strap, idx) => (
+                  <Badge key={idx} variant="outline" className="text-sm px-3 py-1 border-[color:var(--primary)] text-primary bg-[color:var(--primary-soft)]/30">
+                    {strap.class_name.replace('_', ' ').toUpperCase()} ({(strap.confidence * 100).toFixed(0)}%)
+                  </Badge>
+                )) : (
+                  <span className="text-sm text-muted-foreground">No straps detected.</span>
+                )}
               </div>
-              <CardTitle className="text-base">Raw AI Detections (As-Is State)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2 mb-2">
-                    {detectedPoses.length > 0 ? detectedPoses.map(pose => (
-                        <Badge key={pose} variant="default" className="text-sm px-3 py-1 bg-[color:var(--primary-soft)] text-primary border-transparent">
-                            {pose}
-                        </Badge>
-                    )) : (
-                        <span className="text-sm text-muted-foreground">No specific pose detected.</span>
-                    )}
-                </div>
-                
-                <div className="pt-2 pb-2 border-t border-border/60 mt-2">
-                    <h4 className="text-sm font-medium mb-3 text-foreground flex items-center gap-2"><ScanLine className="h-4 w-4 text-primary" /> Detected Straps (YOLOv8)</h4>
-                    <div className="flex flex-wrap gap-2">
-                        {detectedStraps && detectedStraps.length > 0 ? detectedStraps.map((strap, idx) => (
-                            <Badge key={idx} variant="outline" className="text-sm px-3 py-1 border-[color:var(--primary)] text-primary bg-[color:var(--primary-soft)]/30">
-                                {strap.class_name.replace('_', ' ').toUpperCase()} ({(strap.confidence * 100).toFixed(0)}%)
-                            </Badge>
-                        )) : (
-                            <span className="text-sm text-muted-foreground">No straps detected.</span>
-                        )}
-                    </div>
-                </div>
+            </div>
 
 
-                
-                <div className="pt-3 pb-2 border-t border-border/60 mt-3 space-y-3">
-                    <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
-                      <Brain className="h-4 w-4 text-primary" /> Computed Skeleton Metrics
-                    </h4>
-                    
-                    <div className="flex justify-between items-center p-3 border border-border/60 rounded-lg bg-background">
-                        <span className="text-sm font-medium">Estimated Height (0.Nose to 15.Ankle)</span>
-                        <span className="text-sm font-semibold">{computedHeight}</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center p-3 border border-border/60 rounded-lg bg-background">
-                        <span className="text-sm font-medium">Pose Complexity (Shoulder-Elbow-Wrist)</span>
-                        <span className="text-sm font-semibold text-primary">{computedComplexity}</span>
-                    </div>
-                    
-                    <div className="flex justify-between items-center p-3 border border-border/60 rounded-lg bg-background">
-                        <span className="text-sm font-medium">Center of Gravity (Midpoint Hips)</span>
-                        <span className="text-sm font-semibold">{computedCOG}</span>
-                    </div>
-                </div>
 
-                <p className="text-xs text-muted-foreground mt-2">
-                  * Calculated mathematically by comparing relative distances and angles between YOLOv8 keypoints.
-                </p>
-                <div className="pt-4 flex gap-3">
-                  <Button variant="outline" className="w-full" onClick={() => {
-                    setStage("form");
-                    setAnnotatedImage(null);
-                    setImageDataUrl(null);
-                    setImageFile(null);
-                  }}>
-                    <RotateCcw className="mr-2 h-4 w-4" /> Re-upload Image
-                  </Button>
-                  <Button className="w-full" onClick={handleContinue} disabled={isSaving}>
-                    {isSaving ? "Saving..." : "Proceed to Planner"} <ChevronRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </div>
-            </CardContent>
-         </Card>
+            <div className="pt-3 pb-2 border-t border-border/60 mt-3 space-y-3">
+              <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                <Brain className="h-4 w-4 text-primary" /> Computed Skeleton Metrics
+              </h4>
+
+              <div className="flex justify-between items-center p-3 border border-border/60 rounded-lg bg-background">
+                <span className="text-sm font-medium">Estimated Height (0.Nose to 15.Ankle)</span>
+                <span className="text-sm font-semibold">{computedHeight}</span>
+              </div>
+
+              <div className="flex justify-between items-center p-3 border border-border/60 rounded-lg bg-background">
+                <span className="text-sm font-medium">Pose Complexity (Shoulder-Elbow-Wrist)</span>
+                <span className="text-sm font-semibold text-primary">{computedComplexity}</span>
+              </div>
+
+              <div className="flex justify-between items-center p-3 border border-border/60 rounded-lg bg-background">
+                <span className="text-sm font-medium">Center of Gravity (Midpoint Hips)</span>
+                <span className="text-sm font-semibold">{computedCOG}</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground mt-2">
+              * Calculated mathematically by comparing relative distances and angles between YOLOv8 keypoints.
+            </p>
+            <div className="pt-4 flex gap-3">
+              <Button variant="outline" className="w-full" onClick={() => {
+                setStage("form");
+                setAnnotatedImage(null);
+                setImageDataUrl(null);
+                setImageFile(null);
+              }}>
+                <RotateCcw className="mr-2 h-4 w-4" /> Re-upload Image
+              </Button>
+              <Button className="w-full" onClick={handleContinue} disabled={isSaving}>
+                {isSaving ? "Saving..." : "Proceed to Planner"} <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
@@ -515,7 +515,7 @@ function ProductAnalysisPage() {
 
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="space-y-5 lg:col-span-3">
-          
+
           <Card className="border-border/70 shadow-none overflow-hidden">
             <CardHeader className="bg-muted/30 pb-4 border-b flex flex-row items-center justify-between space-y-0">
               <div>
@@ -523,13 +523,13 @@ function ProductAnalysisPage() {
                 <CardDescription>Upload or capture a front-facing image for YOLO.</CardDescription>
               </div>
               <div className="flex bg-background border border-border/50 rounded-lg overflow-hidden">
-                <button 
-                  onClick={() => { if(isCameraActive) stopCamera(); }}
+                <button
+                  onClick={() => { if (isCameraActive) stopCamera(); }}
                   className={`px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 ${!isCameraActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'}`}
                 >
                   <Upload className="h-3.5 w-3.5" /> Upload
                 </button>
-                <button 
+                <button
                   onClick={startCamera}
                   className={`px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 ${isCameraActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'}`}
                 >
@@ -540,10 +540,10 @@ function ProductAnalysisPage() {
             <CardContent className="p-0">
               {isCameraActive ? (
                 <div className="relative flex flex-col items-center bg-black min-h-[300px]">
-                  <video 
-                    ref={videoRef} 
-                    autoPlay 
-                    playsInline 
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
                     className="max-h-[400px] w-full object-contain"
                   />
                   <div className="absolute bottom-4 left-0 right-0 flex justify-center">

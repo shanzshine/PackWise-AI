@@ -35,10 +35,10 @@ export function ManagerDashboard({ user }: { user: AuthUser }) {
 
       {/* KPI Row */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="TOTAL SKUs ANALYZED"   value="12"    icon={Target}      hint="Products with attachment plans" />
-        <KpiCard label="COST SAVINGS YTD"      value="$52k"  icon={DollarSign}  hint="vs. unoptimized attachment baseline" />
-        <KpiCard label="AVG. LABOR REDUCTION"  value="31%"   icon={TrendingDown} hint="Per unit vs. prior methods" />
-        <KpiCard label="AVG. RISK SCORE"       value="44/100" icon={ShieldAlert} hint="Movement risk across portfolio" />
+        <KpiCard label="TOTAL SKUs ANALYZED" value="12" icon={Target} hint="Products with attachment plans" />
+        <KpiCard label="COST SAVINGS YTD" value="$52k" icon={DollarSign} hint="vs. unoptimized attachment baseline" />
+        <KpiCard label="AVG. LABOR REDUCTION" value="31%" icon={TrendingDown} hint="Per unit vs. prior methods" />
+        <KpiCard label="AVG. RISK SCORE" value="44/100" icon={ShieldAlert} hint="Movement risk across portfolio" />
       </div>
 
       {/* Pending Approvals */}
@@ -74,7 +74,7 @@ export function ManagerDashboard({ user }: { user: AuthUser }) {
                   </div>
                   <div className="flex items-center gap-2">
                     <Button size="sm" asChild>
-                      <Link to={`/app/approvals/REQ-09${2-i}`}>View Details</Link>
+                      <Link to={`/app/approvals/REQ-09${2 - i}`}>View Details</Link>
                     </Button>
                   </div>
                 </div>
@@ -100,8 +100,8 @@ export function ManagerDashboard({ user }: { user: AuthUser }) {
                   <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
                   <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-card)", fontSize: 12 }} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line type="monotone" dataKey="savings" name="Savings ($k)"        stroke="var(--color-chart-1)" strokeWidth={2.5} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="cost"    name="Cost / 1k units ($)" stroke="var(--color-chart-2)" strokeWidth={2.5} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="savings" name="Savings ($k)" stroke="var(--color-chart-1)" strokeWidth={2.5} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="cost" name="Cost / 1k units ($)" stroke="var(--color-chart-2)" strokeWidth={2.5} dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -179,8 +179,8 @@ export function ManagerDashboard({ user }: { user: AuthUser }) {
               <div key={item.tag} className="rounded-lg border border-border/70 p-3">
                 <Badge variant="outline" className={
                   item.tone === "success" ? "bg-[color:var(--success)]/10 text-[color:var(--success)] border-transparent text-[10px]" :
-                  item.tone === "warning" ? "bg-[color:var(--warning)]/15 text-[color:var(--warning-foreground)] border-transparent text-[10px]" :
-                  "bg-[color:var(--primary-soft)] text-primary border-transparent text-[10px]"
+                    item.tone === "warning" ? "bg-[color:var(--warning)]/15 text-[color:var(--warning-foreground)] border-transparent text-[10px]" :
+                      "bg-[color:var(--primary-soft)] text-primary border-transparent text-[10px]"
                 }>{item.tag}</Badge>
                 <p className="mt-2 text-sm text-foreground">{item.text}</p>
               </div>
@@ -204,7 +204,7 @@ export function ManagerDashboard({ user }: { user: AuthUser }) {
                 <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} domain={[30, 80]} />
                 <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-card)", fontSize: 12 }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Line type="monotone" dataKey="movement"     name="Movement Risk Score"      stroke="var(--color-chart-3)" strokeWidth={2.5} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="movement" name="Movement Risk Score" stroke="var(--color-chart-3)" strokeWidth={2.5} dot={{ r: 3 }} />
                 <Line type="monotone" dataKey="accessoryLoss" name="Accessory Loss Risk Score" stroke="var(--color-chart-4)" strokeWidth={2.5} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
