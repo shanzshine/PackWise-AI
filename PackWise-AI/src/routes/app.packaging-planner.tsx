@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/page-header";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { loadAnalysis, saveAnalysis, DEMO_RESULT, type AnalysisResult, type AttachmentZone } from "@/lib/workflow-store";
+import { runAssemblyEngine } from "@/lib/assembly-engine";
 import { ATTACHMENT_METHODS } from "@/lib/mock-data";
 import { saveReportData } from "@/services/reportService";
 import { toast } from "sonner";
@@ -257,10 +258,19 @@ function AttachmentPlannerPage() {
 
   const productName = analysis?.productName ?? "Glamour Doll – Sparkle Edition";
 
+  // Run user's custom Assembly Engine rules
+  const engineInput = {
+    weightGrams: analysis?.product_weight_g ?? 120,
+    accessories: analysis?.selected_accessories ?? [],
+    skeletonKeypoints: analysis?.raw_keypoints ?? [],
+    poseComplexityScore: analysis?.poseComplexityScore ?? 0,
+  };
+  const assemblyResult = runAssemblyEngine(engineInput);
+
   // Real computed KPIs from zone plan
   const activeZones = zonePlan.filter(z => z.method !== "No Attachment Required");
   const totalCost = zonePlan.reduce((s, z) => s + z.cost, 0).toFixed(2);
-  const totalLaborMins = zonePlan.reduce((s, z) => s + z.laborMins, 0);
+  const totalLaborMins = assemblyResult.assembly_time_seconds / 60; // Use DFA Engine instead of simple sum!
   const avgStability = activeZones.length > 0
     ? Math.round(activeZones.reduce((s, z) => s + z.stability, 0) / activeZones.length)
     : 100;

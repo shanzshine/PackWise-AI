@@ -37,3 +37,12 @@ create table cost_analysis (
     saving_percentage decimal(10,2),
     created_at timestamp default now()
 );
+
+-- Tabel baru untuk menyimpan hasil YOLO Pose (17 titik COCO & status pose)
+create table product_analyses (
+    id uuid primary key default gen_random_uuid(),
+    product_name text,
+    detected_poses text[],
+    raw_keypoints jsonb,
+    created_at timestamp default now()
+);

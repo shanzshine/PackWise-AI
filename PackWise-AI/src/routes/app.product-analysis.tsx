@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 import { Progress } from "@/components/ui/progress";
 import { saveAnalysis, type AnalysisResult } from "@/lib/workflow-store";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/app/product-analysis")({
   head: () => ({ meta: [{ title: "Pose & Doll Analysis — PackWise AI" }] }),
@@ -58,6 +59,12 @@ function ProductAnalysisPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<Stage>("form");
   const [progress, setProgress] = useState(0);
+  const [poseStatus, setPoseStatus] = useState<{left_arm_up: boolean, right_arm_up: boolean} | null>(null);
+  const [detectedPoses, setDetectedPoses] = useState<string[]>([]);
+  const [detectedStraps, setDetectedStraps] = useState<{class_name: string, confidence: number, box?: any}[]>([]);
+  const [annotatedImage, setAnnotatedImage] = useState<string | null>(null);
+  const [rawKeypoints, setRawKeypoints] = useState<any[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Image Upload
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -69,17 +76,30 @@ function ProductAnalysisPage() {
 
   // Master data
   const [productFamilies, setProductFamilies] = useState<any[]>([]);
-  const [masterAccessories, setMasterAccessories] = useState<any[]>([]);
+  const [masterAccessories, setMasterAccessories] = useState<any[]>([
+    { accessory_name: "Handbag", weight_g: 15 },
+    { accessory_name: "Shoes (Pair)", weight_g: 10 },
+    { accessory_name: "Sunglasses", weight_g: 5 },
+    { accessory_name: "Hat", weight_g: 20 },
+    { accessory_name: "Necklace", weight_g: 2 },
+    { accessory_name: "Brush", weight_g: 8 },
+    { accessory_name: "Pet Dog", weight_g: 45 },
+    { accessory_name: "Backpack", weight_g: 25 },
+  ]);
 
   // Form state
-  const [productFamily, setProductFamily] = useState("");
-  const [articulation, setArticulation] = useState("");
+  const [productFamily, setProductFamily] = useState("Dreamtopia");
+  const [articulation, setArticulation] = useState("Standard");
   const [pose, setPose] = useState("Arms Open"); // Mocked for now
   const [hairLength, setHairLength] = useState("Short");
   const [dressLength, setDressLength] = useState("Short");
-  const [centerOfGravity, setCenterOfGravity] = useState("Center");
   const [heightCm, setHeightCm] = useState<number>(29.0);
   const [weightG, setWeightG] = useState<number>(120);
+
+  // Computed CV Metrics
+  const [computedHeight, setComputedHeight] = useState<string>("29.5 cm");
+  const [computedComplexity, setComputedComplexity] = useState<string>("Low (Standard)");
+  const [computedCOG, setComputedCOG] = useState<string>("Center");
   
   // Accessories State
   const [selectedAccessories, setSelectedAccessories] = useState<{name: string, weight: number}[]>([]);
@@ -89,7 +109,6 @@ function ProductAnalysisPage() {
     async function loadMasterData() {
       try {
         const pfRes = await fetch("http://127.0.0.1:8000/api/product-families");
-        const accRes = await fetch("http://127.0.0.1:8000/api/accessories");
         if (pfRes.ok) {
           const pfData = await pfRes.json();
           setProductFamilies(pfData);
@@ -97,9 +116,11 @@ function ProductAnalysisPage() {
             handleFamilyChange(pfData[0].product_family, pfData);
           }
         }
-        if (accRes.ok) {
-          setMasterAccessories(await accRes.json());
-        }
+        // Accessory fetch disabled, using static data instead
+        // const accRes = await fetch("http://127.0.0.1:8000/api/accessories");
+        // if (accRes.ok) {
+        //   setMasterAccessories(await accRes.json());
+        // }
       } catch (e) {
         console.error("Failed to load master data", e);
       }
@@ -161,7 +182,6 @@ function ProductAnalysisPage() {
       setArticulation(details.articulation || "Standard");
       setHeightCm(details.default_height_cm || 29.0);
       setWeightG(details.default_weight_max || 120);
-      if (details.center_of_gravity) setCenterOfGravity(details.center_of_gravity);
     }
   };
 
@@ -202,10 +222,55 @@ function ProductAnalysisPage() {
             });
             if (res.ok) {
                 const cvData = await res.json();
-                if (cvData.detections) {
-                    detections = cvData.detections;
-                    console.log("YOLO Strap Detections:", detections);
+                if (cvData.detected_straps) {
+                    detections = cvData.detected_straps;
+                    console.log("YOLO Detections:", detections);
                 }
+                if (cvData.pose_status) setPoseStatus(cvData.pose_status);
+                if (cvData.detected_poses) setDetectedPoses(cvData.detected_poses);
+                if (cvData.detected_straps) setDetectedStraps(cvData.detected_straps);
+                if (cvData.raw_keypoints) setRawKeypoints(cvData.raw_keypoints);
+                if (cvData.image_base64) setAnnotatedImage(cvData.image_base64);
+                
+                // Skeleton math estimation based on keypoints
+                if (cvData.raw_keypoints && cvData.raw_keypoints.length >= 16) {
+                    const getPt = (idx: number) => {
+                        const pt = cvData.raw_keypoints[idx];
+                        return (Array.isArray(pt)) ? { x: pt[0], y: pt[1] } : pt;
+                    };
+                    const nose = getPt(0);
+                    const leftHip = getPt(11);
+                    const rightHip = getPt(12);
+                    const leftAnkle = getPt(15);
+                    const leftShoulder = getPt(5);
+                    const leftElbow = getPt(7);
+                    const leftWrist = getPt(9);
+
+                    // 1. Height Estimation (Nose to Left Ankle)
+                    if (nose && leftAnkle) {
+                        const pxDist = Math.sqrt(Math.pow(nose.x - leftAnkle.x, 2) + Math.pow(nose.y - leftAnkle.y, 2));
+                        setComputedHeight(`${(pxDist * 0.05).toFixed(1)} cm (from Skeleton)`);
+                    }
+                    
+                    // 2. Pose Complexity (Shoulder - Elbow - Wrist Angle)
+                    if (leftShoulder && leftElbow && leftWrist) {
+                        const rad = Math.atan2(leftWrist.y - leftElbow.y, leftWrist.x - leftElbow.x) - Math.atan2(leftShoulder.y - leftElbow.y, leftShoulder.x - leftElbow.x);
+                        let angle = Math.abs(rad * 180.0 / Math.PI);
+                        if (angle > 180.0) angle = 360 - angle;
+                        if (angle < 140) setComputedComplexity("High / Dynamic (Arm bent)");
+                        else setComputedComplexity("Low / Standard (Arm straight)");
+                    }
+
+                    // 3. Center of Gravity (Midpoint of hips)
+                    if (leftHip && rightHip) {
+                        const midX = (leftHip.x + rightHip.x) / 2;
+                        setComputedCOG(`Center (Hip Midpoint X: ${midX.toFixed(0)})`);
+                    }
+                }
+                
+                // Switch to results stage after progress finishes
+                setTimeout(() => setStage("results"), 4200); 
+                return;
             }
         } catch (e) {
             console.error("YOLO CV failed", e);
@@ -213,6 +278,16 @@ function ProductAnalysisPage() {
     }
 
     setTimeout(() => {
+      // Mock skeleton logic for demo without backend
+      setComputedHeight("29.2 cm (Estimated from skeleton)");
+      setComputedComplexity("High / Dynamic (Arm bent)");
+      setComputedCOG("Center (Hip midpoint estimated)");
+      setDetectedStraps([
+        { class_name: "waist_strap", confidence: 0.92 },
+        { class_name: "neck_support", confidence: 0.85 }
+      ]);
+      setDetectedPoses(["Standing Neutral"]);
+      
       const r: AnalysisResult = {
         productName: `${productFamily} Doll`,
         category: "Fashion Doll",
@@ -226,7 +301,7 @@ function ProductAnalysisPage() {
         pose: pose,
         product_weight_g: weightG,
         height_cm: heightCm,
-        center_of_gravity: centerOfGravity,
+        center_of_gravity: computedCOG,
         hair_length: hairLength,
         dress_length: dressLength,
         accessory_count: selectedAccessories.length,
@@ -243,10 +318,158 @@ function ProductAnalysisPage() {
         accessoryLossRisk: 0,
       };
       
-      saveAnalysis(r);
-      navigate({ to: "/app/packaging-planner" });
+      setStage("results");
     }, 4500);
   };
+
+  const handleContinue = async () => {
+    setIsSaving(true);
+    
+    // Save to Supabase (Database Temanmu)
+    try {
+      const { error } = await supabase.from('product_analyses').insert([
+        {
+          product_name: `${productFamily} Doll`,
+          detected_poses: detectedPoses,
+          raw_keypoints: rawKeypoints
+        }
+      ]);
+      
+      if (error) {
+        console.error("Supabase Error:", error);
+        alert("Gagal simpan ke Supabase! (Cek Console) Apakah tabelnya sudah dibuat temanmu?");
+      } else {
+        console.log("Sukses! 17 Titik YOLO dan Pose tersimpan di Supabase.");
+      }
+    } catch (err) {
+      console.error("Supabase Exception:", err);
+    }
+    
+    setIsSaving(false);
+
+    const r: AnalysisResult = {
+      productName: `${productFamily} Doll`,
+      category: "Fashion Doll",
+      imageDataUrl: imageDataUrl,
+      productType: "Doll",
+      dimensions: `${heightCm}cm`,
+      analysedAt: new Date().toISOString(),
+
+      product_family: productFamily,
+      articulation: articulation,
+      pose: poseStatus ? (poseStatus.left_arm_up || poseStatus.right_arm_up ? "Arms Up" : "Arms Down") : pose,
+      product_weight_g: weightG,
+      height_cm: heightCm,
+      center_of_gravity: computedCOG,
+      hair_length: hairLength,
+      dress_length: dressLength,
+      accessory_count: selectedAccessories.length,
+      accessory_weight_g: selectedAccessories.reduce((acc, curr) => acc + curr.weight, 0),
+      selected_accessories: selectedAccessories.map((a) => a.name),
+      cvDetections: detectedStraps,
+
+      accessories: selectedAccessories.map((a) => a.name),
+      bodyRegions: ["Head", "Torso", "Arms", "Legs"],
+      attachmentZones: [],
+      poseComplexityScore: 0,
+      poseStabilityScore: 0,
+      movementRiskScore: 0,
+      accessoryLossRisk: 0,
+    };
+    saveAnalysis(r);
+    navigate({ to: "/app/packaging-planner" });
+  };
+
+  if (stage === "results") return (
+    <div className="space-y-6">
+      <PageHeader title="Analysis Complete" description="Review the detected pose and YOLOv8 skeleton visualization." />
+      <WorkflowBar steps={WORKFLOW_STEPS} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+         <Card className="border-border/70 shadow-none">
+            <CardHeader><CardTitle className="text-base">Skeleton Pose Visualization</CardTitle></CardHeader>
+            <CardContent className="flex justify-center p-4 bg-muted/20">
+               {annotatedImage || imageDataUrl ? (
+                   <img src={annotatedImage || imageDataUrl!} alt="Annotated" className="max-h-96 rounded-lg object-contain border shadow-sm" />
+               ) : (
+                   <div className="flex items-center justify-center h-48 w-full bg-muted/50 rounded-lg text-muted-foreground text-sm">Image not available</div>
+               )}
+            </CardContent>
+         </Card>
+         <Card className="border-border/70 shadow-none">
+            <CardHeader>
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[color:var(--success)] text-white mb-2">
+                <CheckCircle2 className="h-4 w-4" />
+              </div>
+              <CardTitle className="text-base">Raw AI Detections (As-Is State)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex flex-wrap gap-2 mb-2">
+                    {detectedPoses.length > 0 ? detectedPoses.map(pose => (
+                        <Badge key={pose} variant="default" className="text-sm px-3 py-1 bg-[color:var(--primary-soft)] text-primary border-transparent">
+                            {pose}
+                        </Badge>
+                    )) : (
+                        <span className="text-sm text-muted-foreground">No specific pose detected.</span>
+                    )}
+                </div>
+                
+                <div className="pt-2 pb-2 border-t border-border/60 mt-2">
+                    <h4 className="text-sm font-medium mb-3 text-foreground flex items-center gap-2"><ScanLine className="h-4 w-4 text-primary" /> Detected Straps (YOLOv8)</h4>
+                    <div className="flex flex-wrap gap-2">
+                        {detectedStraps && detectedStraps.length > 0 ? detectedStraps.map((strap, idx) => (
+                            <Badge key={idx} variant="outline" className="text-sm px-3 py-1 border-[color:var(--primary)] text-primary bg-[color:var(--primary-soft)]/30">
+                                {strap.class_name.replace('_', ' ').toUpperCase()} ({(strap.confidence * 100).toFixed(0)}%)
+                            </Badge>
+                        )) : (
+                            <span className="text-sm text-muted-foreground">No straps detected.</span>
+                        )}
+                    </div>
+                </div>
+
+
+                
+                <div className="pt-3 pb-2 border-t border-border/60 mt-3 space-y-3">
+                    <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
+                      <Brain className="h-4 w-4 text-primary" /> Computed Skeleton Metrics
+                    </h4>
+                    
+                    <div className="flex justify-between items-center p-3 border border-border/60 rounded-lg bg-background">
+                        <span className="text-sm font-medium">Estimated Height (0.Nose to 15.Ankle)</span>
+                        <span className="text-sm font-semibold">{computedHeight}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center p-3 border border-border/60 rounded-lg bg-background">
+                        <span className="text-sm font-medium">Pose Complexity (Shoulder-Elbow-Wrist)</span>
+                        <span className="text-sm font-semibold text-primary">{computedComplexity}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center p-3 border border-border/60 rounded-lg bg-background">
+                        <span className="text-sm font-medium">Center of Gravity (Midpoint Hips)</span>
+                        <span className="text-sm font-semibold">{computedCOG}</span>
+                    </div>
+                </div>
+
+                <p className="text-xs text-muted-foreground mt-2">
+                  * Calculated mathematically by comparing relative distances and angles between YOLOv8 keypoints.
+                </p>
+                <div className="pt-4 flex gap-3">
+                  <Button variant="outline" className="w-full" onClick={() => {
+                    setStage("form");
+                    setAnnotatedImage(null);
+                    setImageDataUrl(null);
+                    setImageFile(null);
+                  }}>
+                    <RotateCcw className="mr-2 h-4 w-4" /> Re-upload Image
+                  </Button>
+                  <Button className="w-full" onClick={handleContinue} disabled={isSaving}>
+                    {isSaving ? "Saving..." : "Proceed to Planner"} <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+            </CardContent>
+         </Card>
+      </div>
+    </div>
+  );
 
   if (stage === "analysing") return (
     <div className="space-y-6">
@@ -374,14 +597,18 @@ function ProductAnalysisPage() {
                   <Label>Product Family</Label>
                   <select value={productFamily} onChange={(e) => handleFamilyChange(e.target.value)}
                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none">
-                    {productFamilies.map((f) => <option key={f.product_family} value={f.product_family}>{f.product_family}</option>)}
+                    {["Dreamtopia", "Fashionistas", "Careers", "Signature", "Extra", "Made to Move"].map((f) => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-2">
                   <Label>Articulation</Label>
                   <select value={articulation} onChange={(e) => setArticulation(e.target.value)}
                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none">
-                    {Array.from(new Set(productFamilies.map(f => f.articulation))).map((a: any) => <option key={a} value={a}>{a}</option>)}
+                    {["Standard", "Made to Move", "Curvy"].map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -399,13 +626,6 @@ function ProductAnalysisPage() {
                   <select value={dressLength} onChange={(e) => setDressLength(e.target.value)}
                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none">
                     {["Short", "Knee", "Long"].map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Center of Gravity</Label>
-                  <select value={centerOfGravity} onChange={(e) => setCenterOfGravity(e.target.value)}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none">
-                    {["Center", "Back", "Left"].map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
               </div>

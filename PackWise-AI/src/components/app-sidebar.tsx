@@ -15,6 +15,7 @@ import {
   Leaf,
   CheckSquare,
   Send,
+  Calculator,
 } from "lucide-react";
 import {
   Sidebar,
@@ -37,15 +38,16 @@ type Item = { title: string; url: string; icon: typeof LayoutDashboard };
 
 const NAV: Record<AuthUser["role"], Item[]> = {
   engineer: [
-    { title: "Dashboard",           url: "/app/dashboard",         icon: LayoutDashboard },
-    { title: "Pose & Doll Analysis",url: "/app/product-analysis",  icon: ScanLine        },
-    { title: "Attachment Planner",   url: "/app/packaging-planner", icon: Link2           },
-    { title: "Attachment Visualizer",url: "/app/packaging-preview", icon: LayoutTemplate  },
-    { title: "Risk Assessment",     url: "/app/risk-assessment",   icon: ShieldAlert     },
-    { title: "Cost & Sustainability",url: "/app/cost-analysis",    icon: DollarSign      },
-    { title: "Submit Plan",          url: "/app/submit-approval",  icon: Send            },
-    { title: "Reports",             url: "/app/reports",           icon: FileBarChart2   },
-    { title: "Settings",            url: "/app/settings",          icon: Settings        },
+    { title: "Dashboard",             url: "/app/dashboard",              icon: LayoutDashboard },
+    { title: "Pose & Doll Analysis",  url: "/app/product-analysis",       icon: ScanLine        },
+    { title: "Attachment Planner",    url: "/app/packaging-planner",      icon: Link2           },
+    { title: "Attachment Visualizer", url: "/app/packaging-preview",      icon: LayoutTemplate  },
+    { title: "Assembly Calculator",   url: "/app/assembly-calculator",    icon: Calculator      },
+    { title: "Risk Assessment",       url: "/app/risk-assessment",        icon: ShieldAlert     },
+    { title: "Cost & Sustainability", url: "/app/cost-analysis",          icon: DollarSign      },
+    { title: "Submit Plan",           url: "/app/submit-approval",        icon: Send            },
+    { title: "Reports",               url: "/app/reports",                icon: FileBarChart2   },
+    { title: "Settings",              url: "/app/settings",               icon: Settings        },
   ],
   manager: [
     { title: "Dashboard",            url: "/app/dashboard",   icon: LayoutDashboard },
@@ -55,17 +57,18 @@ const NAV: Record<AuthUser["role"], Item[]> = {
     { title: "Reports",              url: "/app/reports",      icon: FileBarChart2  },
   ],
   admin: [
-    { title: "Dashboard",       url: "/app/dashboard",       icon: LayoutDashboard },
-    { title: "Pose & Doll Analysis",url: "/app/product-analysis",  icon: ScanLine        },
-    { title: "Attachment Planner",   url: "/app/packaging-planner", icon: Link2           },
-    { title: "Attachment Visualizer",url: "/app/packaging-preview", icon: LayoutTemplate  },
-    { title: "Pending Approvals",    url: "/app/approvals",   icon: CheckSquare     },
-    { title: "Risk Assessment",     url: "/app/risk-assessment",   icon: ShieldAlert     },
-    { title: "Cost & Sustainability",url: "/app/cost-analysis",    icon: DollarSign      },
-    { title: "Reports",             url: "/app/reports",           icon: FileBarChart2   },
-    { title: "User Management", url: "/app/users",           icon: Users           },
-    { title: "Role Assignment", url: "/app/roles",           icon: ShieldCheck     },
-    { title: "System Settings", url: "/app/system-settings", icon: Cog             },
+    { title: "Dashboard",             url: "/app/dashboard",           icon: LayoutDashboard },
+    { title: "Pose & Doll Analysis",  url: "/app/product-analysis",    icon: ScanLine        },
+    { title: "Attachment Planner",    url: "/app/packaging-planner",   icon: Link2           },
+    { title: "Attachment Visualizer", url: "/app/packaging-preview",   icon: LayoutTemplate  },
+    { title: "Assembly Calculator",   url: "/app/assembly-calculator", icon: Calculator      },
+    { title: "Pending Approvals",     url: "/app/approvals",           icon: CheckSquare     },
+    { title: "Risk Assessment",       url: "/app/risk-assessment",     icon: ShieldAlert     },
+    { title: "Cost & Sustainability", url: "/app/cost-analysis",       icon: DollarSign      },
+    { title: "Reports",               url: "/app/reports",             icon: FileBarChart2   },
+    { title: "User Management",       url: "/app/users",               icon: Users           },
+    { title: "Role Assignment",       url: "/app/roles",               icon: ShieldCheck     },
+    { title: "System Settings",       url: "/app/system-settings",     icon: Cog             },
   ],
 };
 
