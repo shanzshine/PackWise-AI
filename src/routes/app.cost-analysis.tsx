@@ -1,19 +1,22 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
-  ArrowLeft, ChevronRight, FileBarChart2, Recycle, Wind, Leaf,
-  TrendingDown, DollarSign, Clock, Sparkles, Brain, Send,
+  ArrowLeft, ChevronRight, Recycle, Leaf,
+  DollarSign, Clock, Sparkles, Brain, Send, CheckCircle2,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, AreaChart, Area, Legend,
+  PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
-import { loadAnalysis, DEMO_RESULT } from "@/lib/workflow-store";
+import { loadAnalysis, loadPlan, DEMO_RESULT, type PlanResult, type PlanZoneRow } from "@/lib/workflow-store";
 
 export const Route = createFileRoute("/app/cost-analysis")({
   head: () => ({ meta: [{ title: "Cost & Sustainability — PackWise AI" }] }),
@@ -28,31 +31,22 @@ const WORKFLOW_STEPS = [
   { label: "Cost & Sustainability", active: true },
 ];
 
-const attachmentMaterialBreakdown = [
-  { name: "EVA Straps",         value: 36, color: "var(--color-chart-1)" },
-  { name: "PET Supports",       value: 28, color: "var(--color-chart-2)" },
-  { name: "Elastic Straps",     value: 22, color: "var(--color-chart-3)" },
-  { name: "Rubber Bands",       value: 8,  color: "var(--color-chart-4)" },
-  { name: "Cardboard Supports", value: 6,  color: "var(--color-chart-5)" },
-];
+// Sustainability score per material
+const MATERIAL_SUSTAINABILITY: Record<string, number> = {
+  "Elastic Strap": 68,
+  "PET Support": 78,
+  "EVA Strap": 82,
+  "Cardboard Support": 90,
+  "No Attachment Required": 100,
+};
 
-const sustainabilityTrend = [
-  { month: "Jan", score: 64, waste: 32, carbon: 5.8 },
-  { month: "Feb", score: 68, waste: 30, carbon: 5.4 },
-  { month: "Mar", score: 72, waste: 27, carbon: 5.0 },
-  { month: "Apr", score: 76, waste: 24, carbon: 4.6 },
-  { month: "May", score: 80, waste: 21, carbon: 4.1 },
-  { month: "Jun", score: 84, waste: 18, carbon: 3.7 },
-  { month: "Jul", score: 88, waste: 15, carbon: 3.3 },
-  { month: "Aug", score: 92, waste: 12, carbon: 2.9 },
-];
-
-const whatIfData = [
-  { scenario: "Current Plan",      costPerUnit: 0.38, laborMin: 2.3, sustainability: 78, riskScore: 44 },
-  { scenario: "Alt. Plan A (EVA)", costPerUnit: 0.52, laborMin: 2.9, sustainability: 83, riskScore: 31 },
-  { scenario: "Alt. Plan B (Blister)", costPerUnit: 0.68, laborMin: 3.4, sustainability: 61, riskScore: 22 },
-  { scenario: "Minimal (Rubber Band)", costPerUnit: 0.12, laborMin: 0.9, sustainability: 71, riskScore: 72 },
-];
+const MATERIAL_COLORS: Record<string, string> = {
+  "Elastic Strap": "var(--color-chart-1)",
+  "PET Support": "var(--color-chart-2)",
+  "EVA Strap": "var(--color-chart-3)",
+  "Cardboard Support": "var(--color-chart-4)",
+  "No Attachment Required": "var(--color-chart-5)",
+};
 
 function WorkflowBar() {
   return (
@@ -79,17 +73,58 @@ function WorkflowBar() {
 function CostSustainabilityPage() {
   const navigate = useNavigate();
   const [productName, setProductName] = useState("Glamour Doll – Sparkle Edition");
+  const [plan, setPlan] = useState<PlanResult | null>(null);
 
   useEffect(() => {
     const analysis = loadAnalysis() ?? DEMO_RESULT;
     setProductName(analysis.productName);
+    const p = loadPlan();
+    setPlan(p);
   }, []);
+
+  // Compute derived data from plan
+  const activeZones = plan?.zones.filter(z => z.action !== "Remove") ?? [];
+  const removedZones = plan?.zones.filter(z => z.action === "Remove") ?? [];
+  const addedZones = plan?.zones.filter(z => z.action === "Add") ?? [];
+  const keptZones = plan?.zones.filter(z => z.action === "Keep") ?? [];
+
+  const totalCost = plan?.totalCost ?? 0;
+  const avgSustainability = plan?.avgSustainability ?? 78;
+  const avgStability = plan?.avgStability ?? 88;
+  const totalLabor = activeZones.reduce((s, z) => s + z.laborMins, 0);
+
+  // Cost savings from removed zones
+  const costSavings = removedZones.reduce((s, z) => s + z.cost, 0);
+
+  // Material breakdown for pie chart (from active zones only)
+  const materialCounts: Record<string, { count: number; totalCost: number }> = {};
+  for (const z of activeZones) {
+    const m = z.recommendedMethod;
+    if (m === "Not needed" || m === "No Attachment Required") continue;
+    if (!materialCounts[m]) materialCounts[m] = { count: 0, totalCost: 0 };
+    materialCounts[m].count++;
+    materialCounts[m].totalCost += z.cost;
+  }
+  const pieData = Object.entries(materialCounts).map(([name, d]) => ({
+    name,
+    value: d.count,
+    cost: d.totalCost,
+    color: MATERIAL_COLORS[name] ?? "var(--color-chart-5)",
+  }));
+
+  // Bar chart data: per-zone cost comparison
+  const barData = (plan?.zones ?? []).filter(z => z.action !== "Remove").map(z => ({
+    zone: z.zone,
+    cost: z.cost,
+    sustainability: MATERIAL_SUSTAINABILITY[z.recommendedMethod] ?? 80,
+    stability: z.stability,
+  }));
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Cost & Sustainability"
-        description={`Attachment element costs, labor analysis, and environmental impact — ${productName}`}
+        description={`Attachment costs, material analysis, and environmental impact — ${productName}`}
         actions={
           <>
             <Button variant="outline" size="sm" onClick={() => navigate({ to: "/app/risk-assessment" })}>
@@ -106,10 +141,10 @@ function CostSustainabilityPage() {
       {/* KPI Row */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: "Total Cost / Unit",    value: "$0.38",  sub: "All attachment elements", icon: DollarSign,  color: "text-primary" },
-          { label: "Est. Labor / Unit",    value: "2.3 min",sub: "Production line estimate", icon: Clock,      color: "text-[color:var(--chart-2)]" },
-          { label: "Recyclability",        value: "High",   sub: "EVA & PET dominant mix",   icon: Recycle,    color: "text-[color:var(--success)]" },
-          { label: "Sustainability Score", value: "78/100", sub: "Above industry average",   icon: Leaf,       color: "text-[color:var(--success)]" },
+          { label: "Total Cost / Unit",    value: `$${totalCost.toFixed(2)}`,   sub: `${activeZones.length} attachment zones`, icon: DollarSign,  color: "text-primary" },
+          { label: "Est. Labor / Unit",    value: `${totalLabor.toFixed(1)} min`, sub: "Production line estimate", icon: Clock,      color: "text-[color:var(--chart-2)]" },
+          { label: "Cost Savings",         value: costSavings > 0 ? `-$${costSavings.toFixed(2)}` : "$0.00",   sub: removedZones.length > 0 ? `${removedZones.length} zone(s) removed by AI` : "No zones removed", icon: Sparkles, color: "text-[color:var(--success)]" },
+          { label: "Sustainability Score", value: `${avgSustainability}/100`, sub: plan?.recommendedMaterial ? `Material: ${plan.recommendedMaterial}` : "Weighted average",   icon: Leaf,       color: "text-[color:var(--success)]" },
         ].map(({ label, value, sub, icon: Icon, color }) => (
           <Card key={label} className="border-border/70 shadow-none">
             <CardContent className="p-5">
@@ -124,95 +159,7 @@ function CostSustainabilityPage() {
         ))}
       </div>
 
-      {/* Material Breakdown */}
-      <div className="grid gap-6 lg:grid-cols-5">
-        <Card className="border-border/70 shadow-none lg:col-span-3">
-          <CardHeader>
-            <CardTitle className="text-base">Attachment Material Composition</CardTitle>
-            <CardDescription>Cost share by attachment element type — total $0.38 / unit</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {attachmentMaterialBreakdown.map((item) => (
-              <div key={item.name} className="space-y-1.5">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2.5 w-2.5 rounded-full" style={{ background: item.color }} />
-                    <span className="font-medium">{item.name}</span>
-                  </div>
-                  <span className="tabular-nums font-semibold">{item.value}%</span>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${item.value}%`, background: item.color }} />
-                </div>
-              </div>
-            ))}
-            <div className="mt-4 flex items-center justify-between border-t border-border/70 pt-4">
-              <p className="text-sm font-semibold">Material Efficiency</p>
-              <p className="text-xl font-bold text-[color:var(--success)]">Optimal</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/70 shadow-none lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">Material Distribution</CardTitle>
-            <CardDescription>Proportion by attachment element type</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-44">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={attachmentMaterialBreakdown} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={52} outerRadius={76} paddingAngle={2}>
-                    {attachmentMaterialBreakdown.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v: number) => [`${v}%`, "Share"]} contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-card)", fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-1.5">
-              {attachmentMaterialBreakdown.map((d) => (
-                <div key={d.name} className="flex items-center gap-1.5">
-                  <div className="h-2 w-2 shrink-0 rounded-full" style={{ background: d.color }} />
-                  <span className="text-xs text-muted-foreground truncate">{d.name}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Sustainability Trend */}
-      <Card className="border-border/70 shadow-none">
-        <CardHeader>
-          <CardTitle className="text-base">Sustainability Trend</CardTitle>
-          <CardDescription>Sustainability score, material waste and carbon footprint over the last 8 months</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sustainabilityTrend} margin={{ top: 8, right: 12, left: -16, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gs" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="var(--color-chart-1)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="month" stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-card)", fontSize: 12 }} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Area type="monotone" dataKey="score" name="Sustainability Score" stroke="var(--color-chart-1)" strokeWidth={2} fill="url(#gs)" />
-                <Area type="monotone" dataKey="waste" name="Material Waste %" stroke="var(--color-chart-3)" strokeWidth={2} fill="none" strokeDasharray="4 2" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* What-If Analysis */}
+      {/* Cost Breakdown Table from Plan */}
       <Card className="border-border/70 shadow-none">
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -220,43 +167,139 @@ function CostSustainabilityPage() {
               <Brain className="h-3.5 w-3.5" />
             </div>
             <div>
-              <CardTitle className="text-base">What-If Analysis</CardTitle>
-              <CardDescription>Compare attachment plan variants across cost, labor, sustainability, and risk</CardDescription>
+              <CardTitle className="text-base">Attachment Cost Breakdown</CardTitle>
+              <CardDescription>Per-zone cost and sustainability from AI recommendation plan</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="h-56 mb-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={whatIfData} margin={{ top: 4, right: 12, left: -16, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                <XAxis dataKey="scenario" stroke="var(--color-muted-foreground)" fontSize={9} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-card)", fontSize: 12 }} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="sustainability" name="Sustainability" fill="var(--color-chart-1)" radius={[3,3,0,0]} />
-                <Bar dataKey="riskScore"      name="Risk Score"     fill="var(--color-chart-3)" radius={[3,3,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {whatIfData.map((s) => (
-              <div key={s.scenario} className={`rounded-lg border p-3 ${s.scenario === "Current Plan" ? "border-primary/30 bg-[color:var(--primary-soft)]/30" : "border-border/60"}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold leading-tight">{s.scenario}</p>
-                  {s.scenario === "Current Plan" && <Badge className="bg-primary/20 text-primary border-transparent text-[9px]">Active</Badge>}
-                </div>
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Cost/unit</span><span className="font-medium">${s.costPerUnit.toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Labor</span><span className="font-medium">{s.laborMin} min</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Sustainability</span><span className="font-medium">{s.sustainability}/100</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Risk score</span><span className="font-medium">{s.riskScore}/100</span></div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Zone</TableHead>
+                <TableHead>Material</TableHead>
+                <TableHead className="text-center">Action</TableHead>
+                <TableHead className="text-right">Cost/Unit</TableHead>
+                <TableHead className="text-right">Labor</TableHead>
+                <TableHead className="text-right">Sustainability</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(plan?.zones ?? []).map((z) => (
+                <TableRow key={z.zone} className={
+                  z.action === "Keep" ? "bg-[color:var(--success)]/5" :
+                  z.action === "Add" ? "bg-blue-500/5" :
+                  z.action === "Remove" ? "bg-destructive/5 opacity-60" : ""
+                }>
+                  <TableCell className="font-medium">{z.zone}</TableCell>
+                  <TableCell>
+                    {z.action === "Remove" ? (
+                      <span className="text-sm text-muted-foreground italic line-through">{z.currentMethod}</span>
+                    ) : (
+                      <span className="text-sm font-medium">{z.recommendedMethod}</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {z.action === "Keep" && <Badge className="bg-[color:var(--success)] text-white border-0 text-[10px]">Keep</Badge>}
+                    {z.action === "Add" && <Badge className="bg-blue-500 text-white border-0 text-[10px]">Add</Badge>}
+                    {z.action === "Remove" && <Badge variant="destructive" className="text-[10px]">Remove</Badge>}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums font-medium">
+                    {z.action === "Remove" ? (
+                      <span className="text-[color:var(--success)] font-semibold">-${z.cost.toFixed(2)}</span>
+                    ) : z.cost === 0 ? (
+                      <span className="text-muted-foreground">—</span>
+                    ) : (
+                      `$${z.cost.toFixed(2)}`
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-sm">
+                    {z.action === "Remove" ? <span className="text-muted-foreground">—</span> : z.laborMins > 0 ? `${z.laborMins} min` : "—"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Progress value={z.sustainability} className="h-1.5 w-12" />
+                      <span className="tabular-nums text-xs">{z.sustainability}</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {/* Totals row */}
+              <TableRow className="border-t-2 border-border font-semibold">
+                <TableCell colSpan={3} className="font-semibold">Total (Recommended)</TableCell>
+                <TableCell className="text-right tabular-nums font-bold text-primary">${totalCost.toFixed(2)}</TableCell>
+                <TableCell className="text-right tabular-nums font-bold">{totalLabor.toFixed(1)} min</TableCell>
+                <TableCell className="text-right font-bold">{avgSustainability}/100</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
+
+      {/* Charts Row */}
+      <div className="grid gap-6 lg:grid-cols-5">
+        {/* Per-zone cost bar chart */}
+        <Card className="border-border/70 shadow-none lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-base">Cost & Sustainability per Zone</CardTitle>
+            <CardDescription>Cost and sustainability score for each recommended attachment zone</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barData} margin={{ top: 4, right: 12, left: -16, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="zone" stroke="var(--color-muted-foreground)" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--color-muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-card)", fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="sustainability" name="Sustainability" fill="var(--color-chart-1)" radius={[3,3,0,0]} />
+                  <Bar dataKey="stability" name="Stability" fill="var(--color-chart-2)" radius={[3,3,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Material distribution pie */}
+        <Card className="border-border/70 shadow-none lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base">Material Distribution</CardTitle>
+            <CardDescription>Attachment materials used in recommended plan</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {pieData.length > 0 ? (
+              <>
+                <div className="h-44">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={52} outerRadius={76} paddingAngle={2}>
+                        {pieData.map((entry) => (
+                          <Cell key={entry.name} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: number, name: string) => [`${v} zone(s)`, name]} contentStyle={{ borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-card)", fontSize: 12 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-2 grid grid-cols-1 gap-1.5">
+                  {pieData.map((d) => (
+                    <div key={d.name} className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-2 w-2 shrink-0 rounded-full" style={{ background: d.color }} />
+                        <span className="text-xs text-muted-foreground">{d.name}</span>
+                      </div>
+                      <span className="text-xs font-medium">${d.cost.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-8">No attachment data available. Run the Attachment Planner first.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* CTA */}
       <Card className="border-[color:var(--primary)]/30 bg-[color:var(--primary-soft)]/50 shadow-none">

@@ -36,6 +36,7 @@ export interface AnalysisResult {
   accessory_weight_g: number;
   selected_accessories: string[];
   cvDetections?: any[];
+  raw_keypoints?: any[];
 
   // Detected elements
   accessories: string[];
@@ -73,16 +74,16 @@ export const DEMO_RESULT: AnalysisResult = {
   bodyRegions: ["Head / Hair", "Torso / Waist", "Right Arm", "Left Arm", "Right Leg", "Left Leg"],
 
   attachmentZones: [
-    { zone: "Hair",        bodyRegion: "Head / Hair",   riskLevel: "medium", recommendedMethod: "Elastic Strap" },
-    { zone: "Waist",       bodyRegion: "Torso / Waist", riskLevel: "low",    recommendedMethod: "PET Support" },
-    { zone: "Right Wrist", bodyRegion: "Right Arm",     riskLevel: "high",   recommendedMethod: "EVA Strap" },
-    { zone: "Left Foot",   bodyRegion: "Left Leg",      riskLevel: "low",    recommendedMethod: "No Attachment Required" },
+    { zone: "Hair", bodyRegion: "Head / Hair", riskLevel: "medium", recommendedMethod: "Elastic Strap" },
+    { zone: "Waist", bodyRegion: "Torso / Waist", riskLevel: "low", recommendedMethod: "PET Support" },
+    { zone: "Right Wrist", bodyRegion: "Right Arm", riskLevel: "high", recommendedMethod: "EVA Strap" },
+    { zone: "Left Foot", bodyRegion: "Left Leg", riskLevel: "low", recommendedMethod: "No Attachment Required" },
   ],
 
   poseComplexityScore: 82,
-  poseStabilityScore:  76,
-  movementRiskScore:   44,
-  accessoryLossRisk:   61,
+  poseStabilityScore: 76,
+  movementRiskScore: 44,
+  accessoryLossRisk: 61,
 };
 
 export function saveAnalysis(result: AnalysisResult) {
@@ -118,5 +119,42 @@ export function loadAnalysis(): AnalysisResult | null {
 }
 
 export function clearAnalysis() {
-  try { localStorage.removeItem(KEY); } catch {}
+  try { localStorage.removeItem(KEY); } catch { }
+}
+
+// ─── Plan persistence (Attachment Planner → Cost page) ─────────────────────
+
+const PLAN_KEY = "packwise_plan";
+
+export interface PlanZoneRow {
+  zone: string;
+  currentMethod: string;
+  recommendedMethod: string;
+  action: "Keep" | "Add" | "Remove" | "Replace";
+  cvDetected: boolean;
+  xgbRecommended: boolean;
+  cost: number;
+  laborMins: number;
+  sustainability: number;
+  stability: number;
+  riskReduction: number;
+}
+
+export interface PlanResult {
+  zones: PlanZoneRow[];
+  totalCost: number;
+  avgStability: number;
+  avgSustainability: number;
+  recommendedMaterial: string | null;
+}
+
+export function savePlan(plan: PlanResult) {
+  try { localStorage.setItem(PLAN_KEY, JSON.stringify(plan)); } catch (e) { console.warn("savePlan failed", e); }
+}
+
+export function loadPlan(): PlanResult | null {
+  try {
+    const raw = localStorage.getItem(PLAN_KEY);
+    return raw ? JSON.parse(raw) as PlanResult : null;
+  } catch { return null; }
 }
