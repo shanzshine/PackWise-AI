@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Send, DollarSign, ShieldAlert, Leaf, CheckCircle2 } from "lucide-react";
+import { Send, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { toast } from "sonner";
 import { useState } from "react";
 import { saveApprovalRequest, loadAnalysis, loadPlan } from "@/lib/workflow-store";
+import SubmitPlanContent from "@/components/SubmitPlanContent";
 
 export const Route = createFileRoute("/app/submit-approval")({
   head: () => ({ meta: [{ title: "Submit Plan — PackWise AI" }] }),
@@ -47,54 +48,7 @@ function SubmitApprovalPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="border-border/70 shadow-none">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div>
-                <CardTitle className="text-base">Selected Plan: Glamour Doll – Sparkle Edition</CardTitle>
-                <CardDescription>Generated on {new Date().toLocaleDateString()}</CardDescription>
-              </div>
-              <Badge variant="outline" className="bg-[color:var(--primary-soft)] text-primary border-transparent">Ready to Submit</Badge>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              
-              <div className="grid grid-cols-3 gap-4">
-                <div className="rounded-lg bg-muted/40 p-4 border border-border/50">
-                  <DollarSign className="h-5 w-5 text-muted-foreground mb-2" />
-                  <p className="text-xs text-muted-foreground uppercase font-semibold">Total Cost</p>
-                  <p className="text-xl font-bold mt-1">$0.38 <span className="text-sm font-normal text-muted-foreground">/ unit</span></p>
-                </div>
-                <div className="rounded-lg bg-muted/40 p-4 border border-border/50">
-                  <ShieldAlert className="h-5 w-5 text-muted-foreground mb-2" />
-                  <p className="text-xs text-muted-foreground uppercase font-semibold">Risk Level</p>
-                  <p className="text-xl font-bold text-[color:var(--success)] mt-1">Low <span className="text-sm font-normal text-muted-foreground">(44/100)</span></p>
-                </div>
-                <div className="rounded-lg bg-muted/40 p-4 border border-border/50">
-                  <Leaf className="h-5 w-5 text-muted-foreground mb-2" />
-                  <p className="text-xs text-muted-foreground uppercase font-semibold">Sustainability</p>
-                  <p className="text-xl font-bold text-[color:var(--success)] mt-1">78 <span className="text-sm font-normal text-muted-foreground">/ 100</span></p>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-sm font-semibold mb-3">Plan Summary</h4>
-                <div className="space-y-2">
-                  {[
-                    "3 active attachment zones (Hair, Waist, Right Wrist)",
-                    "Optimal material efficiency (EVA & PET mix)",
-                    "87% predicted drop-test pass rate (Grade B+)",
-                    "Estimated labor: 2.3 min per unit",
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-[color:var(--success)] shrink-0 mt-0.5" />
-                      <p className="text-sm text-foreground">{item}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <SubmitPlanContent />
 
         <div className="space-y-6">
           <Card className="border-[color:var(--primary)]/30 bg-[color:var(--primary-soft)]/20 shadow-none">

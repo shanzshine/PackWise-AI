@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
 import {
-  ArrowLeft, Eye, CheckCircle2, Sparkles, BarChart3, Brain, ChevronRight, Info, ScanLine, ImageIcon
+  ArrowLeft, Eye, CheckCircle2, Sparkles, BarChart3, Brain, ChevronRight, Info, ScanLine, ImageIcon, AlertTriangle, Wifi, WifiOff
 } from "lucide-react";
 import {
   Tooltip, ResponsiveContainer,
@@ -291,6 +291,8 @@ function AttachmentPlannerPage() {
   const [recommendedMaterial, setRecommendedMaterial] = useState<string | null>(null);
   const [threshold] = useState(0.15); // Fixed threshold — confidence filtering handled by backend
   const [xgbData, setXgbData] = useState<any>(null);
+  const [xgbStatus, setXgbStatus] = useState<"loading" | "ok" | "error">("loading");
+  const [xgbError, setXgbError] = useState<string | null>(null);
 
   useEffect(() => {
     const a = loadAnalysis() ?? DEMO_RESULT;
@@ -322,8 +324,11 @@ function AttachmentPlannerPage() {
         const data = await res.json();
         setXgbData(data);
         setRecommendedMaterial(data.recommended_material ?? null);
+        setXgbStatus("ok");
       } catch (err) {
         console.error("Failed to fetch predictions", err);
+        setXgbStatus("error");
+        setXgbError(String(err));
       }
     }
 
@@ -397,52 +402,270 @@ function AttachmentPlannerPage() {
       />
       <WorkflowBar steps={WORKFLOW_STEPS} />
 
+      {/* ── Model Status Bar ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {/* CV YOLO Status */}
+        <div className={`flex items-center gap-3 rounded-lg border p-3 ${
+          (analysis?.cvDetections && analysis.cvDetections.length > 0)
+            ? "border-[color:var(--success)]/40 bg-[color:var(--success)]/5"
+            : "border-amber-500/40 bg-amber-500/5"
+        }`}>
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+            (analysis?.cvDetections && analysis.cvDetections.length > 0)
+              ? "bg-[color:var(--success)]/20 text-[color:var(--success)]"
+              : "bg-amber-500/20 text-amber-500"
+          }`}>
+            {(analysis?.cvDetections && analysis.cvDetections.length > 0)
+              ? <CheckCircle2 className="h-4 w-4" />
+              : <AlertTriangle className="h-4 w-4" />}
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold">CV YOLO Strap Detection</p>
+            <p className="text-[10px] text-muted-foreground truncate">
+              {(analysis?.cvDetections && analysis.cvDetections.length > 0)
+                ? `✅ ${analysis.cvDetections.length} strap(s) detected`
+                : "⚠️ No straps detected by CV"}
+            </p>
+          </div>
+        </div>
+
+        {/* XGBoost Status */}
+        <div className={`flex items-center gap-3 rounded-lg border p-3 ${
+          xgbStatus === "ok"
+            ? "border-[color:var(--success)]/40 bg-[color:var(--success)]/5"
+            : xgbStatus === "error"
+            ? "border-destructive/40 bg-destructive/5"
+            : "border-border/50 bg-muted/30"
+        }`}>
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+            xgbStatus === "ok"
+              ? "bg-[color:var(--success)]/20 text-[color:var(--success)]"
+              : xgbStatus === "error"
+              ? "bg-destructive/20 text-destructive"
+              : "bg-muted text-muted-foreground"
+          }`}>
+            {xgbStatus === "ok" ? <CheckCircle2 className="h-4 w-4" />
+              : xgbStatus === "error" ? <WifiOff className="h-4 w-4" />
+              : <Wifi className="h-4 w-4 animate-pulse" />}
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold">XGBoost Packaging Model</p>
+            <p className="text-[10px] text-muted-foreground truncate">
+              {xgbStatus === "ok" && xgbData
+                ? `✅ Connected — Head:${xgbData.recommended_head_strap} Waist:${xgbData.recommended_waist_strap} Hand:${xgbData.recommended_hand_strap} Leg:${xgbData.recommended_leg_strap} Back:${xgbData.recommended_back_support} Base:${xgbData.recommended_base_support}`
+                : xgbStatus === "error"
+                ? `❌ Backend offline — ${xgbError}`
+                : "⏳ Connecting to backend..."}
+            </p>
+          </div>
+        </div>
+
+        {/* Skeleton Keypoints Status */}
+        <div className={`flex items-center gap-3 rounded-lg border p-3 ${
+          (analysis?.raw_keypoints && analysis.raw_keypoints.length > 0)
+            ? "border-[color:var(--success)]/40 bg-[color:var(--success)]/5"
+            : "border-amber-500/40 bg-amber-500/5"
+        }`}>
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+            (analysis?.raw_keypoints && analysis.raw_keypoints.length > 0)
+              ? "bg-[color:var(--success)]/20 text-[color:var(--success)]"
+              : "bg-amber-500/20 text-amber-500"
+          }`}>
+            {(analysis?.raw_keypoints && analysis.raw_keypoints.length > 0)
+              ? <CheckCircle2 className="h-4 w-4" />
+              : <AlertTriangle className="h-4 w-4" />}
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold">Skeleton Keypoints</p>
+            <p className="text-[10px] text-muted-foreground truncate">
+              {(analysis?.raw_keypoints && analysis.raw_keypoints.length > 0)
+                ? `✅ ${analysis.raw_keypoints.length} keypoints detected`
+                : "⚠️ No skeleton — run CV analysis first"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Skeleton & CV Analysis (Combined View) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1 border-border/70 shadow-none overflow-hidden flex flex-col">
+
+        {/* Left: Combined Skeleton + Strap Visualization (same as Product Analysis) */}
+        <Card className="lg:col-span-2 border-border/70 shadow-none overflow-hidden flex flex-col">
           <CardHeader className="bg-muted/30 pb-4 border-b flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base flex items-center gap-2">
-              <ScanLine className="h-4 w-4 text-primary" /> YOLO Vision Detections
+              <ScanLine className="h-4 w-4 text-primary" /> Skeleton + Strap Detection (YOLOv8)
             </CardTitle>
+            <Badge variant="outline" className="border-border/70 text-xs font-normal">
+              <Brain className="mr-1 h-3 w-3" /> Pose + CV
+            </Badge>
           </CardHeader>
-          <CardContent className="p-0 flex-1 flex flex-col items-center justify-center bg-zinc-950/5 relative min-h-[300px]">
-            {analysis?.imageDataUrl ? (
-              <YoloImageOverlay imageUrl={analysis.imageDataUrl} detections={analysis.cvDetections || []} threshold={threshold} />
-            ) : (
-              <div className="text-muted-foreground text-sm flex flex-col items-center gap-2">
-                <ImageIcon className="h-8 w-8 opacity-20" />
-                No image uploaded
+          <CardContent className="p-0 flex-1 flex flex-col bg-zinc-950/5 relative min-h-[340px]">
+            <div className="flex-1 flex flex-col md:flex-row">
+              {/* Annotated Image (Skeleton + Strap Bounding Boxes) */}
+              <div className="flex-1 flex flex-col items-center justify-center p-4 gap-3">
+                {(analysis?.annotatedImageDataUrl || analysis?.imageDataUrl) ? (
+                  <>
+                    <img
+                      src={analysis.annotatedImageDataUrl || analysis.imageDataUrl!}
+                      alt="Skeleton + Strap Overlay"
+                      className="max-h-[320px] max-w-full object-contain rounded-lg drop-shadow-md block border border-border/30"
+                    />
+                  </>
+                ) : (
+                  <div className="text-muted-foreground text-sm flex flex-col items-center gap-2 py-12">
+                    <ImageIcon className="h-10 w-10 opacity-20" />
+                    No image — run Product Analysis first
+                  </div>
+                )}
+              </div>
+
+              {/* Right side: Detected Poses + Straps */}
+              <div className="md:w-[260px] shrink-0 border-t md:border-t-0 md:border-l border-border/50 p-4 flex flex-col gap-4 bg-background/30">
+                {/* Detected Poses */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                    <Brain className="h-3 w-3" /> Detected Poses
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(analysis?.detectedPoses && analysis.detectedPoses.length > 0) ? analysis.detectedPoses.map(p => (
+                      <Badge key={p} className="bg-[color:var(--primary-soft)] text-primary border-transparent text-[10px]">
+                        {p}
+                      </Badge>
+                    )) : (
+                      <span className="text-xs text-muted-foreground italic">No poses detected</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Detected Straps */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                    <ScanLine className="h-3 w-3" /> Detected Straps
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(analysis?.cvDetections && analysis.cvDetections.length > 0) ? analysis.cvDetections.filter(d => d.confidence >= threshold).map((strap, idx) => (
+                      <Badge key={idx} variant="outline" className="text-[10px] px-2 py-0.5 border-primary/40 text-primary bg-[color:var(--primary-soft)]/30">
+                        {strap.class_name.replace('_', ' ').toUpperCase()} ({Math.round(strap.confidence * 100)}%)
+                      </Badge>
+                    )) : (
+                      <span className="text-xs text-muted-foreground italic">No straps detected</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Computed Metrics */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                    <Eye className="h-3 w-3" /> Skeleton Metrics
+                  </h4>
+                  {[
+                    { label: "Height (Nose→Ankle)", value: analysis?.computedHeight ?? "—" },
+                    { label: "Pose Complexity", value: analysis?.computedComplexity ?? "—" },
+                    { label: "Center of Gravity", value: analysis?.computedCOG ?? "—" },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="flex justify-between items-center p-2 border border-border/50 rounded-md bg-background/40">
+                      <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
+                      <span className="text-[10px] font-semibold text-foreground max-w-[55%] text-right">{value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Arm Status */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3 w-3" /> Arm Status
+                  </h4>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <div className={`flex items-center gap-1 p-1.5 rounded-md border text-[10px] font-medium ${analysis?.poseStatus?.left_arm_up ? "border-[color:var(--success)]/40 bg-[color:var(--success)]/5 text-[color:var(--success)]" : "border-border/50 bg-background/40 text-muted-foreground"}`}>
+                      <CheckCircle2 className="h-2.5 w-2.5 shrink-0" />
+                      L {analysis?.poseStatus?.left_arm_up ? "Up ↑" : "Down ↓"}
+                    </div>
+                    <div className={`flex items-center gap-1 p-1.5 rounded-md border text-[10px] font-medium ${analysis?.poseStatus?.right_arm_up ? "border-[color:var(--success)]/40 bg-[color:var(--success)]/5 text-[color:var(--success)]" : "border-border/50 bg-background/40 text-muted-foreground"}`}>
+                      <CheckCircle2 className="h-2.5 w-2.5 shrink-0" />
+                      R {analysis?.poseStatus?.right_arm_up ? "Up ↑" : "Down ↓"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Confidence Threshold Slider */}
+            {analysis?.imageDataUrl && (
+              <div className="p-4 border-t border-border/50 bg-background/50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-muted-foreground">Confidence Threshold</span>
+                  <span className="text-xs font-semibold">{Math.round(threshold * 100)}%</span>
+                </div>
+                <Slider
+                  value={[threshold]}
+                  onValueChange={([val]) => setThreshold(val)}
+                  max={1}
+                  step={0.05}
+                  className="w-full"
+                />
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2 border-[color:var(--primary)]/30 bg-gradient-to-br from-[color:var(--primary-soft)] to-[color:var(--primary-soft)]/20 shadow-none">
-          <CardContent className="p-6 h-full flex flex-col justify-center">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                    <Sparkles className="h-4 w-4" />
-                  </div>
-                  <Badge className="bg-primary/20 text-primary border-primary/30 text-xs">AI Recommended Plan</Badge>
+        {/* Right: AI Recommended Plan Summary */}
+        <Card className="lg:col-span-1 border-[color:var(--primary)]/30 bg-gradient-to-br from-[color:var(--primary-soft)] to-[color:var(--primary-soft)]/20 shadow-none flex flex-col">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <Badge className="bg-primary/20 text-primary border-primary/30 text-xs">AI Recommended Plan</Badge>
+            </div>
+            <h2 className="text-lg font-semibold">Mixed Attachment Strategy</h2>
+            <p className="text-xs text-muted-foreground">
+              {recommendedMaterial ? `Material: ${recommendedMaterial}. ` : ""}
+              AI optimized for pose quality & sustainability.
+            </p>
+          </CardHeader>
+          <CardContent className="flex-1 flex flex-col gap-4 pt-0">
+            {/* KPI cards */}
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: "Pose Stability", value: `${avgStability}%` },
+                { label: "Cost / Unit", value: `$${totalCost}` },
+                { label: "Sustainability", value: `${avgSustainability}/100` },
+                { label: "Zones Analyzed", value: `${zonePlan.length}` },
+              ].map(({ label, value }) => (
+                <div key={label} className="text-center bg-background/50 rounded-lg p-3 border border-border/50">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+                  <p className="mt-0.5 text-xl font-bold text-foreground">{value}</p>
                 </div>
-                <h2 className="text-xl font-semibold">Mixed Attachment Strategy</h2>
-                <p className="text-sm text-muted-foreground max-w-[300px]">
-                  {recommendedMaterial ? `Recommended Material: ${recommendedMaterial}. ` : ""}
-                  AI generated optimized plan for pose quality and sustainability balance.
-                </p>
+              ))}
+            </div>
+
+            {/* Action Summary */}
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Action Summary</h4>
+              <div className="flex gap-2">
+                {keepCount > 0 && (
+                  <Badge className="bg-[color:var(--success)] text-white border-0 text-[10px]">
+                    <CheckCircle2 className="mr-1 h-2.5 w-2.5" /> {keepCount} Keep
+                  </Badge>
+                )}
+                {addCount > 0 && (
+                  <Badge className="bg-blue-500 text-white border-0 text-[10px]">
+                    + {addCount} Add
+                  </Badge>
+                )}
+                {removeCount > 0 && (
+                  <Badge variant="destructive" className="text-[10px]">
+                    − {removeCount} Remove
+                  </Badge>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-6">
-                {[
-                  { label: "Avg. Pose Stability", value: `${avgStability}%` },
-                  { label: "Total Cost / Unit", value: `$${totalCost}` },
-                ].map(({ label, value }) => (
-                  <div key={label} className="text-center bg-background/50 rounded-xl p-4 border border-border/50">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-                    <p className="mt-1 text-2xl font-bold text-foreground">{value}</p>
-                  </div>
-                ))}
-              </div>
+            </div>
+
+            {/* Quick CTA */}
+            <div className="mt-auto pt-3">
+              <Button size="sm" className="w-full" onClick={() => navigate({ to: "/app/risk-assessment" })}>
+                Proceed to Risk Assessment <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
             </div>
           </CardContent>
         </Card>

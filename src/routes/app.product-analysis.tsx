@@ -350,7 +350,7 @@ function ProductAnalysisPage() {
     const r: AnalysisResult = {
       productName: `${productFamily} Doll`,
       category: "Fashion Doll",
-      imageDataUrl: imageDataUrl,
+      imageDataUrl: annotatedImage || imageDataUrl,
       productType: "Doll",
       dimensions: `${heightCm}cm`,
       analysedAt: new Date().toISOString(),
@@ -367,6 +367,15 @@ function ProductAnalysisPage() {
       accessory_weight_g: selectedAccessories.reduce((acc, curr) => acc + curr.weight, 0),
       selected_accessories: selectedAccessories.map((a) => a.name),
       cvDetections: detectedStraps,
+      raw_keypoints: rawKeypoints,
+
+      // Skeleton & CV output for Attachment Planner
+      annotatedImageDataUrl: annotatedImage,
+      detectedPoses: detectedPoses,
+      computedHeight: computedHeight,
+      computedComplexity: computedComplexity,
+      computedCOG: computedCOG,
+      poseStatus: poseStatus ?? { left_arm_up: false, right_arm_up: false },
 
       accessories: selectedAccessories.map((a) => a.name),
       bodyRegions: ["Head", "Torso", "Arms", "Legs"],

@@ -22,6 +22,12 @@ function AppLayout() {
       navigate({ to: "/login" });
       return;
     }
+    
+    if (u.must_change_password) {
+      navigate({ to: "/change-password" });
+      return;
+    }
+    
     setUser(u);
   }, [navigate]);
 

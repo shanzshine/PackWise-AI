@@ -7,19 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
-import { login, getUser } from "@/lib/auth";
+import { loginApi, getUser } from "@/lib/auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Sign in — PackWise AI" }] }),
   component: LoginPage,
 });
-
-const DEMOS = [
-  { email: "engineer@packwise.ai", role: "Packaging Engineer" },
-  { email: "manager@packwise.ai", role: "Operations Manager" },
-  { email: "admin@packwise.ai", role: "Administrator" },
-];
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -29,22 +23,35 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (getUser()) navigate({ to: "/app/dashboard" });
+    const u = getUser();
+    if (u) {
+      if (u.must_change_password) {
+        navigate({ to: "/change-password" });
+      } else {
+        navigate({ to: "/app/dashboard" });
+      }
+    }
   }, [navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      const user = login(email);
-      setLoading(false);
-      if (!user) {
-        toast.error("Account not found", { description: "Try one of the demo accounts on the right." });
+    try {
+      const user = await loginApi(email, password);
+      
+      if (user.must_change_password) {
+        toast.info("Password change required", { description: "Please set a new password." });
+        navigate({ to: "/change-password" });
         return;
       }
+      
       toast.success(`Welcome back, ${user.name.split(" ")[0]}`);
       navigate({ to: "/app/dashboard" });
-    }, 450);
+    } catch (err: any) {
+      toast.error(err.message || "Account not found", { description: "Please check your email and password." });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -92,27 +99,20 @@ function LoginPage() {
 
       <aside className="hidden flex-col justify-between bg-[color:var(--primary-soft)] p-12 lg:flex">
         <div className="max-w-md">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Demo accounts</p>
-          <h2 className="mt-3 text-2xl font-semibold tracking-tight text-foreground">Explore each role in seconds</h2>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Use any email below with any password to preview the corresponding dashboard. No registration required.
-          </p>
-
-          <div className="mt-6 space-y-2">
-            {DEMOS.map((d) => (
-              <button
-                key={d.email}
-                type="button"
-                onClick={() => setEmail(d.email)}
-                className="group flex w-full items-center justify-between rounded-lg border border-border/70 bg-card px-4 py-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md"
-              >
-                <div>
-                  <p className="text-sm font-medium text-foreground">{d.email}</p>
-                  <p className="text-xs text-muted-foreground">{d.role}</p>
-                </div>
-                <span className="text-xs font-medium text-primary opacity-0 transition group-hover:opacity-100">Use →</span>
-              </button>
-            ))}
+          <div className="mt-6 space-y-4">
+            <div className="rounded-lg border border-border/70 bg-card px-4 py-3 text-left shadow-sm">
+              <p className="text-sm font-medium text-foreground">Forgot your password?</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                For security reasons, users cannot reset their own passwords. Please contact your Administrator at <strong>admin@packwise.ai</strong> to request a temporary password.
+              </p>
+            </div>
+            
+            <div className="rounded-lg border border-border/70 bg-card px-4 py-3 text-left shadow-sm">
+              <p className="text-sm font-medium text-foreground">First time login?</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Use the temporary password provided by your Administrator. You will be prompted to set your own secure password immediately after signing in.
+              </p>
+            </div>
           </div>
         </div>
 

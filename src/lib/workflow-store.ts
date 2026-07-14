@@ -42,6 +42,14 @@ export interface AnalysisResult {
   cvDetections?: any[];
   raw_keypoints?: any[];
 
+  // Skeleton & CV output (carried to Attachment Planner)
+  annotatedImageDataUrl?: string | null;
+  detectedPoses?: string[];
+  computedHeight?: string;
+  computedComplexity?: string;
+  computedCOG?: string;
+  poseStatus?: { left_arm_up: boolean; right_arm_up: boolean };
+
   // Detected elements
   accessories: string[];
   bodyRegions: string[];
@@ -74,6 +82,13 @@ export const DEMO_RESULT: AnalysisResult = {
   accessory_weight_g: 30,
   selected_accessories: ["Handbag", "Shoes", "Glasses", "Crown", "Dress Stand"],
 
+  annotatedImageDataUrl: null,
+  detectedPoses: ["Standing Neutral"],
+  computedHeight: "29.5 cm (Estimated)",
+  computedComplexity: "High / Dynamic (Arm bent)",
+  computedCOG: "Center (Hip Midpoint)",
+  poseStatus: { left_arm_up: false, right_arm_up: false },
+
   accessories: ["Handbag", "Shoes", "Glasses", "Crown", "Dress Stand"],
   bodyRegions: ["Head / Hair", "Torso / Waist", "Right Arm", "Left Arm", "Right Leg", "Left Leg"],
 
@@ -90,14 +105,19 @@ export const DEMO_RESULT: AnalysisResult = {
   accessoryLossRisk: 61,
 };
 
+const ANNOTATED_IMG_KEY = "packwise_annotated_image";
+
 export function saveAnalysis(result: AnalysisResult) {
   try {
-    // Store image separately in sessionStorage (avoids localStorage 5MB limit)
+    // Store images separately in sessionStorage (avoids localStorage 5MB limit)
     if (result.imageDataUrl) {
       sessionStorage.setItem(IMG_KEY, result.imageDataUrl);
     }
+    if (result.annotatedImageDataUrl) {
+      sessionStorage.setItem(ANNOTATED_IMG_KEY, result.annotatedImageDataUrl);
+    }
     // Store everything else in localStorage (without the heavy image data)
-    const { imageDataUrl, ...rest } = result;
+    const { imageDataUrl, annotatedImageDataUrl, ...rest } = result;
     localStorage.setItem(KEY, JSON.stringify(rest));
   } catch (e) { console.warn("saveAnalysis failed", e); }
 }
@@ -115,9 +135,11 @@ export function loadAnalysis(): AnalysisResult | null {
     if (!parsed.attachmentZones || !Array.isArray(parsed.attachmentZones)) {
       return null;
     }
-    // Re-attach the image from sessionStorage
+    // Re-attach images from sessionStorage
     const img = sessionStorage.getItem(IMG_KEY);
     if (img) parsed.imageDataUrl = img;
+    const annotatedImg = sessionStorage.getItem(ANNOTATED_IMG_KEY);
+    if (annotatedImg) parsed.annotatedImageDataUrl = annotatedImg;
     return parsed as AnalysisResult;
   } catch { return null; }
 }
