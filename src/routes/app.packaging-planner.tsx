@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
 import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
 import { loadAnalysis, saveAnalysis, savePlan, DEMO_RESULT, type AnalysisResult, type AttachmentZone } from "@/lib/workflow-store";
 import { runAssemblyEngine } from "@/lib/assembly-engine";
 import { ATTACHMENT_METHODS } from "@/lib/mock-data";
@@ -589,22 +590,7 @@ function AttachmentPlannerPage() {
               </div>
             </div>
 
-            {/* Confidence Threshold Slider */}
-            {analysis?.imageDataUrl && (
-              <div className="p-4 border-t border-border/50 bg-background/50">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-muted-foreground">Confidence Threshold</span>
-                  <span className="text-xs font-semibold">{Math.round(threshold * 100)}%</span>
-                </div>
-                <Slider
-                  value={[threshold]}
-                  onValueChange={([val]) => setThreshold(val)}
-                  max={1}
-                  step={0.05}
-                  className="w-full"
-                />
-              </div>
-            )}
+            {/* Confidence Threshold removed by request */}
           </CardContent>
         </Card>
 

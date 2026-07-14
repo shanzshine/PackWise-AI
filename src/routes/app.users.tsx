@@ -76,7 +76,7 @@ function UsersPage() {
         company: "PackWise Demo",
         role: res.role.includes("Manager") ? "manager" : res.role === "Packaging Engineer" ? "engineer" : "admin",
         status: "active",
-        joinedAt: new Date().toISOString()
+        joined: new Date().toISOString()
       }, ...prev]);
     } catch (err: any) {
       toast.error(err.message || "Failed to create user");

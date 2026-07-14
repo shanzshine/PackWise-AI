@@ -5,8 +5,10 @@ export default defineConfig({
     preset: "vercel"
   },
   tanstackStart: {
+    // @ts-ignore
     server: { entry: "server" },
   },
+  // @ts-ignore
   server: {
     proxy: {
       "/api": {

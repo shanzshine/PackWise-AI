@@ -36,10 +36,10 @@ const ANALYSIS_STEPS = [
 
 type Stage = "form" | "analysing" | "results";
 
-function WorkflowBar({ steps }: { steps: typeof WORKFLOW_STEPS }) {
+function WorkflowBar({ steps }: { steps: ReturnType<typeof getWorkflowSteps> }) {
   return (
     <div className="flex items-center rounded-xl border border-border/70 bg-muted/30 px-4 py-3">
-      {steps.map((s, i, arr) => (
+      {steps.map((s: any, i: number, arr: any[]) => (
         <div key={s.label} className="flex flex-1 items-center">
           <div className="flex flex-col items-center gap-1">
             <div className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold ${s.active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
