@@ -735,38 +735,6 @@ var LayoutDashboard = createLucideIcon("layout-dashboard", [
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
-var LayoutTemplate = createLucideIcon("layout-template", [
-	["rect", {
-		width: "18",
-		height: "7",
-		x: "3",
-		y: "3",
-		rx: "1",
-		key: "f1a2em"
-	}],
-	["rect", {
-		width: "9",
-		height: "7",
-		x: "3",
-		y: "14",
-		rx: "1",
-		key: "jqznyg"
-	}],
-	["rect", {
-		width: "5",
-		height: "7",
-		x: "16",
-		y: "14",
-		rx: "1",
-		key: "q5h2i8"
-	}]
-]);
-/**
-* @license lucide-react v0.575.0 - ISC
-*
-* This source code is licensed under the ISC license.
-* See the LICENSE file in the root directory of this source tree.
-*/
 var Leaf = createLucideIcon("leaf", [["path", {
 	d: "M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z",
 	key: "nnexq3"
@@ -874,32 +842,13 @@ var PanelLeft = createLucideIcon("panel-left", [["rect", {
 * This source code is licensed under the ISC license.
 * See the LICENSE file in the root directory of this source tree.
 */
-var Recycle = createLucideIcon("recycle", [
-	["path", {
-		d: "M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5",
-		key: "x6z5xu"
-	}],
-	["path", {
-		d: "M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12",
-		key: "1x4zh5"
-	}],
-	["path", {
-		d: "m14 16-3 3 3 3",
-		key: "f6jyew"
-	}],
-	["path", {
-		d: "M8.293 13.596 7.196 9.5 3.1 10.598",
-		key: "wf1obh"
-	}],
-	["path", {
-		d: "m9.344 5.811 1.093-1.892A1.83 1.83 0 0 1 11.985 3a1.784 1.784 0 0 1 1.546.888l3.943 6.843",
-		key: "9tzpgr"
-	}],
-	["path", {
-		d: "m13.378 9.633 4.096 1.098 1.097-4.096",
-		key: "1oe83g"
-	}]
-]);
+var RotateCcw = createLucideIcon("rotate-ccw", [["path", {
+	d: "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8",
+	key: "1357e3"
+}], ["path", {
+	d: "M3 3v5h5",
+	key: "1xhq8a"
+}]]);
 /**
 * @license lucide-react v0.575.0 - ISC
 *
@@ -1204,4 +1153,4 @@ var Zap = createLucideIcon("zap", [["path", {
 	key: "1xq2db"
 }]]);
 //#endregion
-export { ArrowDownRight as $, FileText as A, CircleCheck as B, Leaf as C, Image as D, Info as E, Download as F, ChartColumn as G, ChevronRight as H, DollarSign as I, Brain as J, Camera as K, Cog as L, FileChartColumn as M, Eye as N, Funnel as O, EyeOff as P, ArrowLeft as Q, Clock as R, Link2 as S, LayoutDashboard as T, ChevronDown as U, ChevronUp as V, Check as W, ArrowUpRight as X, Bell as Y, ArrowRight as Z, Recycle as _, Upload as a, LogOut as b, Target as c, ShieldCheck as d, Activity as et, ShieldAlert as f, ScanLine as g, Search as h, UserPlus as i, FileDown as j, FolderKanban as k, SquareCheckBig as l, Send as m, X as n, TriangleAlert as o, Settings as p, Calendar as q, Users as r, TrendingDown as s, Zap as t, Sparkles as u, PanelLeft as v, LayoutTemplate as w, LoaderCircle as x, Package as y, CircleX as z };
+export { Activity as $, FileDown as A, ChevronUp as B, Leaf as C, Funnel as D, Image as E, DollarSign as F, Camera as G, ChevronDown as H, Cog as I, Bell as J, Calendar as K, Clock as L, Eye as M, EyeOff as N, FolderKanban as O, Download as P, ArrowDownRight as Q, CircleX as R, Link2 as S, Info as T, Check as U, ChevronRight as V, ChartColumn as W, ArrowRight as X, ArrowUpRight as Y, ArrowLeft as Z, RotateCcw as _, Upload as a, LogOut as b, Target as c, ShieldCheck as d, ShieldAlert as f, ScanLine as g, Search as h, UserPlus as i, FileChartColumn as j, FileText as k, SquareCheckBig as l, Send as m, X as n, TriangleAlert as o, Settings as p, Brain as q, Users as r, TrendingDown as s, Zap as t, Sparkles as u, PanelLeft as v, LayoutDashboard as w, LoaderCircle as x, Package as y, CircleCheck as z };

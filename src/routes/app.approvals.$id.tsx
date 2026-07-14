@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
-  ArrowLeft, CheckCircle2, XCircle, DollarSign, Leaf, Clock, Zap, Info, ShieldAlert
+  ArrowLeft, CheckCircle2, XCircle, DollarSign, Leaf, Clock, Zap, Info, ShieldAlert, ImageIcon
 } from "lucide-react";
+import { useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,62 +36,60 @@ const ZONE_POSITIONS: Record<string, { cx: number; cy: number }> = {
   "Left Foot":   { cx: 72,  cy: 358 },
 };
 
-const ZONE_DETAIL: Record<string, { cost: string; labor: string; sustainability: number; impact: string }> = {
-  "Hair":        { cost: "$0.08", labor: "0.5 min", sustainability: 68, impact: "Reduces hair zone movement risk from Medium → Low" },
-  "Waist":       { cost: "$0.18", labor: "1.1 min", sustainability: 78, impact: "Stabilises torso pose geometry, 81% risk reduction" },
-  "Right Wrist": { cost: "$0.12", labor: "0.7 min", sustainability: 82, impact: "Critical zone — eliminates high-risk displacement flag" },
-  "Left Foot":   { cost: "$0.00", labor: "0 min",   sustainability: 100,impact: "Zone is stable — no attachment element required"       },
-};
+// Removed ZONE_DETAIL since we now fetch it dynamically from AttachmentZone
 
-function DollSVG({
-  zones, selected, onSelect,
-}: { zones: AttachmentZone[]; selected: string | null; onSelect: (z: string) => void }) {
-  const bodyColor   = "hsl(220 14% 18%)";
-  const bodyStroke  = "hsl(220 14% 26%)";
-  const skinColor   = "hsl(220 13% 22%)";
+function YoloImageOverlay({ imageUrl, detections, threshold }: { imageUrl: string; detections: any[]; threshold: number }) {
+  const [imgNatural, setImgNatural] = useState({ w: 1, h: 1 });
+  const [imgRendered, setImgRendered] = useState({ w: 0, h: 0 });
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const el = e.currentTarget;
+    setImgNatural({ w: el.naturalWidth, h: el.naturalHeight });
+    setImgRendered({ w: el.clientWidth, h: el.clientHeight });
+  };
+
+  const filteredDetections = detections.filter(d => d.confidence >= threshold);
 
   return (
-    <div className="relative flex items-center justify-center py-4">
-      <div className="absolute inset-0 rounded-xl" style={{
-        backgroundImage: "linear-gradient(hsl(220 14% 96%) 1px, transparent 1px), linear-gradient(90deg, hsl(220 14% 96%) 1px, transparent 1px)",
-        backgroundSize: "20px 20px",
-      }} />
-
-      <svg viewBox="0 0 200 400" className="relative z-10 h-[340px] w-auto drop-shadow-sm" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="100" cy="42" r="28" fill={skinColor} stroke={bodyStroke} strokeWidth="1.5" />
-        <rect x="94" y="68" width="12" height="16" rx="3" fill={skinColor} stroke={bodyStroke} strokeWidth="1.5" />
-        <path d="M62 82 Q54 82 54 92 L54 168 Q54 182 100 185 Q146 182 146 168 L146 92 Q146 82 138 82 Z"
-          fill={bodyColor} stroke={bodyStroke} strokeWidth="1.5" />
-        <path d="M62 94 Q38 130 24 188" stroke={skinColor} strokeWidth="18" fill="none" strokeLinecap="round" />
-        <path d="M62 94 Q38 130 24 188" stroke={bodyStroke} strokeWidth="18" fill="none" strokeLinecap="round" strokeOpacity="0.3" />
-        <path d="M138 94 Q162 130 176 188" stroke={skinColor} strokeWidth="18" fill="none" strokeLinecap="round" />
-        <path d="M138 94 Q162 130 176 188" stroke={bodyStroke} strokeWidth="18" fill="none" strokeLinecap="round" strokeOpacity="0.3" />
-        <path d="M82 188 L78 340" stroke={skinColor} strokeWidth="20" fill="none" strokeLinecap="round" />
-        <path d="M82 188 L78 340" stroke={bodyStroke} strokeWidth="20" fill="none" strokeLinecap="round" strokeOpacity="0.25" />
-        <path d="M118 188 L122 340" stroke={skinColor} strokeWidth="20" fill="none" strokeLinecap="round" />
-        <path d="M118 188 L122 340" stroke={bodyStroke} strokeWidth="20" fill="none" strokeLinecap="round" strokeOpacity="0.25" />
-        <ellipse cx="72" cy="352" rx="18" ry="10" fill={skinColor} stroke={bodyStroke} strokeWidth="1.5" />
-        <ellipse cx="128" cy="352" rx="18" ry="10" fill={skinColor} stroke={bodyStroke} strokeWidth="1.5" />
-
-        {zones.map((z, idx) => {
-          const pos = ZONE_POSITIONS[z.zone];
-          if (!pos) return null;
-          const fill   = RISK_FILL[z.riskLevel];
-          const stroke = RISK_STROKE[z.riskLevel];
-          const isSelected = selected === z.zone;
+    <div className="w-full h-full flex flex-col items-center justify-center p-4 gap-3">
+      <div className="relative inline-block">
+        <img
+          ref={imgRef}
+          src={imageUrl}
+          alt="Product Uploaded"
+          className="max-h-[300px] max-w-full object-contain rounded drop-shadow-md block"
+          onLoad={handleLoad}
+        />
+        {imgRendered.w > 0 && filteredDetections.map((d, i) => {
+          const { xmin, ymin, xmax, ymax } = d.box;
+          const scaleX = imgRendered.w / imgNatural.w;
+          const scaleY = imgRendered.h / imgNatural.h;
           return (
-            <g key={z.zone} className="cursor-pointer" onClick={() => onSelect(z.zone)}>
-              {isSelected && (
-                <circle cx={pos.cx} cy={pos.cy} r="18" fill={fill} fillOpacity="0.2" stroke={stroke} strokeWidth="1" strokeDasharray="3 2" />
-              )}
-              <line x1={pos.cx} y1={pos.cy} x2={pos.cx > 100 ? pos.cx + 14 : pos.cx - 14} y2={pos.cy}
-                stroke={stroke} strokeWidth="1" strokeDasharray="3 2" opacity="0.6" />
-              <circle cx={pos.cx} cy={pos.cy} r="11" fill={fill} fillOpacity={isSelected ? 1 : 0.85} stroke={stroke} strokeWidth={isSelected ? 2.5 : 1.5} />
-              <text x={pos.cx} y={pos.cy + 4} textAnchor="middle" fill="white" fontSize="9" fontWeight="bold">{idx + 1}</text>
-            </g>
+            <div key={i} className="absolute border-2 border-primary bg-primary/15 pointer-events-none" style={{
+              left: `${xmin * scaleX}px`,
+              top: `${ymin * scaleY}px`,
+              width: `${(xmax - xmin) * scaleX}px`,
+              height: `${(ymax - ymin) * scaleY}px`,
+            }}>
+              <span className="absolute -top-[20px] left-0 bg-primary text-white text-[9px] px-1.5 py-0.5 rounded-t font-semibold whitespace-nowrap shadow-sm">
+                {d.class_name} {Math.round(d.confidence * 100)}%
+              </span>
+            </div>
           );
         })}
-      </svg>
+      </div>
+      <div className="flex items-center gap-2 text-xs">
+        {filteredDetections.length > 0 ? (
+          <span className="bg-[color:var(--success)]/10 text-[color:var(--success)] border border-[color:var(--success)]/30 rounded-full px-2 py-0.5 font-semibold">
+            ✓ {filteredDetections.length} zone{filteredDetections.length > 1 ? "s" : ""} detected
+          </span>
+        ) : (
+          <span className="bg-muted/50 text-muted-foreground rounded-full px-2 py-0.5">
+            No zones detected
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -112,7 +111,6 @@ function ApprovalDetailsPage() {
   const zones = analysis?.attachmentZones ?? DEMO_RESULT.attachmentZones;
   const productName = analysis?.productName ?? DEMO_RESULT.productName;
   const sel = zones.find((z) => z.zone === selected);
-  const selDetail = selected ? ZONE_DETAIL[selected] : null;
 
   const handleApprove = () => {
     toast.success(`Request ${id} approved successfully.`);
@@ -123,6 +121,11 @@ function ApprovalDetailsPage() {
     toast.error(`Request ${id} rejected.`);
     navigate({ to: "/app/approvals" });
   };
+
+  const activeZones = zones.filter(z => z.recommendedMethod !== "No Attachment Required" && z.recommendedMethod !== "Not needed");
+  const totalLabor = activeZones.reduce((acc, z) => acc + (parseFloat(z.labor ?? "0") || 0), 0);
+  const avgSustain = activeZones.length > 0 ? Math.round(activeZones.reduce((acc, z) => acc + (z.sustainability ?? 100), 0) / activeZones.length) : 100;
+  const poseStab = analysis?.poseStabilityScore ?? 100;
 
   return (
     <div className="space-y-6">
@@ -138,10 +141,10 @@ function ApprovalDetailsPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: "Zones Secured",      value: `${zones.filter(z => z.recommendedMethod !== "No Attachment Required").length} / ${zones.length}`, icon: Zap         },
-          { label: "Est. Labor / Unit",  value: "2.3 min",    icon: Clock       },
-          { label: "Avg. Pose Stability",value: "90%",        icon: ShieldAlert  },
-          { label: "Sustainability Score",value: "76/100",    icon: Leaf        },
+          { label: "Zones Secured",      value: `${activeZones.length} / ${zones.length}`, icon: Zap         },
+          { label: "Est. Labor / Unit",  value: `${totalLabor.toFixed(1)} min`,    icon: Clock       },
+          { label: "Avg. Pose Stability",value: `${poseStab}%`,        icon: ShieldAlert  },
+          { label: "Sustainability Score",value: `${avgSustain}/100`,    icon: Leaf        },
         ].map(({ label, value, icon: Icon }) => (
           <Card key={label} className="border-border/70 shadow-none">
             <CardContent className="p-5 flex items-center gap-4">
@@ -160,11 +163,18 @@ function ApprovalDetailsPage() {
       <div className="grid gap-6 lg:grid-cols-5">
         <Card className="border-border/70 shadow-none lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Attachment Visualizer</CardTitle>
-            <CardDescription>Click a numbered marker to inspect the zone details</CardDescription>
+            <CardTitle className="text-base">Product Image & Detections</CardTitle>
+            <CardDescription>Visual evidence from CV and AI processing</CardDescription>
           </CardHeader>
-          <CardContent className="relative overflow-hidden rounded-xl bg-muted/20 p-4" style={{ minHeight: 380 }}>
-            <DollSVG zones={zones} selected={selected} onSelect={setSelected} />
+          <CardContent className="relative flex flex-col items-center justify-center overflow-hidden rounded-xl bg-zinc-950/5 p-4" style={{ minHeight: 380 }}>
+            {analysis?.imageDataUrl ? (
+              <YoloImageOverlay imageUrl={analysis.imageDataUrl} detections={analysis.cvDetections || []} threshold={0.15} />
+            ) : (
+              <div className="text-muted-foreground text-sm flex flex-col items-center gap-2">
+                <ImageIcon className="h-8 w-8 opacity-20" />
+                No image data available
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -175,7 +185,14 @@ function ApprovalDetailsPage() {
               <CardDescription>Select a zone to view attachment details, risk level, and cost impact</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              {zones.map((z, i) => (
+              {zones.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-8 text-center border rounded-lg border-dashed bg-muted/10">
+                  <Info className="h-8 w-8 text-muted-foreground mb-3 opacity-50" />
+                  <p className="text-sm font-medium">No Attachment Zones</p>
+                  <p className="text-xs text-muted-foreground mt-1">Neither AI nor CV detected any required attachment zones for this product.</p>
+                </div>
+              ) : (
+                zones.map((z, i) => (
                 <button
                   key={z.zone}
                   onClick={() => setSelected(z.zone)}
@@ -193,11 +210,11 @@ function ApprovalDetailsPage() {
                   </div>
                   <span className="shrink-0 text-sm font-medium text-foreground">{z.recommendedMethod}</span>
                 </button>
-              ))}
+              )))}
             </CardContent>
           </Card>
 
-          {sel && selDetail && (
+          {sel && (
             <Card className="border-[color:var(--primary)]/20 bg-[color:var(--primary-soft)]/20 shadow-none">
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -214,17 +231,17 @@ function ApprovalDetailsPage() {
                   <div className="rounded-lg bg-background border border-border/60 p-3 text-center">
                     <DollarSign className="mx-auto h-4 w-4 text-muted-foreground mb-1" />
                     <p className="text-xs text-muted-foreground">Cost / Unit</p>
-                    <p className="text-lg font-bold">{selDetail.cost}</p>
+                    <p className="text-lg font-bold">{sel.cost ?? "$0.00"}</p>
                   </div>
                   <div className="rounded-lg bg-background border border-border/60 p-3 text-center">
                     <Clock className="mx-auto h-4 w-4 text-muted-foreground mb-1" />
                     <p className="text-xs text-muted-foreground">Labor</p>
-                    <p className="text-lg font-bold">{selDetail.labor}</p>
+                    <p className="text-lg font-bold">{sel.labor ?? "0 min"}</p>
                   </div>
                   <div className="rounded-lg bg-background border border-border/60 p-3 text-center">
                     <Leaf className="mx-auto h-4 w-4 text-muted-foreground mb-1" />
                     <p className="text-xs text-muted-foreground">Sustainability</p>
-                    <p className="text-lg font-bold">{selDetail.sustainability}</p>
+                    <p className="text-lg font-bold">{sel.sustainability ?? 100}</p>
                   </div>
                 </div>
                 <div className="rounded-lg border border-border/60 bg-background p-3">
@@ -232,7 +249,7 @@ function ApprovalDetailsPage() {
                   <p className="text-sm font-medium text-foreground">{sel.recommendedMethod}</p>
                   <div className="mt-2 flex items-start gap-2">
                     <Info className="h-3.5 w-3.5 shrink-0 text-primary mt-0.5" />
-                    <p className="text-xs text-muted-foreground">{selDetail.impact}</p>
+                    <p className="text-xs text-muted-foreground">{sel.impact ?? "Attachment recommended based on stability analysis"}</p>
                   </div>
                 </div>
               </CardContent>

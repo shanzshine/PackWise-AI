@@ -25,7 +25,7 @@ import { Route as AppProductAnalysisRouteImport } from './routes/app.product-ana
 import { Route as AppPackagingPlannerRouteImport } from './routes/app.packaging-planner'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppCostAnalysisRouteImport } from './routes/app.cost-analysis'
-import { Route as AppApprovalsRouteImport } from './routes/app.approvals'
+import { Route as AppApprovalsIndexRouteImport } from './routes/app.approvals.index'
 import { Route as AppApprovalsIdRouteImport } from './routes/app.approvals.$id'
 
 const LoginRoute = LoginRouteImport.update({
@@ -108,22 +108,21 @@ const AppCostAnalysisRoute = AppCostAnalysisRouteImport.update({
   path: '/cost-analysis',
   getParentRoute: () => AppRoute,
 } as any)
-const AppApprovalsRoute = AppApprovalsRouteImport.update({
-  id: '/approvals',
-  path: '/approvals',
+const AppApprovalsIndexRoute = AppApprovalsIndexRouteImport.update({
+  id: '/approvals/',
+  path: '/approvals/',
   getParentRoute: () => AppRoute,
 } as any)
 const AppApprovalsIdRoute = AppApprovalsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppApprovalsRoute,
+  id: '/approvals/$id',
+  path: '/approvals/$id',
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/app/approvals': typeof AppApprovalsRouteWithChildren
   '/app/cost-analysis': typeof AppCostAnalysisRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/packaging-planner': typeof AppPackagingPlannerRoute
@@ -138,11 +137,11 @@ export interface FileRoutesByFullPath {
   '/app/users': typeof AppUsersRoute
   '/app/': typeof AppIndexRoute
   '/app/approvals/$id': typeof AppApprovalsIdRoute
+  '/app/approvals/': typeof AppApprovalsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/app/approvals': typeof AppApprovalsRouteWithChildren
   '/app/cost-analysis': typeof AppCostAnalysisRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/packaging-planner': typeof AppPackagingPlannerRoute
@@ -157,13 +156,13 @@ export interface FileRoutesByTo {
   '/app/users': typeof AppUsersRoute
   '/app': typeof AppIndexRoute
   '/app/approvals/$id': typeof AppApprovalsIdRoute
+  '/app/approvals': typeof AppApprovalsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
-  '/app/approvals': typeof AppApprovalsRouteWithChildren
   '/app/cost-analysis': typeof AppCostAnalysisRoute
   '/app/dashboard': typeof AppDashboardRoute
   '/app/packaging-planner': typeof AppPackagingPlannerRoute
@@ -178,6 +177,7 @@ export interface FileRoutesById {
   '/app/users': typeof AppUsersRoute
   '/app/': typeof AppIndexRoute
   '/app/approvals/$id': typeof AppApprovalsIdRoute
+  '/app/approvals/': typeof AppApprovalsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -185,7 +185,6 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
-    | '/app/approvals'
     | '/app/cost-analysis'
     | '/app/dashboard'
     | '/app/packaging-planner'
@@ -200,11 +199,11 @@ export interface FileRouteTypes {
     | '/app/users'
     | '/app/'
     | '/app/approvals/$id'
+    | '/app/approvals/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
-    | '/app/approvals'
     | '/app/cost-analysis'
     | '/app/dashboard'
     | '/app/packaging-planner'
@@ -219,12 +218,12 @@ export interface FileRouteTypes {
     | '/app/users'
     | '/app'
     | '/app/approvals/$id'
+    | '/app/approvals'
   id:
     | '__root__'
     | '/'
     | '/app'
     | '/login'
-    | '/app/approvals'
     | '/app/cost-analysis'
     | '/app/dashboard'
     | '/app/packaging-planner'
@@ -239,6 +238,7 @@ export interface FileRouteTypes {
     | '/app/users'
     | '/app/'
     | '/app/approvals/$id'
+    | '/app/approvals/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -361,37 +361,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCostAnalysisRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/approvals': {
-      id: '/app/approvals'
+    '/app/approvals/': {
+      id: '/app/approvals/'
       path: '/approvals'
-      fullPath: '/app/approvals'
-      preLoaderRoute: typeof AppApprovalsRouteImport
+      fullPath: '/app/approvals/'
+      preLoaderRoute: typeof AppApprovalsIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/approvals/$id': {
       id: '/app/approvals/$id'
-      path: '/$id'
+      path: '/approvals/$id'
       fullPath: '/app/approvals/$id'
       preLoaderRoute: typeof AppApprovalsIdRouteImport
-      parentRoute: typeof AppApprovalsRoute
+      parentRoute: typeof AppRoute
     }
   }
 }
 
-interface AppApprovalsRouteChildren {
-  AppApprovalsIdRoute: typeof AppApprovalsIdRoute
-}
-
-const AppApprovalsRouteChildren: AppApprovalsRouteChildren = {
-  AppApprovalsIdRoute: AppApprovalsIdRoute,
-}
-
-const AppApprovalsRouteWithChildren = AppApprovalsRoute._addFileChildren(
-  AppApprovalsRouteChildren,
-)
-
 interface AppRouteChildren {
-  AppApprovalsRoute: typeof AppApprovalsRouteWithChildren
   AppCostAnalysisRoute: typeof AppCostAnalysisRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppPackagingPlannerRoute: typeof AppPackagingPlannerRoute
@@ -405,10 +392,11 @@ interface AppRouteChildren {
   AppSystemSettingsRoute: typeof AppSystemSettingsRoute
   AppUsersRoute: typeof AppUsersRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppApprovalsIdRoute: typeof AppApprovalsIdRoute
+  AppApprovalsIndexRoute: typeof AppApprovalsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppApprovalsRoute: AppApprovalsRouteWithChildren,
   AppCostAnalysisRoute: AppCostAnalysisRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppPackagingPlannerRoute: AppPackagingPlannerRoute,
@@ -422,6 +410,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppSystemSettingsRoute: AppSystemSettingsRoute,
   AppUsersRoute: AppUsersRoute,
   AppIndexRoute: AppIndexRoute,
+  AppApprovalsIdRoute: AppApprovalsIdRoute,
+  AppApprovalsIndexRoute: AppApprovalsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

@@ -12,6 +12,10 @@ export interface AttachmentZone {
   bodyRegion: string;
   riskLevel: "low" | "medium" | "high";
   recommendedMethod: string;
+  cost?: string;
+  labor?: string;
+  sustainability?: number;
+  impact?: string;
 }
 
 export interface AnalysisResult {
@@ -157,4 +161,33 @@ export function loadPlan(): PlanResult | null {
     const raw = localStorage.getItem(PLAN_KEY);
     return raw ? JSON.parse(raw) as PlanResult : null;
   } catch { return null; }
+}
+
+// ─── Approvals persistence ─────────────────────────────────────────────────────
+
+const APPROVALS_KEY = "packwise_approvals";
+
+export interface ApprovalRequest {
+  id: string;
+  sku: string;
+  engineer: string;
+  date: string;
+  risk: string;
+  cost: string;
+  status: "Pending" | "Approved" | "Rejected";
+}
+
+export function saveApprovalRequest(req: ApprovalRequest) {
+  try {
+    const existing = loadApprovalRequests();
+    existing.unshift(req);
+    localStorage.setItem(APPROVALS_KEY, JSON.stringify(existing));
+  } catch (e) { console.warn("saveApprovalRequest failed", e); }
+}
+
+export function loadApprovalRequests(): ApprovalRequest[] {
+  try {
+    const raw = localStorage.getItem(APPROVALS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
 }

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 import { toast } from "sonner";
 import { useState } from "react";
+import { saveApprovalRequest, loadAnalysis, loadPlan } from "@/lib/workflow-store";
 
 export const Route = createFileRoute("/app/submit-approval")({
   head: () => ({ meta: [{ title: "Submit Plan — PackWise AI" }] }),
@@ -18,6 +19,20 @@ function SubmitApprovalPage() {
 
   const handleSubmit = () => {
     setIsSubmitted(true);
+    
+    const analysis = loadAnalysis();
+    const plan = loadPlan();
+    
+    saveApprovalRequest({
+      id: `REQ-${Math.floor(Math.random() * 900) + 100}`,
+      sku: analysis?.productName || "Custom Plan",
+      engineer: "Current User",
+      date: new Date().toLocaleDateString() + ", " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      risk: analysis && analysis.movementRiskScore > 60 ? "High" : analysis && analysis.movementRiskScore > 30 ? "Medium" : "Low",
+      cost: plan ? `$${plan.totalCost.toFixed(2)}/unit` : "$0.00/unit",
+      status: "Pending"
+    });
+
     toast.success("Attachment plan successfully submitted to Operations Manager.");
     setTimeout(() => {
       navigate({ to: "/app/dashboard" });

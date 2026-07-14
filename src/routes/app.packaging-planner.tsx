@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
 import { Progress } from "@/components/ui/progress";
-import { Slider } from "@/components/ui/slider";
 import { loadAnalysis, saveAnalysis, savePlan, DEMO_RESULT, type AnalysisResult, type AttachmentZone } from "@/lib/workflow-store";
 import { runAssemblyEngine } from "@/lib/assembly-engine";
 import { ATTACHMENT_METHODS } from "@/lib/mock-data";
@@ -228,9 +227,16 @@ function buildZonePlan(xgbData: Record<string, any>, detections: any[], threshol
       reasoning,
     });
 
-    if (action !== "Remove") {
-      vizZones.push({ zone: meta.bodyRegion.split("/")[0].trim(), bodyRegion: meta.bodyRegion, riskLevel: risk, recommendedMethod: finalMethod });
-    }
+    vizZones.push({
+      zone: meta.bodyRegion.split("/")[0].trim(),
+      bodyRegion: meta.bodyRegion,
+      riskLevel: risk,
+      recommendedMethod: action === "Remove" ? "No Attachment Required" : finalMethod,
+      cost: action === "Remove" ? "$0.00" : `$${p.cost.toFixed(2)}`,
+      labor: action === "Remove" ? "0 min" : `${p.laborMins} min`,
+      sustainability: action === "Remove" ? 100 : p.sustainability,
+      impact: reasoning,
+    });
   }
 
   // Add any CV-detected zones not in xgbMap (edge case)
@@ -253,6 +259,16 @@ function buildZonePlan(xgbData: Record<string, any>, detections: any[], threshol
         riskReduction: p.riskReduction,
         reasoning: "CV detected this but AI deems it unnecessary",
       });
+      vizZones.push({
+        zone: zone.split("/")[0].trim(),
+        bodyRegion: cv.bodyRegion,
+        riskLevel: "low",
+        recommendedMethod: "No Attachment Required",
+        cost: "$0.00",
+        labor: "0 min",
+        sustainability: 100,
+        impact: "CV detected this but AI deems it unnecessary",
+      });
     }
   }
 
@@ -273,7 +289,7 @@ function AttachmentPlannerPage() {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [zonePlan, setZonePlan] = useState<ReturnType<typeof buildZonePlan>["plan"]>([]);
   const [recommendedMaterial, setRecommendedMaterial] = useState<string | null>(null);
-  const [threshold, setThreshold] = useState(0.15);
+  const [threshold] = useState(0.15); // Fixed threshold — confidence filtering handled by backend
   const [xgbData, setXgbData] = useState<any>(null);
 
   useEffect(() => {
@@ -296,7 +312,11 @@ function AttachmentPlannerPage() {
             dress_length: a.dress_length ?? "Short",
             accessory_count: a.accessory_count ?? 1,
             accessory_weight_g: a.accessory_weight_g ?? 15,
-            selected_accessories: a.selected_accessories ?? []
+            complexity_score: Math.round((a.poseComplexityScore ?? 50) / 10),
+            stability_index: Math.round((a.poseStabilityScore ?? 50) / 10),
+            fragility_score: 5,
+            attachment_needed: 1,
+            fragile_parts_count: Math.max(1, Math.floor((a.accessory_count ?? 1) / 2)),
           })
         });
         const data = await res.json();
@@ -394,21 +414,6 @@ function AttachmentPlannerPage() {
               </div>
             )}
           </CardContent>
-          {analysis?.imageDataUrl && (
-            <div className="p-4 border-t border-border/50 bg-background/50">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-muted-foreground">Confidence Threshold</span>
-                <span className="text-xs font-semibold">{Math.round(threshold * 100)}%</span>
-              </div>
-              <Slider
-                value={[threshold]}
-                onValueChange={([val]) => setThreshold(val)}
-                max={1}
-                step={0.05}
-                className="w-full"
-              />
-            </div>
-          )}
         </Card>
 
         <Card className="lg:col-span-2 border-[color:var(--primary)]/30 bg-gradient-to-br from-[color:var(--primary-soft)] to-[color:var(--primary-soft)]/20 shadow-none">
@@ -444,10 +449,11 @@ function AttachmentPlannerPage() {
       </div>
 
       {/* KPI Row */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {[
           { label: "Avg. Pose Stability", value: `${avgStability}%`, hint: `${activeZones.length} active attachment zones` },
           { label: "Total Cost / Unit", value: `$${totalCost}`, hint: removeCount > 0 ? `Saving possible by removing ${removeCount} zone(s)` : "All recommended materials" },
+          { label: "Est. Assembly Time", value: `${assemblyResult.assembly_time_seconds}s`, hint: assemblyResult.is_complex_pose ? "+15% complex pose penalty applied" : "Calculated using DFA standards" },
           { label: "Action Summary", value: `${keepCount} Keep · ${addCount} Add · ${removeCount} Remove`, hint: `${zonePlan.length} zones analyzed` },
           { label: "Sustainability Score", value: `${avgSustainability}/100`, hint: "Weighted avg across recommended materials" },
         ].map(({ label, value, hint }) => (
