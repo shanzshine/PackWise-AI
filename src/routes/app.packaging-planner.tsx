@@ -499,7 +499,8 @@ function AttachmentPlannerPage() {
     zonePlan,
     analysis.product_weight_g ?? 120,
     analysis.accessory_count ?? 1,
-    analysis.hair_length ?? "Short"
+    analysis.hair_length ?? "Short",
+    analysis.selected_accessories ?? []
   ) : null;
   const { poseRationale, stringRationales } = getPoseRationaleAndStrings(analysis, recBlueprint);
 
@@ -900,15 +901,13 @@ function AttachmentPlannerPage() {
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                      <div className="md:col-span-8">
-                        <textarea
-                          readOnly
-                          className="w-full text-xs font-mono p-2 border bg-muted/40 rounded-lg h-14 resize-none leading-relaxed text-muted-foreground outline-none cursor-default"
-                          value={`Catalog shot, Barbie ${analysis?.product_family ?? "Fashionistas"} Doll in a ${recBlueprint?.poseName ?? "Compact Stand"} pose inside a cardboard display box, secured with transparent ${recBlueprint?.attachmentPlacements.find(p => p.zone === "Waist")?.method || "PET"} support and ${recBlueprint?.attachmentPlacements.find(p => p.zone === "Head/Hair")?.method || "Elastic"} straps, high detail, studio packaging photography --v 6.0`}
-                        />
-                      </div>
-                      <div className="md:col-span-4 self-stretch flex">
+                    <div className="flex flex-col gap-3">
+                      <textarea
+                        readOnly
+                        className="w-full text-xs font-mono p-3 border bg-muted/40 rounded-lg h-24 leading-relaxed text-muted-foreground outline-none cursor-default"
+                        value={`Catalog shot, Barbie ${analysis?.product_family ?? "Fashionistas"} Doll in a ${recBlueprint?.poseName ?? "Compact Stand"} pose inside a cardboard display box, secured with transparent ${recBlueprint?.attachmentPlacements.find(p => p.zone === "Waist")?.method || "PET"} support and ${recBlueprint?.attachmentPlacements.find(p => p.zone === "Head/Hair")?.method || "Elastic"} straps, high detail, studio packaging photography --v 6.0`}
+                      />
+                      <div className="flex justify-end">
                         <Button 
                           onClick={() => {
                             setIsSimulatingImgGen(true);
@@ -917,17 +916,17 @@ function AttachmentPlannerPage() {
                             }, 3500);
                           }}
                           disabled={isSimulatingImgGen}
-                          className="w-full h-full flex flex-col items-center justify-center text-xs py-2 bg-gradient-to-r from-pink-500 to-violet-600 hover:from-pink-600 hover:to-violet-700 text-white font-semibold transition-all shadow-md rounded-lg"
+                          className="w-full sm:w-auto px-6 bg-gradient-to-r from-pink-500 to-violet-600 hover:from-pink-600 hover:to-violet-700 text-white font-semibold transition-all shadow-md rounded-lg"
                         >
                           {isSimulatingImgGen ? (
                             <span className="flex items-center gap-2">
                               <RefreshCw className="h-4 w-4 animate-spin" /> Rendering Box...
                             </span>
                           ) : (
-                            <>
-                              <Sparkles className="h-4 w-4 mb-1" />
+                            <span className="flex items-center gap-2">
+                              <Sparkles className="h-4 w-4" />
                               <span>Generate Visual Prototype</span>
-                            </>
+                            </span>
                           )}
                         </Button>
                       </div>
