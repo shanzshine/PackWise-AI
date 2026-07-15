@@ -4,9 +4,10 @@ export default defineConfig({
   nitro: {
     preset: "vercel"
   },
-  tanstackStart: {
-    server: { entry: "server" },
-  },
+  // tanstackStart: {
+  //   server: { entry: "./src/server.ts" },
+  // },
+  // @ts-ignore
   server: {
     proxy: {
       "/api": {

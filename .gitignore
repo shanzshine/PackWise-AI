@@ -34,3 +34,7 @@ dist-ssr
 # Documentation & Diagrams
 *.drawio
 flowcharts.html
+
+# Secrets and local environments
+.env
+.vercel/

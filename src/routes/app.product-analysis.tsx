@@ -36,10 +36,10 @@ const ANALYSIS_STEPS = [
 
 type Stage = "form" | "analysing" | "results";
 
-function WorkflowBar({ steps }: { steps: typeof WORKFLOW_STEPS }) {
+function WorkflowBar({ steps }: { steps: ReturnType<typeof getWorkflowSteps> }) {
   return (
     <div className="flex items-center rounded-xl border border-border/70 bg-muted/30 px-4 py-3">
-      {steps.map((s, i, arr) => (
+      {steps.map((s: any, i: number, arr: any[]) => (
         <div key={s.label} className="flex flex-1 items-center">
           <div className="flex flex-col items-center gap-1">
             <div className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold ${s.active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
@@ -325,24 +325,41 @@ function ProductAnalysisPage() {
   const handleContinue = async () => {
     setIsSaving(true);
 
-    // Save to Supabase (Database Temanmu)
+    const user = (() => { try { return JSON.parse(localStorage.getItem("packwise_user") || ""); } catch { return null; } })();
+
+    // Save full analysis to Supabase product_analyses
     try {
-      const { error } = await supabase.from('product_analyses').insert([
-        {
-          product_name: `${productFamily} Doll`,
-          detected_poses: detectedPoses,
-          raw_keypoints: rawKeypoints
-        }
-      ]);
+      const { error } = await supabase.from('product_analyses').insert([{
+        user_id: user?.user_id ?? null,
+        product_name: `${productFamily} Doll`,
+        product_family: productFamily,
+        articulation: articulation,
+        pose: poseStatus ? (poseStatus.left_arm_up || poseStatus.right_arm_up ? "Arms Up" : "Arms Down") : pose,
+        product_weight_g: weightG,
+        height_cm: heightCm,
+        center_of_gravity: computedCOG,
+        hair_length: hairLength,
+        dress_length: dressLength,
+        accessory_count: selectedAccessories.length,
+        accessory_weight_g: selectedAccessories.reduce((acc, curr) => acc + curr.weight, 0),
+        selected_accessories: selectedAccessories.map((a) => a.name),
+        detected_poses: detectedPoses,
+        raw_keypoints: rawKeypoints,
+        cv_detections: detectedStraps,
+        pose_status: poseStatus,
+        computed_height: computedHeight,
+        computed_complexity: computedComplexity,
+        computed_cog: computedCOG,
+        analysed_at: new Date().toISOString(),
+      }]);
 
       if (error) {
-        console.error("Supabase Error:", error);
-        alert("Gagal simpan ke Supabase! (Cek Console) Apakah tabelnya sudah dibuat temanmu?");
+        console.warn("Supabase save warning:", error.message);
       } else {
-        console.log("Sukses! 17 Titik YOLO dan Pose tersimpan di Supabase.");
+        console.log("[PackWise] Analysis saved to Supabase ✓");
       }
     } catch (err) {
-      console.error("Supabase Exception:", err);
+      console.warn("Supabase save failed (offline?):", err);
     }
 
     setIsSaving(false);

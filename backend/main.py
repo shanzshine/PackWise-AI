@@ -43,8 +43,8 @@ allow_origins = _origins_env.split(",") if _origins_env else ["*"]
 # Enable CORS for the React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allow_origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -171,7 +171,7 @@ async def analyze_image(file: UploadFile = File(...)):
         result = results[0]
         
         # 1. Plot HANYA keypoints/skeleton, TANPA bounding boxes
-        annotated_frame = result.plot(boxes=False)
+        annotated_frame = result.plot(boxes=False, kpt_line=True)
         
         # Tambahkan plotting Bounding Box dari Strap Model di atas frame yang sama
         if len(strap_results) > 0:

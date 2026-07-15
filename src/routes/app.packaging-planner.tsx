@@ -19,8 +19,7 @@ import { Slider } from "@/components/ui/slider";
 import { loadAnalysis, saveAnalysis, savePlan, DEMO_RESULT, type AnalysisResult, type AttachmentZone } from "@/lib/workflow-store";
 import { runAssemblyEngine } from "@/lib/assembly-engine";
 import { ATTACHMENT_METHODS } from "@/lib/mock-data";
-import { recommendPose, type PoseRecommendation } from "@/lib/pose-recommendation";
-import { PoseBlueprint } from "@/components/pose-blueprint";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/app/packaging-planner")({
   head: () => ({ meta: [{ title: "Attachment Planner — PackWise AI" }] }),
@@ -188,7 +187,7 @@ function buildZonePlan(xgbData: Record<string, any>, detections: any[], threshol
   // Iterate ALL possible zones from XGBoost map
   const processedZones = new Set<string>();
   for (const [key, meta] of Object.entries(xgbMap)) {
-    const xgbRecommended = xgbData[key] > 0;
+    const xgbRecommended = xgbData[key] === 1;
     const cvDetected = cvDetectedZones.has(meta.zone);
     processedZones.add(meta.zone);
 
@@ -230,9 +229,16 @@ function buildZonePlan(xgbData: Record<string, any>, detections: any[], threshol
       reasoning,
     });
 
-    if (action !== "Remove") {
-      vizZones.push({ zone: meta.bodyRegion.split("/")[0].trim(), bodyRegion: meta.bodyRegion, riskLevel: risk, recommendedMethod: finalMethod });
-    }
+    vizZones.push({
+      zone: meta.bodyRegion.split("/")[0].trim(),
+      bodyRegion: meta.bodyRegion,
+      riskLevel: risk,
+      recommendedMethod: action === "Remove" ? "No Attachment Required" : finalMethod,
+      cost: action === "Remove" ? "$0.00" : `$${p.cost.toFixed(2)}`,
+      labor: action === "Remove" ? "0 min" : `${p.laborMins} min`,
+      sustainability: action === "Remove" ? 100 : p.sustainability,
+      impact: reasoning,
+    });
   }
 
   // Add any CV-detected zones not in xgbMap (edge case)
@@ -255,6 +261,16 @@ function buildZonePlan(xgbData: Record<string, any>, detections: any[], threshol
         riskReduction: p.riskReduction,
         reasoning: "CV detected this but AI deems it unnecessary",
       });
+      vizZones.push({
+        zone: zone.split("/")[0].trim(),
+        bodyRegion: cv.bodyRegion,
+        riskLevel: "low",
+        recommendedMethod: "No Attachment Required",
+        cost: "$0.00",
+        labor: "0 min",
+        sustainability: 100,
+        impact: "CV detected this but AI deems it unnecessary",
+      });
     }
   }
 
@@ -275,11 +291,10 @@ function AttachmentPlannerPage() {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [zonePlan, setZonePlan] = useState<ReturnType<typeof buildZonePlan>["plan"]>([]);
   const [recommendedMaterial, setRecommendedMaterial] = useState<string | null>(null);
-  const [threshold, setThreshold] = useState(0.15);
+  const [threshold] = useState(0.15); // Fixed threshold — confidence filtering handled by backend
   const [xgbData, setXgbData] = useState<any>(null);
   const [xgbStatus, setXgbStatus] = useState<"loading" | "ok" | "error">("loading");
   const [xgbError, setXgbError] = useState<string | null>(null);
-  const [poseRecommendation, setPoseRecommendation] = useState<PoseRecommendation | null>(null);
 
   useEffect(() => {
     const a = loadAnalysis() ?? DEMO_RESULT;
@@ -301,7 +316,11 @@ function AttachmentPlannerPage() {
             dress_length: a.dress_length ?? "Short",
             accessory_count: a.accessory_count ?? 1,
             accessory_weight_g: a.accessory_weight_g ?? 15,
-            selected_accessories: a.selected_accessories ?? []
+            complexity_score: Math.round((a.poseComplexityScore ?? 50) / 10),
+            stability_index: Math.round((a.poseStabilityScore ?? 50) / 10),
+            fragility_score: 5,
+            attachment_needed: 1,
+            fragile_parts_count: Math.max(1, Math.floor((a.accessory_count ?? 1) / 2)),
           })
         });
         const data = await res.json();
@@ -325,32 +344,51 @@ function AttachmentPlannerPage() {
       setZonePlan(newPlan);
       saveAnalysis({ ...analysis, attachmentZones: newAttachmentZones });
 
-      // Generate Pose Recommendation
-      if (analysis.raw_keypoints) {
-        const poseRec = recommendPose(
-          analysis.raw_keypoints,
-          xgbData,
-          newPlan,
-          analysis.product_weight_g ?? 120,
-          analysis.accessory_count ?? 1,
-          analysis.hair_length ?? "Short"
-        );
-        setPoseRecommendation(poseRec);
-      }
-
       // Persist plan for Cost & Sustainability page
       const active = newPlan.filter(z => z.action !== "Remove" && z.recommendedMethod !== "Not needed");
-      savePlan({
+      const totalCostVal = parseFloat(active.reduce((s, z) => s + z.cost, 0).toFixed(2));
+      const avgStabilityVal = active.length > 0 ? Math.round(active.reduce((s, z) => s + z.stability, 0) / active.length) : 100;
+      const avgSustainVal = active.length > 0 ? Math.round(active.reduce((s, z) => s + z.sustainability, 0) / active.length) : 100;
+
+      // Assembly engine for accurate labor time
+      const asmResult = runAssemblyEngine({
+        weightGrams: analysis.product_weight_g ?? 120,
+        accessories: analysis.selected_accessories ?? [],
+        skeletonKeypoints: analysis.raw_keypoints ?? [],
+        poseComplexityScore: analysis.poseComplexityScore ?? 0,
+      });
+
+      const planPayload = {
         zones: newPlan.map(z => ({
           zone: z.zone, currentMethod: z.currentMethod, recommendedMethod: z.recommendedMethod,
           action: z.action, cvDetected: z.cvDetected, xgbRecommended: z.xgbRecommended,
           cost: z.cost, laborMins: z.laborMins, sustainability: z.sustainability,
           stability: z.stability, riskReduction: z.riskReduction,
         })),
-        totalCost: parseFloat(active.reduce((s, z) => s + z.cost, 0).toFixed(2)),
-        avgStability: active.length > 0 ? Math.round(active.reduce((s, z) => s + z.stability, 0) / active.length) : 100,
-        avgSustainability: active.length > 0 ? Math.round(active.reduce((s, z) => s + z.sustainability, 0) / active.length) : 100,
+        totalCost: totalCostVal,
+        avgStability: avgStabilityVal,
+        avgSustainability: avgSustainVal,
         recommendedMaterial,
+      };
+      savePlan(planPayload);
+
+      // Save to Supabase packaging_plan (non-blocking)
+      const user = (() => { try { return JSON.parse(localStorage.getItem("packwise_user") || ""); } catch { return null; } })();
+      supabase.from('packaging_plan').insert([{
+        pe_id: user?.user_id ?? null,
+        title: `${analysis.productName ?? "Doll"} — Packaging Plan`,
+        status: 'draft',
+        zones: planPayload.zones,
+        total_cost: totalCostVal,
+        avg_stability: avgStabilityVal,
+        avg_sustainability: avgSustainVal,
+        recommended_material: recommendedMaterial,
+        assembly_time_seconds: asmResult.assembly_time_seconds,
+        assembly_breakdown: asmResult.calculation_breakdown,
+        is_complex_pose: asmResult.is_complex_pose,
+      }]).then(({ error }) => {
+        if (error) console.warn("[PackWise] packaging_plan save warning:", error.message);
+        else console.log("[PackWise] Packaging plan saved to Supabase ✓");
       });
     }
   }, [xgbData, analysis, threshold]);
@@ -585,22 +623,7 @@ function AttachmentPlannerPage() {
               </div>
             </div>
 
-            {/* Confidence Threshold Slider */}
-            {analysis?.imageDataUrl && (
-              <div className="p-4 border-t border-border/50 bg-background/50">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-muted-foreground">Confidence Threshold</span>
-                  <span className="text-xs font-semibold">{Math.round(threshold * 100)}%</span>
-                </div>
-                <Slider
-                  value={[threshold]}
-                  onValueChange={([val]) => setThreshold(val)}
-                  max={1}
-                  step={0.05}
-                  className="w-full"
-                />
-              </div>
-            )}
+            {/* Confidence Threshold removed by request */}
           </CardContent>
         </Card>
 
@@ -668,10 +691,11 @@ function AttachmentPlannerPage() {
       </div>
 
       {/* KPI Row */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {[
           { label: "Avg. Pose Stability", value: `${avgStability}%`, hint: `${activeZones.length} active attachment zones` },
           { label: "Total Cost / Unit", value: `$${totalCost}`, hint: removeCount > 0 ? `Saving possible by removing ${removeCount} zone(s)` : "All recommended materials" },
+          { label: "Est. Assembly Time", value: `${assemblyResult.assembly_time_seconds}s`, hint: assemblyResult.is_complex_pose ? "+15% complex pose penalty applied" : "Calculated using DFA standards" },
           { label: "Action Summary", value: `${keepCount} Keep · ${addCount} Add · ${removeCount} Remove`, hint: `${zonePlan.length} zones analyzed` },
           { label: "Sustainability Score", value: `${avgSustainability}/100`, hint: "Weighted avg across recommended materials" },
         ].map(({ label, value, hint }) => (
@@ -684,107 +708,6 @@ function AttachmentPlannerPage() {
           </Card>
         ))}
       </div>
-
-      {/* ── Pose Blueprint & Recommendations ── */}
-      {poseRecommendation && analysis?.raw_keypoints && (
-        <Card className="border-border/70 shadow-none overflow-hidden">
-          <CardHeader className="bg-muted/30 pb-4 border-b">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Brain className="h-4 w-4 text-primary" /> AI Pose Optimization Blueprint
-                </CardTitle>
-                <CardDescription>
-                  Rule-based engine recommending optimal packaging pose and attachment placements to minimize transit risk.
-                </CardDescription>
-              </div>
-              <div className="flex gap-2">
-                <Badge variant="outline" className="border-border/70 bg-background">
-                  Current Risk: {poseRecommendation.currentPoseRisk}/100
-                </Badge>
-                <Badge className="bg-[color:var(--success)]/10 text-[color:var(--success)] border-[color:var(--success)]/30">
-                  Recommended: {poseRecommendation.recommendedPoseRisk}/100
-                </Badge>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0 grid grid-cols-1 lg:grid-cols-2">
-            {/* Left: Visual SVG Blueprint */}
-            <div className="border-b lg:border-b-0 lg:border-r border-border/50 bg-white flex items-center justify-center p-6 min-h-[300px]">
-              <PoseBlueprint 
-                recommendation={poseRecommendation} 
-                currentKeypoints={analysis.raw_keypoints} 
-                imageUrl={analysis.imageDataUrl}
-                className="max-w-full shadow-sm"
-              />
-            </div>
-            
-            {/* Right: Detailed Text Recommendations */}
-            <div className="p-6 flex flex-col gap-6 bg-zinc-950/5">
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-                  <Info className="h-4 w-4" /> Recommended Pose: {poseRecommendation.poseName}
-                </h3>
-                {poseRecommendation.adjustments.length === 0 ? (
-                  <div className="rounded-lg border border-[color:var(--success)]/30 bg-[color:var(--success)]/5 p-4 flex items-start gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-[color:var(--success)] shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Current pose is already optimal</p>
-                      <p className="text-xs text-muted-foreground mt-1">No skeletal adjustments needed for packaging.</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {poseRecommendation.adjustments.map((adj, i) => (
-                      <div key={i} className={`rounded-lg border p-3 flex gap-3 ${
-                        adj.severity === "high" ? "border-amber-500/40 bg-amber-500/5" :
-                        adj.severity === "medium" ? "border-blue-500/30 bg-blue-500/5" :
-                        "border-border/50 bg-background/50"
-                      }`}>
-                        <div className="text-lg shrink-0 mt-0.5">{adj.icon}</div>
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-bold">{adj.zone}</span>
-                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
-                              {adj.severity.toUpperCase()} RISK
-                            </Badge>
-                          </div>
-                          <p className="text-xs font-medium text-foreground">
-                            <span className="line-through text-muted-foreground mr-1">{adj.current}</span>
-                            → {adj.recommended}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground mt-1">{adj.reason}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-                  <ScanLine className="h-4 w-4" /> Attachment Anchor Points
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {poseRecommendation.attachmentPlacements.length > 0 ? (
-                    poseRecommendation.attachmentPlacements.map((p, i) => (
-                      <div key={i} className="flex items-center justify-between p-2 rounded-md border border-border/50 bg-background/40">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />
-                          <span className="text-[11px] font-medium">{p.zone}</span>
-                        </div>
-                        <span className="text-[10px] text-muted-foreground">{p.method}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <span className="text-xs text-muted-foreground italic col-span-2">No attachments required</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Current vs Recommended Comparison */}
       <Card className="border-border/70 shadow-none">

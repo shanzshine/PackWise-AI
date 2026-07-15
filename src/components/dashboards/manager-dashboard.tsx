@@ -12,6 +12,8 @@ import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import { costBreakdown, monthlyTrends, sustainabilityMetrics } from "@/lib/mock-data";
 import type { AuthUser } from "@/lib/auth";
+import { useState, useEffect } from "react";
+import { loadApprovalRequests, type ApprovalRequest } from "@/lib/workflow-store";
 
 const PIE_COLORS = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)", "var(--color-chart-4)"];
 
@@ -25,6 +27,15 @@ const riskTrend = [
 ];
 
 export function ManagerDashboard({ user }: { user: AuthUser }) {
+  const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
+
+  useEffect(() => {
+    const localReqs = loadApprovalRequests();
+    if (localReqs.length > 0) {
+      setApprovals([...localReqs, ...approvals].slice(0, 3));
+    }
+  }, []);
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -54,10 +65,7 @@ export function ManagerDashboard({ user }: { user: AuthUser }) {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {[
-              { sku: "Glamour Doll – Sparkle Edition", engineer: "Eng. Alice", date: "Today, 10:45 AM", risk: "Low", cost: "$0.38/unit" },
-              { sku: "Action Hero Series 7", engineer: "Eng. Bob", date: "Yesterday, 3:15 PM", risk: "Medium", cost: "$0.45/unit" },
-            ].map((req, i) => (
+            {approvals.filter(a => a.status === "Pending").map((req, i) => (
               <div key={i} className="flex items-center justify-between rounded-lg border border-border/70 bg-background p-4">
                 <div>
                   <p className="text-sm font-semibold text-foreground">{req.sku}</p>
@@ -74,7 +82,7 @@ export function ManagerDashboard({ user }: { user: AuthUser }) {
                   </div>
                   <div className="flex items-center gap-2">
                     <Button size="sm" asChild>
-                      <Link to={`/app/approvals/REQ-09${2 - i}`}>View Details</Link>
+                      <Link to="/app/approvals/$id" params={{ id: req.id || 'REQ-000' }}>View Details</Link>
                     </Button>
                   </div>
                 </div>

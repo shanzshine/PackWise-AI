@@ -37,22 +37,14 @@ def cog_category_to_offset_mm(center_of_gravity: str, height_cm: float) -> float
     'Left', presumably also 'Right'/'Front') into an estimated numeric
     offset in mm, which is what the RPKB-grounded movement-risk rules
     (E016-E020, from Yang et al. 2023) actually need.
-
-    Reasoning:
-    - 'Center' means no meaningful eccentricity by definition -> small
-      residual offset only (manufacturing/pose tolerance), set to 5mm.
-    - Any off-center direction (Back/Front/Left/Right) is estimated as 5% of
-      the doll's standing height. For a ~29-30cm doll (this dataset's range),
-      that's ~14.5-15mm.
-    - This 5% figure is a deliberate curator estimate chosen so it straddles
-      the empirically-derived 10mm threshold in RPKB evidence E016 (Yang et
-      al. 2023) — meaning an off-center pose will actually be able to trigger
-      that literature-grounded rule, while a centered pose won't.
-    - width_cm/depth_cm would give a more precise, direction-aware estimate,
-      but those columns aren't present in the current flat CSV.
     """
-    if center_of_gravity == "Center":
+    if not center_of_gravity:
         return 5.0
+        
+    # Handle CV strings like "Center (Hip Midpoint)"
+    if "Center" in center_of_gravity:
+        return 5.0
+        
     return round(height_cm * 10 * 0.05, 1)  # cm -> mm, 5% of height
 
 

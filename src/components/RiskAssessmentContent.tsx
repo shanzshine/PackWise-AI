@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { getToken } from "@/lib/auth";
+import { loadAnalysis, loadPlan } from "@/lib/workflow-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -258,9 +259,9 @@ const round = (n: number) => Math.round(n * 10) / 10;
 
 export default function RiskAssessmentContent({
   packagingConfig = DEFAULT_PACKAGING_CONFIG,
-  ruleEngineStatus = DEFAULT_RULE_ENGINE_STATUS,
-  engineeringRules = ENGINEERING_RULES,
-  decisionTrace = DECISION_TRACE,
+  ruleEngineStatus: initialRuleEngineStatus = DEFAULT_RULE_ENGINE_STATUS,
+  engineeringRules: initialEngineeringRules = ENGINEERING_RULES,
+  decisionTrace: initialDecisionTrace = DECISION_TRACE,
 }: {
   packagingConfig?: PackagingConfig;
   ruleEngineStatus?: RuleEngineStatus;
@@ -268,25 +269,15 @@ export default function RiskAssessmentContent({
   decisionTrace?: DecisionTraceStep[];
 } = {}) {
   const [product, setProduct] = useState({
-    name: "Glamour Doll — Sparkle Edition",
-    category: "Fashion Doll",
-    complexity: 82,
+    name: "—",
+    category: "—",
+    complexity: 50,
     support: 3,
   });
 
-  const [accessories, setAccessories] = useState<Accessory[]>([
-    { name: "Glasses", secured: false, small: true },
-    { name: "Handbag", secured: true, small: true },
-    { name: "Crown", secured: false, small: true },
-    { name: "Shoes", secured: true, small: true },
-    { name: "Dress Stand", secured: true, small: false },
-  ]);
+  const [accessories, setAccessories] = useState<Accessory[]>([]);
 
-  const [attachments] = useState<Attachment[]>([
-    { region: "Hair", type: "Elastic Strap", coverage: 70 },
-    { region: "Waist", type: "PET Support", coverage: 85 },
-    { region: "Wrist", type: "EVA Strap", coverage: 65 },
-  ]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
 
   const [scenario, setScenario] = useState<ScenarioKey>("normal");
   const [confOpen, setConfOpen] = useState(false);
@@ -296,43 +287,137 @@ export default function RiskAssessmentContent({
 
   const [apiData, setApiData] = useState<any>(null);
 
+  // Hydrate from real analysis data
   useEffect(() => {
-    async function fetchApi() {
+    const a = loadAnalysis();
+    if (a) {
+      setProduct({
+        name: a.productName ?? "—",
+        category: a.category ?? a.productType ?? "—",
+        complexity: a.poseComplexityScore ?? 50,
+        support: 3,
+      });
+
+      // Map accessories from selected_accessories list
+      const SMALL_ACCESSORIES = new Set(["glasses","crown","ring","earring","clip","pin","badge"]);
+      const accList: Accessory[] = (a.selected_accessories ?? a.accessories ?? []).map((name: string) => ({
+        name,
+        secured: false,
+        small: SMALL_ACCESSORIES.has(name.toLowerCase()),
+      }));
+      if (accList.length > 0) setAccessories(accList);
+
+      // Map attachment zones → Attachment[]
+      const RISK_TO_COVERAGE: Record<string, number> = { high: 50, medium: 70, low: 88 };
+      const METHOD_TO_TYPE: Record<string, string> = {
+        "Elastic Strap": "Elastic Strap",
+        "EVA Strap": "EVA Strap",
+        "PET Support": "PET Support",
+        "Cardboard Support": "Cardboard Support",
+        "Blister Support": "Blister Support",
+      };
+      const zones = (a.attachmentZones ?? []).filter(
+        (z: any) => z.recommendedMethod && z.recommendedMethod !== "No Attachment Required" && z.recommendedMethod !== "Not needed"
+      );
+      if (zones.length > 0) {
+        setAttachments(zones.map((z: any) => ({
+          region: z.zone,
+          type: METHOD_TO_TYPE[z.recommendedMethod] ?? z.recommendedMethod,
+          coverage: RISK_TO_COVERAGE[z.riskLevel] ?? 70,
+        })));
+      }
+
+      // Re-connect the backend AI model
       const token = getToken();
-      if (!token) return;
-      try {
-        const res = await fetch("http://localhost:8000/predict", {
+      if (token) {
+        fetch("http://localhost:8000/predict", {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({
             plan_id: 1,
-            product_weight_g: 250,
-            height_cm: 30.0,
+            product_weight_g: a.product_weight_g ?? 250,
+            height_cm: a.height_cm ?? 30.0,
             fragility_score: 5,
-            center_of_gravity: "Back",
-            accessory_count: 5,
-            accessory_weight_g: 45,
+            center_of_gravity: a.center_of_gravity ?? "Center",
+            accessory_count: accList.length,
+            accessory_weight_g: a.accessory_weight_g ?? 45,
             movement_score: 7,
-            complexity_score: 8,
-            stability_index: 4,
-            recommended_head_strap: 1,
-            recommended_waist_strap: 1,
-            recommended_hand_strap: 0,
-            recommended_leg_strap: 0,
+            complexity_score: a.poseComplexityScore != null ? Math.round(a.poseComplexityScore / 10) : 8,
+            stability_index: a.poseStabilityScore != null ? Math.round(a.poseStabilityScore / 10) : 4,
+            recommended_head_strap: zones.some((z: any) => z.zone.toLowerCase().includes("head") || z.zone.toLowerCase().includes("hair")) ? 1 : 0,
+            recommended_waist_strap: zones.some((z: any) => z.zone.toLowerCase().includes("waist") || z.zone.toLowerCase().includes("torso")) ? 1 : 0,
+            recommended_hand_strap: zones.some((z: any) => z.zone.toLowerCase().includes("arm") || z.zone.toLowerCase().includes("wrist") || z.zone.toLowerCase().includes("hand")) ? 1 : 0,
+            recommended_leg_strap: zones.some((z: any) => z.zone.toLowerCase().includes("leg") || z.zone.toLowerCase().includes("foot") || z.zone.toLowerCase().includes("ankle")) ? 1 : 0,
           })
-        });
-        if (res.ok) {
-          setApiData(await res.json());
-        }
-      } catch (e) {
-        console.error("Failed to fetch risk assessment API:", e);
+        })
+        .then(res => res.json())
+        .then(data => setApiData(data))
+        .catch(err => console.error("Failed to fetch risk assessment API:", err));
       }
     }
-    fetchApi();
   }, []);
 
+  const ruleEngineStatus = useMemo(() => {
+    let active = 0;
+    if (apiData?.categories) {
+      Object.values(apiData.categories).forEach((cat: any) => {
+        if (cat.matched_rules) active += cat.matched_rules.length;
+      });
+    }
+    return {
+      literaturePapers: 18,
+      engineeringRules: 38,
+      activeRulesTriggered: active > 0 ? active : initialRuleEngineStatus.activeRulesTriggered,
+      ruleCoverage: active > 0 ? Math.round((active / 38) * 100) : initialRuleEngineStatus.ruleCoverage,
+    };
+  }, [apiData, initialRuleEngineStatus]);
+
+  const engineeringRules = useMemo(() => {
+    const rules: EngineeringRule[] = [];
+    if (apiData?.categories) {
+      Object.values(apiData.categories).forEach((cat: any) => {
+        cat.matched_rules?.forEach((mr: any) => {
+          rules.push({
+            id: mr.rule_id,
+            evidenceId: mr.evidence_id,
+            rule: mr.explanation,
+            status: "Triggered"
+          });
+        });
+      });
+    }
+    return rules.length > 0 ? rules : initialEngineeringRules;
+  }, [apiData, initialEngineeringRules]);
+
+  const decisionTrace = useMemo(() => {
+    if (apiData?.explanation_trace?.length) {
+      return apiData.explanation_trace.map((line: string) => {
+        if (line.startsWith("---")) {
+          return {
+            stage: "Category Summary",
+            label: line.replace(/---/g, '').trim(),
+            detail: "Aggregated risk for category",
+            icon: Database
+          };
+        } else {
+          const match = line.match(/\[(.*?)\] (.*)/);
+          if (match) {
+            return {
+              stage: "Evaluated Rule",
+              label: match[1],
+              detail: match[2],
+              icon: FileText
+            };
+          }
+          return { stage: "Info", label: "Details", detail: line, icon: BookOpen };
+        }
+      });
+    }
+    return initialDecisionTrace;
+  }, [apiData, initialDecisionTrace]);
+
   const attachmentCoverage = useMemo(
-    () => attachments.reduce((s, a) => s + a.coverage, 0) / attachments.length,
+    () => attachments.length > 0 ? attachments.reduce((s, a) => s + a.coverage, 0) / attachments.length : 0,
     [attachments],
   );
 
@@ -351,12 +436,16 @@ export default function RiskAssessmentContent({
 
   const accessoryLoss = useMemo(
     () => {
+      let base = 20 + 15 * unsecuredSmall - 10 * securedCount + 25;
       if (apiData?.categories?.["Accessory Loss Risk"]) {
-        return clamp(apiData.categories["Accessory Loss Risk"].risk_percentage * sc.ac);
+        base = apiData.categories["Accessory Loss Risk"].risk_percentage;
+        const newlySecuredSmall = accessories.filter((a) => a.secured && a.small).length;
+        const newlySecuredLarge = accessories.filter((a) => a.secured && !a.small).length;
+        base = base - newlySecuredSmall * 25 - newlySecuredLarge * 10;
       }
-      return clamp((20 + 15 * unsecuredSmall - 10 * securedCount + 25) * sc.ac);
+      return clamp(base * sc.ac);
     },
-    [apiData, unsecuredSmall, securedCount, sc.ac],
+    [apiData, accessories, unsecuredSmall, securedCount, sc.ac],
   );
 
   const poseStability = useMemo(
@@ -366,12 +455,17 @@ export default function RiskAssessmentContent({
 
   const dropScore = useMemo(
     () => {
+      let base = 100 - movementRisk * 0.4 - accessoryLoss * 0.2 + poseStability * 0.3;
       if (apiData?.categories?.["Drop Test Risk"]) {
-        return clamp(apiData.categories["Drop Test Risk"].pass_probability * sc.dr);
+        base = apiData.categories["Drop Test Risk"].pass_probability;
+        const newlySecuredSmall = accessories.filter((a) => a.secured && a.small).length;
+        const newlySecuredLarge = accessories.filter((a) => a.secured && !a.small).length;
+        const lossReduction = newlySecuredSmall * 25 + newlySecuredLarge * 10;
+        base = base + lossReduction * 0.2;
       }
-      return clamp((100 - movementRisk * 0.4 - accessoryLoss * 0.2 + poseStability * 0.3) * sc.dr);
+      return clamp(base * sc.dr);
     },
-    [apiData, movementRisk, accessoryLoss, poseStability, sc.dr],
+    [apiData, accessories, movementRisk, accessoryLoss, poseStability, sc.dr],
   );
 
   // Alt plans (deterministic deltas)
@@ -457,14 +551,12 @@ export default function RiskAssessmentContent({
 
   // What-if optimized state (all accessories secured + +15% coverage + +2 support)
   const optimized = useMemo(() => {
-    const optCoverage = clamp(attachmentCoverage + 15);
-    const optSupport  = Math.min(10, product.support + 2);
-    const mv = clamp((0.5 * product.complexity - 0.2 * optSupport * 10 - 0.3 * optCoverage + 35) * sc.mv);
-    const ac = clamp((20 + 0 - 10 * accessories.length + 25) * sc.ac);
-    const ps = clamp(100 - 0.45 * product.complexity + 6 * optSupport + 0.25 * optCoverage);
-    const dr = clamp((100 - mv * 0.4 - ac * 0.2 + ps * 0.3) * sc.dr);
+    const mv = clamp(movementRisk * 0.75); // Simulate 25% risk reduction from added support
+    const ac = accessories.length > 0 ? clamp(5 * sc.ac) : 0; // Minimize loss risk when secured
+    const ps = clamp(poseStability + 15); // Add stability
+    const dr = clamp(dropScore + ((100 - dropScore) * 0.4)); // Close 40% of the gap to perfect drop score
     return { mv, ac, ps, dr };
-  }, [product, attachments, accessories, attachmentCoverage, sc]);
+  }, [movementRisk, poseStability, dropScore, accessories, sc.ac]);
 
   // Confidence factor breakdown
   const confFactors = useMemo(
@@ -512,42 +604,64 @@ export default function RiskAssessmentContent({
 
   // Improvement suggestions with engineering benefit breakdown
   const improvementSuggestions = useMemo<ImprovementBenefit[]>(
-    () => [
-      {
-        icon: TrendingDown,
-        title: "Add EVA strap on left arm",
-        detail: "Increases attachment coverage on the head/arms cluster by 18%.",
-        benefits: [
-          { label: "Movement Risk",   value: `-${round(movementRisk * 0.34)}`, positive: true },
-          { label: "Drop Survival",   value: `+${round((100 - dropScore) * 0.18)}`, positive: true },
-          { label: "Packaging Cost",  value: "+$0.08",                          positive: false },
-          { label: "Sustainability",  value: "-4% material",                    positive: true },
-        ],
-      },
-      {
-        icon: ShieldCheck,
-        title: "Secure Crown with micro-clip",
-        detail: "Locks the lightest unsecured part; eliminates dominant loss vector.",
-        benefits: [
-          { label: "Accessory Loss",  value: `-${round(accessoryLoss * 0.42)}%`, positive: true },
-          { label: "Drop Survival",   value: `+${round((100 - dropScore) * 0.09)}`, positive: true },
-          { label: "Packaging Cost",  value: "+$0.03",                            positive: false },
-          { label: "Sustainability",  value: "±0% material",                      positive: true },
-        ],
-      },
-      {
-        icon: CheckCircle2,
-        title: "Switch waist PET to molded cradle",
-        detail: "Distributes shock across torso; improves pose stability under 1.2 m drop.",
-        benefits: [
-          { label: "Movement Risk",   value: `-${round(movementRisk * 0.22)}`,  positive: true },
-          { label: "Drop Survival",   value: `+${round((100 - dropScore) * 0.22)}`, positive: true },
-          { label: "Packaging Cost",  value: "+$0.12",                             positive: false },
-          { label: "Sustainability",  value: "-6% material",                       positive: true },
-        ],
-      },
-    ],
-    [movementRisk, accessoryLoss, dropScore],
+    () => {
+      const suggestions: ImprovementBenefit[] = [];
+      const unsecured = accessories.filter(a => !a.secured);
+      
+      if (unsecured.length > 0) {
+        suggestions.push({
+          icon: TrendingDown,
+          title: "Secure Loose Accessories",
+          detail: `Retain ${unsecured.length} loose item(s) to prevent vibration escape.`,
+          benefits: [
+            { label: "Accessory Loss Risk", value: `-${round(accessoryLoss * 0.42)}%`, positive: true },
+            { label: "Cost Impact", value: "+$0.02 / unit", positive: false }
+          ]
+        });
+      }
+
+      if (apiData?.movement_by_region) {
+        Object.entries(apiData.movement_by_region).forEach(([region, data]: any) => {
+          if (data.risk_percentage > 50) {
+            suggestions.push({
+              icon: ShieldCheck,
+              title: `Add Support for ${region}`,
+              detail: `High movement risk detected (${data.risk_percentage}%). Implement rigid or elastic support.`,
+              benefits: [
+                { label: "Movement Risk", value: `-${Math.round(data.risk_percentage * 0.34)}%`, positive: true },
+                { label: "Stability", value: "+12%", positive: true }
+              ]
+            });
+          }
+        });
+      }
+
+      if (apiData?.categories?.["Drop Test Risk"]?.risk_percentage > 60) {
+        suggestions.push({
+          icon: CheckCircle2,
+          title: "Upgrade Cushion Density",
+          detail: "Current setup fails drop test criteria. Switch to higher density foam.",
+          benefits: [
+            { label: "Drop Survival", value: `+${round((100 - dropScore) * 0.22)}`, positive: true },
+            { label: "Material Cost", value: "+$0.05", positive: false }
+          ]
+        });
+      }
+
+      if (suggestions.length === 0) {
+        suggestions.push({
+          icon: Sparkles,
+          title: "Optimize Cushioning Material",
+          detail: "Current design is safe. Switch to molded pulp for better sustainability.",
+          benefits: [
+            { label: "Sustainability", value: "+30%", positive: true },
+            { label: "Drop Survival", value: "+0%", positive: true }
+          ]
+        });
+      }
+      return suggestions.slice(0, 3);
+    },
+    [apiData, accessories, accessoryLoss, dropScore],
   );
 
   const toggleSecured = (name: string) =>

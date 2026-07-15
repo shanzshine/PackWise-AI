@@ -1550,4 +1550,4 @@ function getState(open) {
 	return open ? "open" : "closed";
 }
 //#endregion
-export { DialogOverlay as a, hideOthers as c, Portal as d, FocusScope as f, useId as h, DialogDescription as i, ReactRemoveScroll as l, useCallbackRef$1 as m, DialogClose as n, DialogPortal as o, DismissableLayer as p, DialogContent as r, DialogTitle as s, Dialog as t, useFocusGuards as u };
+export { DialogOverlay as a, DialogTrigger as c, useFocusGuards as d, Portal as f, useId as g, useCallbackRef$1 as h, DialogDescription as i, hideOthers as l, DismissableLayer as m, DialogClose as n, DialogPortal as o, FocusScope as p, DialogContent as r, DialogTitle as s, Dialog as t, ReactRemoveScroll as u };

@@ -1,5 +1,5 @@
 import { c as require_jsx_runtime } from "../_libs/@radix-ui/react-arrow+[...].mjs";
-import { L as Cog } from "../_libs/lucide-react.mjs";
+import { Q as Cog } from "../_libs/lucide-react.mjs";
 import { t as PlaceholderPage } from "./placeholder-page-CB7CUziN.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/app.system-settings-DACzomiG.js
 var import_jsx_runtime = require_jsx_runtime();
