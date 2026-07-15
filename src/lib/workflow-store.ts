@@ -173,6 +173,7 @@ export interface PlanResult {
   avgStability: number;
   avgSustainability: number;
   recommendedMaterial: string | null;
+  totalLaborMins?: number;
 }
 
 export function savePlan(plan: PlanResult) {
@@ -214,6 +215,12 @@ export interface ApprovalRequest {
     annotatedImageDataUrl?: string;
     accessories?: string[];
     detectedPoses?: string[];
+    raw_keypoints?: any[];
+    product_weight_g?: number;
+    accessory_count?: number;
+    hair_length?: string;
+    selected_accessories?: string[];
+    pose?: string;
   };
 }
 

@@ -114,7 +114,7 @@ function CostSustainabilityPage() {
   const totalCost = plan?.totalCost ?? 0;
   const avgSustainability = plan?.avgSustainability ?? 78;
   const avgStability = plan?.avgStability ?? 88;
-  const totalLabor = activeZones.reduce((s, z) => s + z.laborMins, 0);
+  const totalLabor = plan?.totalLaborMins ?? activeZones.reduce((s, z) => s + z.laborMins, 0);
 
   // Cost savings from removed zones
   const costSavings = removedZones.reduce((s, z) => s + z.cost, 0);

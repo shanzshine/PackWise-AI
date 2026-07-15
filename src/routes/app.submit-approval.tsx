@@ -106,6 +106,12 @@ function SubmitApprovalPage() {
       annotatedImageDataUrl,
       accessories: analysis?.accessories,
       detectedPoses: analysis?.detectedPoses,
+      raw_keypoints: analysis?.raw_keypoints || [],
+      product_weight_g: analysis?.product_weight_g || 120,
+      accessory_count: analysis?.accessory_count || 1,
+      hair_length: analysis?.hair_length || "Short",
+      selected_accessories: analysis?.selected_accessories || [],
+      pose: analysis?.pose || "Arms Open",
     };
 
     // 1. Save to localStorage (for offline/fast access)

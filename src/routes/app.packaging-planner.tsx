@@ -148,7 +148,7 @@ const YOLO_TO_ZONE: Record<string, { zone: string; bodyRegion: string; xgbKey: s
   "ankle_strap": { zone: "Legs/Feet", bodyRegion: "Left Leg", xgbKey: "recommended_leg_strap", defaultMethod: "Elastic Strap" },
 };
 
-function buildZonePlan(xgbData: Record<string, any>, detections: any[], threshold: number) {
+function buildZonePlan(xgbData: Record<string, any>, detections: any[], threshold: number, productWeight: number = 120) {
   type PlanRow = {
     zone: string;
     currentMethod: string;      // What CV sees on the product RIGHT NOW
@@ -195,7 +195,16 @@ function buildZonePlan(xgbData: Record<string, any>, detections: any[], threshol
   // Iterate ALL possible zones from XGBoost map
   const processedZones = new Set<string>();
   for (const [key, meta] of Object.entries(xgbMap)) {
-    const xgbCount = xgbData[key] ?? 0;
+    let xgbCount = xgbData[key] ?? 0;
+    
+    // Physical engineering override: heavy products must have structural cardboard support
+    if (key === "recommended_base_support" && productWeight > 180) {
+      xgbCount = Math.max(xgbCount, 1);
+    }
+    if (key === "recommended_back_support" && productWeight > 220) {
+      xgbCount = Math.max(xgbCount, 1);
+    }
+
     const xgbRecommended = xgbCount > 0;
     const cvDetected = cvDetectedZones.has(meta.zone);
     const cvCount = cvDetected ? (cvDetectedZones.get(meta.zone)?.count ?? 0) : 0;
@@ -287,6 +296,61 @@ function buildZonePlan(xgbData: Record<string, any>, detections: any[], threshol
         sustainability: 100,
         impact: "CV detected this but AI deems it unnecessary",
       });
+    }
+  }
+
+  // ─── Safety Fallback Heuristic ───
+  // Enforce AI Safety Fallback: Doll must have at least one active strap to prevent shifting in package
+  const activeCount = plan.filter(z => z.action !== "Remove" && z.recommendedMethod !== "Not needed" && z.recommendedMethod !== "No Attachment Required" && z.quantity > 0).length;
+  
+  if (activeCount === 0) {
+    const waistRowIdx = plan.findIndex(z => z.zone === "Waist");
+    const p = METHOD_PROPS["PET Support"];
+    
+    // Check if CV detected a waist strap originally
+    const cvDetected = plan[waistRowIdx]?.cvDetected ?? false;
+    const cvCount = cvDetected ? 1 : 0;
+    
+    const fallbackRow = {
+      zone: "Waist",
+      currentMethod: cvDetected ? `PET Support (${cvCount}x)` : "—",
+      recommendedMethod: "PET Support (1x)",
+      action: cvDetected ? "Keep" as const : "Add" as const,
+      cvDetected,
+      xgbRecommended: true,
+      cost: p.cost,
+      laborMins: p.laborMins,
+      laborLabel: "Medium",
+      sustainability: p.sustainability,
+      stability: p.stability,
+      riskReduction: p.riskReduction,
+      reasoning: "AI Safety Fallback: Enforced Waist PET Support as the baseline lock to secure the center of gravity.",
+      quantity: 1
+    };
+
+    if (waistRowIdx !== -1) {
+      plan[waistRowIdx] = fallbackRow;
+    } else {
+      plan.push(fallbackRow);
+    }
+
+    // Also update vizZones for rendering green dot in visualizer
+    const vizWaistIdx = vizZones.findIndex(v => v.zone === "Waist");
+    const fallbackViz = {
+      zone: "Waist",
+      bodyRegion: "Torso / Waist",
+      riskLevel: "low" as const,
+      recommendedMethod: "PET Support",
+      cost: `$${p.cost.toFixed(2)}`,
+      labor: `${p.laborMins} min`,
+      sustainability: p.sustainability,
+      impact: "AI Safety Fallback: Enforced Waist support to secure the center of gravity.",
+    };
+
+    if (vizWaistIdx !== -1) {
+      vizZones[vizWaistIdx] = fallbackViz;
+    } else {
+      vizZones.push(fallbackViz);
     }
   }
 
@@ -438,7 +502,12 @@ function AttachmentPlannerPage() {
   useEffect(() => {
     if (xgbData && analysis) {
       const detections = analysis.cvDetections ?? [];
-      const { plan: newPlan, vizZones: newAttachmentZones } = buildZonePlan(xgbData, detections, threshold);
+      const { plan: newPlan, vizZones: newAttachmentZones } = buildZonePlan(
+        xgbData, 
+        detections, 
+        threshold, 
+        analysis.product_weight_g ?? 120
+      );
       setZonePlan(newPlan);
       saveAnalysis({ ...analysis, attachmentZones: newAttachmentZones });
 
@@ -468,6 +537,7 @@ function AttachmentPlannerPage() {
         avgStability: avgStabilityVal,
         avgSustainability: avgSustainVal,
         recommendedMaterial,
+        totalLaborMins: asmResult.assembly_time_seconds / 60,
       };
       savePlan(planPayload);
 
@@ -499,7 +569,8 @@ function AttachmentPlannerPage() {
     zonePlan,
     analysis.product_weight_g ?? 120,
     analysis.accessory_count ?? 1,
-    analysis.hair_length ?? "Short"
+    analysis.hair_length ?? "Short",
+    analysis.selected_accessories ?? []
   ) : null;
   const { poseRationale, stringRationales } = getPoseRationaleAndStrings(analysis, recBlueprint);
 
@@ -645,9 +716,6 @@ function AttachmentPlannerPage() {
                   <TabsTrigger value="scan" className="text-xs py-1">CV Strap Detection</TabsTrigger>
                   <TabsTrigger value="blueprint" className="text-xs py-1">AI Pose Blueprint</TabsTrigger>
                 </TabsList>
-                <Badge variant="outline" className="border-border/70 text-xs font-normal">
-                  <Brain className="mr-1 h-3 w-3" /> Pose + CV
-                </Badge>
               </div>
             </CardHeader>
 
@@ -717,6 +785,7 @@ function AttachmentPlannerPage() {
                         { label: "Height (Nose→Ankle)", value: analysis?.computedHeight ?? "—" },
                         { label: "Pose Complexity", value: analysis?.computedComplexity ?? "—" },
                         { label: "Center of Gravity", value: analysis?.computedCOG ?? "—" },
+                        { label: "Total Est. Weight", value: `${(analysis?.product_weight_g ?? 120) + (analysis?.accessory_weight_g ?? 0)} g` },
                       ].map(({ label, value }) => (
                         <div key={label} className="flex justify-between items-center p-2 border border-border/50 rounded-md bg-background/40">
                           <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
@@ -831,6 +900,19 @@ function AttachmentPlannerPage() {
                           <p className="text-[9px] text-muted-foreground uppercase font-medium">Optimized Pose (After)</p>
                           <p className="font-semibold text-primary mt-0.5 truncate">{recBlueprint?.poseName ?? "Compact Stand"}</p>
                         </div>
+                        <div className="p-2 bg-white rounded border">
+                          <p className="text-[9px] text-muted-foreground uppercase font-medium">Doll Weight</p>
+                          <p className="font-semibold text-foreground mt-0.5">{analysis?.product_weight_g ?? 120} g</p>
+                        </div>
+                        <div className="p-2 bg-white rounded border bg-[color:var(--pink-soft)]/20 border-[color:var(--pink)]/30">
+                          <p className="text-[9px] text-[color:var(--pink)] uppercase font-semibold">Total Est. Weight</p>
+                          <p className="font-bold text-[color:var(--pink)] mt-0.5">
+                            {(analysis?.product_weight_g ?? 120) + (analysis?.accessory_weight_g ?? 0)} g 
+                            <span className="text-[9px] font-normal text-muted-foreground ml-1">
+                              ({analysis?.accessory_weight_g ?? 0}g acc)
+                            </span>
+                          </p>
+                        </div>
                       </div>
                     </div>
 
@@ -900,15 +982,13 @@ function AttachmentPlannerPage() {
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                      <div className="md:col-span-8">
-                        <textarea
-                          readOnly
-                          className="w-full text-xs font-mono p-2 border bg-muted/40 rounded-lg h-14 resize-none leading-relaxed text-muted-foreground outline-none cursor-default"
-                          value={`Catalog shot, Barbie ${analysis?.product_family ?? "Fashionistas"} Doll in a ${recBlueprint?.poseName ?? "Compact Stand"} pose inside a cardboard display box, secured with transparent ${recBlueprint?.attachmentPlacements.find(p => p.zone === "Waist")?.method || "PET"} support and ${recBlueprint?.attachmentPlacements.find(p => p.zone === "Head/Hair")?.method || "Elastic"} straps, high detail, studio packaging photography --v 6.0`}
-                        />
-                      </div>
-                      <div className="md:col-span-4 self-stretch flex">
+                    <div className="flex flex-col gap-3">
+                      <textarea
+                        readOnly
+                        className="w-full text-xs font-mono p-3 border bg-muted/40 rounded-lg h-24 leading-relaxed text-muted-foreground outline-none cursor-default"
+                        value={`Catalog shot, Barbie ${analysis?.product_family ?? "Fashionistas"} Doll in a ${recBlueprint?.poseName ?? "Compact Stand"} pose inside a cardboard display box, secured with transparent ${recBlueprint?.attachmentPlacements.find(p => p.zone === "Waist")?.method || "PET"} support and ${recBlueprint?.attachmentPlacements.find(p => p.zone === "Head/Hair")?.method || "Elastic"} straps${analysis?.selected_accessories && analysis.selected_accessories.length > 0 ? `, with accessories: ${analysis.selected_accessories.join(", ")}` : ""}, high detail, studio packaging photography --v 6.0`}
+                      />
+                      <div className="flex justify-end">
                         <Button 
                           onClick={() => {
                             setIsSimulatingImgGen(true);
@@ -917,17 +997,17 @@ function AttachmentPlannerPage() {
                             }, 3500);
                           }}
                           disabled={isSimulatingImgGen}
-                          className="w-full h-full flex flex-col items-center justify-center text-xs py-2 bg-gradient-to-r from-pink-500 to-violet-600 hover:from-pink-600 hover:to-violet-700 text-white font-semibold transition-all shadow-md rounded-lg"
+                          className="w-full sm:w-auto px-6 bg-gradient-to-r from-pink-500 to-violet-600 hover:from-pink-600 hover:to-violet-700 text-white font-semibold transition-all shadow-md rounded-lg"
                         >
                           {isSimulatingImgGen ? (
                             <span className="flex items-center gap-2">
                               <RefreshCw className="h-4 w-4 animate-spin" /> Rendering Box...
                             </span>
                           ) : (
-                            <>
-                              <Sparkles className="h-4 w-4 mb-1" />
+                            <span className="flex items-center gap-2">
+                              <Sparkles className="h-4 w-4" />
                               <span>Generate Visual Prototype</span>
-                            </>
+                            </span>
                           )}
                         </Button>
                       </div>

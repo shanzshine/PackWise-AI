@@ -119,6 +119,46 @@ function isElbowBent(shoulder: Keypoint, elbow: Keypoint, wrist: Keypoint): bool
   return bendAngle > 40; // If it's bent more than 40 degrees from straight
 }
 
+function isKneeBent(hip: Keypoint, knee: Keypoint, ankle: Keypoint): boolean {
+  if (hip.confidence < 0.1 || knee.confidence < 0.1 || ankle.confidence < 0.1) return false;
+  const interiorAng = angle(hip, knee, ankle);
+  const bendAngle = 180 - interiorAng;
+  return bendAngle > 30; // bent more than 30 degrees
+}
+
+function isHipBent(shoulder: Keypoint, hip: Keypoint, knee: Keypoint): boolean {
+  if (shoulder.confidence < 0.1 || hip.confidence < 0.1 || knee.confidence < 0.1) return false;
+  const interiorAng = angle(shoulder, hip, knee);
+  const bendAngle = 180 - interiorAng;
+  return bendAngle > 30; // bent more than 30 degrees
+}
+
+// ─── Arms templates ──────────────────────────────────────────────────────────
+
+function applyArmsDownTemplate(kps: Keypoint[], side: "left" | "right", torsoWidth: number, torsoHeight: number) {
+  const lShoulder = kps[5], rShoulder = kps[6];
+  
+  if (side === "left") {
+    kps[7] = { ...kps[7], x: lShoulder.x - torsoWidth * 0.1, y: lShoulder.y + torsoHeight * 0.45, confidence: 0.95 };
+    kps[9] = { ...kps[9], x: lShoulder.x - torsoWidth * 0.15, y: lShoulder.y + torsoHeight * 0.9, confidence: 0.95 };
+  } else {
+    kps[8] = { ...kps[8], x: rShoulder.x + torsoWidth * 0.1, y: rShoulder.y + torsoHeight * 0.45, confidence: 0.95 };
+    kps[10] = { ...kps[10], x: rShoulder.x + torsoWidth * 0.15, y: rShoulder.y + torsoHeight * 0.9, confidence: 0.95 };
+  }
+}
+
+function applyAccessoryHoldTemplate(kps: Keypoint[], side: "left" | "right", torsoWidth: number, torsoHeight: number) {
+  const lShoulder = kps[5], rShoulder = kps[6];
+  
+  if (side === "left") {
+    kps[7] = { ...kps[7], x: lShoulder.x - torsoWidth * 0.35, y: lShoulder.y + torsoHeight * 0.35, confidence: 0.95 }; // elbow bent out
+    kps[9] = { ...kps[9], x: lShoulder.x - torsoWidth * 0.15, y: lShoulder.y + torsoHeight * 0.65, confidence: 0.95 };  // wrist raised to waist
+  } else {
+    kps[8] = { ...kps[8], x: rShoulder.x + torsoWidth * 0.35, y: rShoulder.y + torsoHeight * 0.35, confidence: 0.95 }; // elbow bent out
+    kps[10] = { ...kps[10], x: rShoulder.x + torsoWidth * 0.15, y: rShoulder.y + torsoHeight * 0.65, confidence: 0.95 };  // wrist raised to waist
+  }
+}
+
 // ─── Recommended pose generator ──────────────────────────────────────────────
 
 function generateRecommendedPose(
@@ -126,6 +166,7 @@ function generateRecommendedPose(
   productWeight: number,
   accessoryCount: number,
   hairLength: string,
+  selectedAccessories: string[] = [],
 ): { recommended: Keypoint[]; adjustments: PoseAdjustment[] } {
   // Deep copy keypoints
   const rec: Keypoint[] = kps.map(k => ({ ...k }));
@@ -150,63 +191,69 @@ function generateRecommendedPose(
   const torsoHeight = dist(lShoulder, lHip);
   const hipWidth = dist(lHip, rHip);
 
+  const hasHandbag = selectedAccessories.some(a => 
+    a.toLowerCase().includes("handbag") || 
+    a.toLowerCase().includes("bag") || 
+    a.toLowerCase().includes("tas")
+  );
+  const hasBracelet = selectedAccessories.some(a => 
+    a.toLowerCase().includes("bracelet") || 
+    a.toLowerCase().includes("gelang") || 
+    a.toLowerCase().includes("cuff")
+  );
+
   // ── Rule 1: Left arm position ──
-  if (isArmRaised(lShoulder, lWrist)) {
-    // Move left arm down: wrist at hip level, slightly away from body
-    rec[9] = { ...lWrist, x: lHip.x - torsoWidth * 0.3, y: lHip.y };
-    rec[7] = { ...lElbow, x: lerp(lShoulder.x, rec[9].x, 0.5), y: lerp(lShoulder.y, rec[9].y, 0.5) };
+  if (hasHandbag) {
+    applyAccessoryHoldTemplate(rec, "left", torsoWidth, torsoHeight);
     adj.push({
-      zone: "Left Arm", current: "Arm raised ↑", recommended: "Arm down, close to body ↓",
-      reason: "Raised arms increase displacement risk and require extra attachment points. Lowering reduces box size and strap count.",
-      severity: "high", icon: "💪"
+      zone: "Left Arm", 
+      current: isArmRaised(lShoulder, lWrist) ? "Arm raised ↑" : isArmWide(lShoulder, lWrist, torsoWidth) ? "Arm extended ←" : "Arm down", 
+      recommended: "Bent accessory holding pose (Left) 👜",
+      reason: "Left hand is raised and elbow is bent to a stable 90° angle to secure the handbag strap. This keeps the accessory locked in place and prevents it from falling loose during transit.",
+      severity: "medium", icon: "👜"
     });
-  } else if (isArmWide(lShoulder, lWrist, torsoWidth)) {
-    rec[9] = { ...lWrist, x: lHip.x - torsoWidth * 0.2, y: lHip.y * 0.95 };
-    rec[7] = { ...lElbow, x: lerp(lShoulder.x, rec[9].x, 0.5), y: lerp(lShoulder.y, rec[9].y, 0.5) };
-    adj.push({
-      zone: "Left Arm", current: "Arm extended outward ←", recommended: "Arm closer to body",
-      reason: "Wide arm span increases box width and creates protruding limbs that can break during transit.",
-      severity: "medium", icon: "💪"
-    });
-  } else if (isElbowBent(lShoulder, lElbow, lWrist)) {
-    const interiorAng = angle(lShoulder, lElbow, lWrist);
-    const bendAngle = 180 - interiorAng;
-    rec[9] = { ...lWrist, x: lShoulder.x - torsoWidth * 0.15, y: lHip.y };
-    rec[7] = { ...lElbow, x: lerp(lShoulder.x, rec[9].x, 0.45), y: lerp(lShoulder.y, rec[9].y, 0.45) };
-    adj.push({
-      zone: "Left Arm", current: `Elbow bent by ${Math.round(bendAngle)}°`, recommended: "Arm straightened down (0° bend)",
-      reason: "Bent elbows protrude from the body and require wrist straps. Straightening reduces attachment count.",
-      severity: "low", icon: "💪"
-    });
+  } else {
+    const raised = isArmRaised(lShoulder, lWrist);
+    const wide = isArmWide(lShoulder, lWrist, torsoWidth);
+    const bent = isElbowBent(lShoulder, lElbow, lWrist);
+    
+    if (raised || wide || bent) {
+      applyArmsDownTemplate(rec, "left", torsoWidth, torsoHeight);
+      adj.push({
+        zone: "Left Arm", 
+        current: raised ? "Arm raised ↑" : wide ? "Arm extended ←" : "Elbow bent", 
+        recommended: "Arms-down standard template ↓",
+        reason: "Straightening left arm close to the torso minimizes vertical torque, reduces packaging width by 20%, and uses standard strapping.",
+        severity: "medium", icon: "💪"
+      });
+    }
   }
 
   // ── Rule 2: Right arm position ──
-  if (isArmRaised(rShoulder, rWrist)) {
-    rec[10] = { ...rWrist, x: rHip.x + torsoWidth * 0.3, y: rHip.y };
-    rec[8] = { ...rElbow, x: lerp(rShoulder.x, rec[10].x, 0.5), y: lerp(rShoulder.y, rec[10].y, 0.5) };
+  if (hasBracelet) {
+    applyAccessoryHoldTemplate(rec, "right", torsoWidth, torsoHeight);
     adj.push({
-      zone: "Right Arm", current: "Arm raised ↑", recommended: "Arm down, close to body ↓",
-      reason: "Raised arms increase displacement risk and require extra attachment points. Lowering reduces box size and strap count.",
-      severity: "high", icon: "💪"
+      zone: "Right Arm", 
+      current: isArmRaised(rShoulder, rWrist) ? "Arm raised ↑" : isArmWide(rShoulder, rWrist, torsoWidth) ? "Arm extended →" : "Arm down", 
+      recommended: "Bent accessory holding pose (Right) 💍",
+      reason: "Right arm is bent to a stable 90° angle to secure the bracelet on the wrist, avoiding loose accessory shifting inside the box.",
+      severity: "medium", icon: "💍"
     });
-  } else if (isArmWide(rShoulder, rWrist, torsoWidth)) {
-    rec[10] = { ...rWrist, x: rHip.x + torsoWidth * 0.2, y: rHip.y * 0.95 };
-    rec[8] = { ...rElbow, x: lerp(rShoulder.x, rec[10].x, 0.5), y: lerp(rShoulder.y, rec[10].y, 0.5) };
-    adj.push({
-      zone: "Right Arm", current: "Arm extended outward →", recommended: "Arm closer to body",
-      reason: "Wide arm span increases box width and creates protruding limbs that can break during transit.",
-      severity: "medium", icon: "💪"
-    });
-  } else if (isElbowBent(rShoulder, rElbow, rWrist)) {
-    const interiorAng = angle(rShoulder, rElbow, rWrist);
-    const bendAngle = 180 - interiorAng;
-    rec[10] = { ...rWrist, x: rShoulder.x + torsoWidth * 0.15, y: rHip.y };
-    rec[8] = { ...rElbow, x: lerp(rShoulder.x, rec[10].x, 0.45), y: lerp(rShoulder.y, rec[10].y, 0.45) };
-    adj.push({
-      zone: "Right Arm", current: `Elbow bent by ${Math.round(bendAngle)}°`, recommended: "Arm straightened down (0° bend)",
-      reason: "Bent elbows protrude from the body and require wrist straps. Straightening reduces attachment count.",
-      severity: "low", icon: "💪"
-    });
+  } else {
+    const raised = isArmRaised(rShoulder, rWrist);
+    const wide = isArmWide(rShoulder, rWrist, torsoWidth);
+    const bent = isElbowBent(rShoulder, rElbow, rWrist);
+    
+    if (raised || wide || bent) {
+      applyArmsDownTemplate(rec, "right", torsoWidth, torsoHeight);
+      adj.push({
+        zone: "Right Arm", 
+        current: raised ? "Arm raised ↑" : wide ? "Arm extended →" : "Elbow bent", 
+        recommended: "Arms-down standard template ↓",
+        reason: "Straightening right arm next to hips prevents packaging protrusion, reducing carton width and eliminating limb snapped risk.",
+        severity: "medium", icon: "💪"
+      });
+    }
   }
 
   // ── Rule 3: Leg spread ──
@@ -220,6 +267,29 @@ function generateRecommendedPose(
       zone: "Legs", current: "Legs spread apart", recommended: "Legs together, parallel",
       reason: "Spread legs require a wider box and additional leg straps. Bringing legs together reduces packaging size by up to 30% and eliminates leg attachment points.",
       severity: "medium", icon: "🦵"
+    });
+  }
+
+  // ── Rule 3.5: Leg bent (Sitting / Kneeling Pose) ──
+  const isLeftKneeBent = isKneeBent(lHip, lKnee, lAnkle);
+  const isRightKneeBent = isKneeBent(rHip, rKnee, rAnkle);
+  const isLeftHipBent = isHipBent(lShoulder, lHip, lKnee);
+  const isRightHipBent = isHipBent(rShoulder, rHip, rKnee);
+
+  if (isLeftKneeBent || isRightKneeBent || isLeftHipBent || isRightHipBent) {
+    // Straighten legs vertically downwards: Knee and Ankle directly below Hip
+    rec[13] = { ...lKnee, x: lHip.x, y: lHip.y + torsoHeight * 0.7 };
+    rec[14] = { ...rKnee, x: rHip.x, y: rHip.y + torsoHeight * 0.7 };
+    rec[15] = { ...lAnkle, x: lHip.x, y: rec[13].y + torsoHeight * 0.7 };
+    rec[16] = { ...rAnkle, x: rHip.x, y: rec[14].y + torsoHeight * 0.7 };
+    
+    adj.push({
+      zone: "Legs",
+      current: "Legs bent / Sitting pose 🪑",
+      recommended: "Legs straightened down (standing posture) 🦵",
+      reason: "Sitting or heavily bent leg poses increase required carton depth by over 50%, resulting in weaker stacking stability and higher shipping rates. Straightening legs enables flat packaging.",
+      severity: "high",
+      icon: "🦵"
     });
   }
 
@@ -301,6 +371,11 @@ function scorePoseRisk(kps: Keypoint[]): number {
   if (isHeadTilted(nose, shoulderMid)) risk += 5;
   if (isElbowBent(lShoulder, kps[7], lWrist)) risk += 8;
   if (isElbowBent(rShoulder, kps[8], rWrist)) risk += 8;
+  
+  if (isKneeBent(kps[11], kps[13], kps[15])) risk += 20;
+  if (isKneeBent(kps[12], kps[14], kps[16])) risk += 20;
+  if (isHipBent(kps[5], kps[11], kps[13])) risk += 15;
+  if (isHipBent(kps[6], kps[12], kps[14])) risk += 15;
 
   return Math.min(100, risk);
 }
@@ -348,8 +423,6 @@ function buildAttachmentPlacements(
   return placements;
 }
 
-// ─── Main entry point ────────────────────────────────────────────────────────
-
 export function recommendPose(
   rawKeypoints: any[],
   xgbData: Record<string, any> | null,
@@ -357,6 +430,7 @@ export function recommendPose(
   productWeight: number,
   accessoryCount: number,
   hairLength: string,
+  selectedAccessories: string[] = [],
 ): PoseRecommendation {
   // Normalize keypoints
   const kps: Keypoint[] = rawKeypoints.map((kp: any, i: number) => ({
@@ -368,7 +442,7 @@ export function recommendPose(
   }));
 
   const currentRisk = scorePoseRisk(kps);
-  const { recommended, adjustments } = generateRecommendedPose(kps, productWeight, accessoryCount, hairLength);
+  const { recommended, adjustments } = generateRecommendedPose(kps, productWeight, accessoryCount, hairLength, selectedAccessories);
   const recommendedRisk = scorePoseRisk(recommended);
   const attachmentPlacements = buildAttachmentPlacements(xgbData, zonePlan);
 
@@ -378,7 +452,10 @@ export function recommendPose(
   const hasLegAdj = adjustments.some(a => a.zone === "Legs");
   if (!hasArmAdj && !hasLegAdj) poseName = "Current Pose (Optimal)";
   else if (hasArmAdj && hasLegAdj) poseName = "Compact Neutral Standing";
-  else if (hasArmAdj) poseName = "Arms-Down Neutral";
+  else if (hasArmAdj) {
+    const hasHold = adjustments.some(a => a.recommended.includes("Bent"));
+    poseName = hasHold ? "Accessory Display Standing" : "Arms-Down Neutral";
+  }
   else if (hasLegAdj) poseName = "Legs-Together Standing";
 
   // Build detailed description

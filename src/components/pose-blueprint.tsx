@@ -70,12 +70,14 @@ function SkeletonLines({
   opacity = 1,
   strokeWidth = 2,
   showLabels = false,
+  dashed = false,
 }: {
   kps: Keypoint[];
   color: string;
   opacity?: number;
   strokeWidth?: number;
   showLabels?: boolean;
+  dashed?: boolean;
 }) {
   if (kps.length < 17) return null;
   return (
@@ -97,6 +99,7 @@ function SkeletonLines({
               stroke={color}
               strokeWidth={strokeWidth}
               strokeLinecap="round"
+              strokeDasharray={dashed ? "3,3" : undefined}
             />
             {showLabels && label && (
               <text
@@ -203,8 +206,42 @@ export const PoseBlueprint = memo(function PoseBlueprint({
 }: PoseBlueprintProps) {
   const [imgDim, setImgDim] = useState({ w: 0, h: 0 });
 
-  const normalizedCurrent = useMemo(() => normalizeKeypoints(currentKeypoints), [currentKeypoints]);
-  const normalizedRecommended = useMemo(() => normalizeKeypoints(recommendation.recommendedKeypoints), [recommendation.recommendedKeypoints]);
+  const { normalizedCurrent, normalizedRecommended } = useMemo(() => {
+    if (currentKeypoints.length === 0 || recommendation.recommendedKeypoints.length === 0) {
+      return {
+        normalizedCurrent: normalizeKeypoints(currentKeypoints),
+        normalizedRecommended: normalizeKeypoints(recommendation.recommendedKeypoints),
+      };
+    }
+    const combined = [...currentKeypoints.map(k => ({ ...k })), ...recommendation.recommendedKeypoints.map(k => ({ ...k }))];
+    const validKps = combined.filter(k => k.x > 0 && k.y > 0 && k.confidence > 0.1);
+    if (validKps.length === 0) {
+      return {
+        normalizedCurrent: currentKeypoints,
+        normalizedRecommended: recommendation.recommendedKeypoints,
+      };
+    }
+    const minX = Math.min(...validKps.map(k => k.x));
+    const maxX = Math.max(...validKps.map(k => k.x));
+    const minY = Math.min(...validKps.map(k => k.y));
+    const maxY = Math.max(...validKps.map(k => k.y));
+    const rangeX = maxX - minX || 1;
+    const rangeY = maxY - minY || 1;
+    const scale = Math.min((W - PAD * 2) / rangeX, (H - PAD * 2) / rangeY);
+    const offsetX = (W - rangeX * scale) / 2;
+    const offsetY = (H - rangeY * scale) / 2;
+
+    const norm = (kps: Keypoint[]) => kps.map(k => ({
+      ...k,
+      x: (k.x - minX) * scale + offsetX,
+      y: (k.y - minY) * scale + offsetY,
+    }));
+
+    return {
+      normalizedCurrent: norm(currentKeypoints),
+      normalizedRecommended: norm(recommendation.recommendedKeypoints),
+    };
+  }, [currentKeypoints, recommendation.recommendedKeypoints]);
 
   const hasValidSkeleton = currentKeypoints.length >= 17 && currentKeypoints.some(k => k.x > 0 && k.y > 0);
 
@@ -231,14 +268,14 @@ export const PoseBlueprint = memo(function PoseBlueprint({
             viewBox={`0 0 ${imgDim.w} ${imgDim.h}`} 
             className="absolute inset-0 w-full h-full pointer-events-none"
           >
-            {/* Current pose (faded slate) */}
-            {(mode === "before" || mode === "overlay") && (
-              <SkeletonLines kps={currentKeypoints} color={mode === "before" ? "#ef4444" : "#94a3b8"} opacity={mode === "before" ? 1 : 0.6} strokeWidth={imgDim.w * 0.006} />
-            )}
-
             {/* Recommended pose (bright pink matching brand) */}
             {(mode === "after" || mode === "overlay") && (
               <SkeletonLines kps={recommendation.recommendedKeypoints} color="#ec4899" opacity={1} strokeWidth={imgDim.w * 0.01} showLabels={true} />
+            )}
+
+            {/* Current pose (faded slate) */}
+            {(mode === "before" || mode === "overlay") && (
+              <SkeletonLines kps={currentKeypoints} color={mode === "before" ? "#ef4444" : "#94a3b8"} opacity={mode === "before" ? 1 : 0.8} strokeWidth={imgDim.w * 0.007} dashed={mode === "overlay"} />
             )}
 
             {/* Attachment markers */}
@@ -316,14 +353,14 @@ export const PoseBlueprint = memo(function PoseBlueprint({
         {riskText}
       </text>
 
-      {/* Current pose (faded slate or red) */}
-      {(mode === "before" || mode === "overlay") && (
-        <SkeletonLines kps={normalizedCurrent} color={mode === "before" ? "#ef4444" : "#94a3b8"} opacity={mode === "before" ? 1 : 0.4} strokeWidth={mode === "before" ? 2.5 : 1.5} />
-      )}
-
       {/* Recommended pose (bright pink matching brand) */}
       {(mode === "after" || mode === "overlay") && (
         <SkeletonLines kps={normalizedRecommended} color="#ec4899" opacity={1} strokeWidth={2.5} showLabels={true} />
+      )}
+
+      {/* Current pose (faded slate or red) */}
+      {(mode === "before" || mode === "overlay") && (
+        <SkeletonLines kps={normalizedCurrent} color={mode === "before" ? "#ef4444" : "#94a3b8"} opacity={mode === "before" ? 1 : 0.8} strokeWidth={mode === "before" ? 2.5 : 1.8} dashed={mode === "overlay"} />
       )}
 
       {/* Attachment markers */}
