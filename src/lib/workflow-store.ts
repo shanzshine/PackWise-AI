@@ -164,6 +164,7 @@ export interface PlanZoneRow {
   sustainability: number;
   stability: number;
   riskReduction: number;
+  quantity?: number;
 }
 
 export interface PlanResult {

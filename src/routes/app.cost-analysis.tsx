@@ -41,6 +41,14 @@ const MATERIAL_SUSTAINABILITY: Record<string, number> = {
   "No Attachment Required": 100,
 };
 
+const MATERIAL_COSTS: Record<string, number> = {
+  "Elastic Strap": 0.08,
+  "PET Support": 0.18,
+  "EVA Strap": 0.12,
+  "Cardboard Support": 0.15,
+  "No Attachment Required": 0.00,
+};
+
 const MATERIAL_COLORS: Record<string, string> = {
   "Elastic Strap": "var(--color-chart-1)",
   "PET Support": "var(--color-chart-2)",
@@ -115,10 +123,12 @@ function CostSustainabilityPage() {
   const materialCounts: Record<string, { count: number; totalCost: number }> = {};
   for (const z of activeZones) {
     const m = z.recommendedMethod;
-    if (m === "Not needed" || m === "No Attachment Required") continue;
-    if (!materialCounts[m]) materialCounts[m] = { count: 0, totalCost: 0 };
-    materialCounts[m].count++;
-    materialCounts[m].totalCost += z.cost;
+    const baseM = m.split(" (")[0];
+    if (baseM === "Not needed" || baseM === "No Attachment Required") continue;
+    const qty = z.quantity ?? 1;
+    if (!materialCounts[baseM]) materialCounts[baseM] = { count: 0, totalCost: 0 };
+    materialCounts[baseM].count += qty;
+    materialCounts[baseM].totalCost += z.cost;
   }
   const pieData = Object.entries(materialCounts).map(([name, d]) => ({
     name,
@@ -194,54 +204,70 @@ function CostSustainabilityPage() {
                 <TableHead>Zone</TableHead>
                 <TableHead>Material</TableHead>
                 <TableHead className="text-center">Action</TableHead>
-                <TableHead className="text-right">Cost/Unit</TableHead>
+                <TableHead className="text-center">Qty</TableHead>
+                <TableHead className="text-right">Unit Cost</TableHead>
+                <TableHead className="text-right">Total Cost</TableHead>
                 <TableHead className="text-right">Labor</TableHead>
                 <TableHead className="text-right">Sustainability</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(plan?.zones ?? []).map((z) => (
-                <TableRow key={z.zone} className={
-                  z.action === "Keep" ? "bg-[color:var(--success)]/5" :
-                  z.action === "Add" ? "bg-blue-500/5" :
-                  z.action === "Remove" ? "bg-destructive/5 opacity-60" : ""
-                }>
-                  <TableCell className="font-medium">{z.zone}</TableCell>
-                  <TableCell>
-                    {z.action === "Remove" ? (
-                      <span className="text-sm text-muted-foreground italic line-through">{z.currentMethod}</span>
-                    ) : (
-                      <span className="text-sm font-medium">{z.recommendedMethod}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    {z.action === "Keep" && <Badge className="bg-[color:var(--success)] text-white border-0 text-[10px]">Keep</Badge>}
-                    {z.action === "Add" && <Badge className="bg-blue-500 text-white border-0 text-[10px]">Add</Badge>}
-                    {z.action === "Remove" && <Badge variant="destructive" className="text-[10px]">Remove</Badge>}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-medium">
-                    {z.action === "Remove" ? (
-                      <span className="text-[color:var(--success)] font-semibold">-${z.cost.toFixed(2)}</span>
-                    ) : z.cost === 0 ? (
-                      <span className="text-muted-foreground">—</span>
-                    ) : (
-                      `$${z.cost.toFixed(2)}`
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums text-sm">
-                    {z.action === "Remove" ? <span className="text-muted-foreground">—</span> : z.laborMins > 0 ? `${z.laborMins} min` : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Progress value={z.sustainability} className="h-1.5 w-12" />
-                      <span className="tabular-nums text-xs">{z.sustainability}</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {(plan?.zones ?? []).map((z) => {
+                const qty = z.quantity ?? 1;
+                const materialName = z.action === "Remove" ? z.currentMethod : z.recommendedMethod;
+                // Strip counts from string (e.g. "Elastic Strap (2x)" -> "Elastic Strap")
+                const baseMaterial = materialName.split(" (")[0];
+                const unitCost = MATERIAL_COSTS[baseMaterial] || 0;
+
+                return (
+                  <TableRow key={z.zone} className={
+                    z.action === "Keep" ? "bg-[color:var(--success)]/5" :
+                    z.action === "Add" ? "bg-blue-500/5" :
+                    z.action === "Remove" ? "bg-destructive/5 opacity-60" : ""
+                  }>
+                    <TableCell className="font-medium">{z.zone}</TableCell>
+                    <TableCell>
+                      {z.action === "Remove" ? (
+                        <span className="text-sm text-muted-foreground italic line-through">{z.currentMethod}</span>
+                      ) : (
+                        <span className="text-sm font-medium">{z.recommendedMethod}</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {z.action === "Keep" && <Badge className="bg-[color:var(--success)] text-white border-0 text-[10px]">Keep</Badge>}
+                      {z.action === "Add" && <Badge className="bg-blue-500 text-white border-0 text-[10px]">Add</Badge>}
+                      {z.action === "Remove" && <Badge variant="destructive" className="text-[10px]">Remove</Badge>}
+                    </TableCell>
+                    <TableCell className="text-center font-semibold text-xs tabular-nums">
+                      {qty}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-sm">
+                      {unitCost === 0 ? <span className="text-muted-foreground">—</span> : `$${unitCost.toFixed(2)}`}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums font-semibold">
+                      {z.action === "Remove" ? (
+                        <span className="text-[color:var(--success)] font-semibold">-${z.cost.toFixed(2)}</span>
+                      ) : z.cost === 0 ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        `$${z.cost.toFixed(2)}`
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-sm">
+                      {z.action === "Remove" ? <span className="text-muted-foreground">—</span> : z.laborMins > 0 ? `${z.laborMins} min` : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Progress value={z.sustainability} className="h-1.5 w-12" />
+                        <span className="tabular-nums text-xs">{z.sustainability}</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
               {/* Totals row */}
               <TableRow className="border-t-2 border-border font-semibold">
-                <TableCell colSpan={3} className="font-semibold">Total (Recommended)</TableCell>
+                <TableCell colSpan={5} className="font-semibold">Total (Recommended)</TableCell>
                 <TableCell className="text-right tabular-nums font-bold text-primary">${totalCost.toFixed(2)}</TableCell>
                 <TableCell className="text-right tabular-nums font-bold">{totalLabor.toFixed(1)} min</TableCell>
                 <TableCell className="text-right font-bold">{avgSustainability}/100</TableCell>

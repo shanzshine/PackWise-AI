@@ -53,16 +53,29 @@ function normalizeKeypoints(kps: Keypoint[]): Keypoint[] {
 
 // ─── Skeleton drawer ─────────────────────────────────────────────────────────
 
+const CONNECTION_LABELS: Record<string, string> = {
+  "5-7": "Upper Arm (L)",
+  "7-9": "Forearm (L)",
+  "6-8": "Upper Arm (R)",
+  "8-10": "Forearm (R)",
+  "11-13": "Thigh (L)",
+  "13-15": "Calf (L)",
+  "12-14": "Thigh (R)",
+  "14-16": "Calf (R)"
+};
+
 function SkeletonLines({
   kps,
   color,
   opacity = 1,
   strokeWidth = 2,
+  showLabels = false,
 }: {
   kps: Keypoint[];
   color: string;
   opacity?: number;
   strokeWidth?: number;
+  showLabels?: boolean;
 }) {
   if (kps.length < 17) return null;
   return (
@@ -70,15 +83,41 @@ function SkeletonLines({
       {SKELETON_CONNECTIONS.map(([a, b], i) => {
         const ka = kps[a], kb = kps[b];
         if (!ka || !kb || (ka.x === 0 && ka.y === 0) || (kb.x === 0 && kb.y === 0)) return null;
+        
+        const key = `${a}-${b}`;
+        const label = CONNECTION_LABELS[key];
+        const midX = (ka.x + kb.x) / 2;
+        const midY = (ka.y + kb.y) / 2;
+
         return (
-          <line
-            key={i}
-            x1={ka.x} y1={ka.y}
-            x2={kb.x} y2={kb.y}
-            stroke={color}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-          />
+          <g key={i}>
+            <line
+              x1={ka.x} y1={ka.y}
+              x2={kb.x} y2={kb.y}
+              stroke={color}
+              strokeWidth={strokeWidth}
+              strokeLinecap="round"
+            />
+            {showLabels && label && (
+              <text
+                x={midX}
+                y={midY - 4}
+                fontSize={7}
+                fontWeight="600"
+                fill="#475569"
+                textAnchor="middle"
+                style={{
+                  paintOrder: "stroke",
+                  stroke: "white",
+                  strokeWidth: 2.5,
+                  strokeLinejoin: "round",
+                  fontFamily: "system-ui"
+                }}
+              >
+                {label}
+              </text>
+            )}
+          </g>
         );
       })}
       {kps.map((k, i) => {
@@ -194,7 +233,7 @@ export const PoseBlueprint = memo(function PoseBlueprint({
             <SkeletonLines kps={currentKeypoints} color="#94a3b8" opacity={0.6} strokeWidth={imgDim.w * 0.006} />
 
             {/* Recommended pose (bright pink matching brand) */}
-            <SkeletonLines kps={recommendation.recommendedKeypoints} color="#ec4899" opacity={1} strokeWidth={imgDim.w * 0.01} />
+            <SkeletonLines kps={recommendation.recommendedKeypoints} color="#ec4899" opacity={1} strokeWidth={imgDim.w * 0.01} showLabels={true} />
 
             {/* Attachment markers */}
             {/* We scale the offset manually based on image dimensions instead of W/H */}
@@ -262,7 +301,7 @@ export const PoseBlueprint = memo(function PoseBlueprint({
       <SkeletonLines kps={normalizedCurrent} color="#94a3b8" opacity={0.4} strokeWidth={1.5} />
 
       {/* Recommended pose (bright pink matching brand) */}
-      <SkeletonLines kps={normalizedRecommended} color="#ec4899" opacity={1} strokeWidth={2.5} />
+      <SkeletonLines kps={normalizedRecommended} color="#ec4899" opacity={1} strokeWidth={2.5} showLabels={true} />
 
       {/* Attachment markers */}
       <AttachmentMarkers placements={recommendation.attachmentPlacements} kps={normalizedRecommended} />

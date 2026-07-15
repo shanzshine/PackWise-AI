@@ -160,6 +160,7 @@ function buildZonePlan(xgbData: Record<string, any>, detections: any[], threshol
     stability: number;
     riskReduction: number;
     reasoning: string;
+    quantity: number;
   };
 
   const plan: PlanRow[] = [];
@@ -174,21 +175,27 @@ function buildZonePlan(xgbData: Record<string, any>, detections: any[], threshol
     recommended_base_support:{ zone: "Base",         bodyRegion: "Base",          method: "Cardboard Support" },
   };
 
-  // Build a map of what YOLO currently sees
-  const cvDetectedZones = new Map<string, { method: string; bodyRegion: string }>();
+  // Build a map of what YOLO currently sees, counting instances
+  const cvDetectedZones = new Map<string, { method: string; bodyRegion: string; count: number }>();
   for (const det of detections) {
     if (det.confidence < threshold) continue;
     const mapping = YOLO_TO_ZONE[det.class_name];
-    if (mapping && !cvDetectedZones.has(mapping.zone)) {
-      cvDetectedZones.set(mapping.zone, { method: mapping.defaultMethod, bodyRegion: mapping.bodyRegion });
+    if (mapping) {
+      if (!cvDetectedZones.has(mapping.zone)) {
+        cvDetectedZones.set(mapping.zone, { method: mapping.defaultMethod, bodyRegion: mapping.bodyRegion, count: 1 });
+      } else {
+        cvDetectedZones.get(mapping.zone)!.count += 1;
+      }
     }
   }
 
   // Iterate ALL possible zones from XGBoost map
   const processedZones = new Set<string>();
   for (const [key, meta] of Object.entries(xgbMap)) {
-    const xgbRecommended = xgbData[key] === 1;
+    const xgbCount = xgbData[key] ?? 0;
+    const xgbRecommended = xgbCount > 0;
     const cvDetected = cvDetectedZones.has(meta.zone);
+    const cvCount = cvDetected ? (cvDetectedZones.get(meta.zone)?.count ?? 0) : 0;
     processedZones.add(meta.zone);
 
     if (!xgbRecommended && !cvDetected) continue; // Neither sees it, skip
@@ -196,37 +203,42 @@ function buildZonePlan(xgbData: Record<string, any>, detections: any[], threshol
     const cvMethod = cvDetected ? (cvDetectedZones.get(meta.zone)?.method ?? "Unknown") : "None";
     const aiMethod = xgbRecommended ? meta.method : "None";
     const finalMethod = xgbRecommended ? meta.method : cvMethod;
-    const p = METHOD_PROPS[finalMethod] ?? METHOD_PROPS["No Attachment Required"];
-    const laborLabel = p.laborMins === 0 ? "None" : p.laborMins < 0.7 ? "Low" : "Medium";
-    const risk: "low"|"medium"|"high" = finalMethod === "No Attachment Required" ? "low" : p.stability >= 92 ? "low" : p.stability >= 85 ? "medium" : "high";
-
+    
     let action: "Keep" | "Add" | "Remove" | "Replace" = "Keep";
     let reasoning = "";
     if (xgbRecommended && cvDetected) {
       action = "Keep";
-      reasoning = "CV confirms attachment exists, AI agrees it is needed";
+      reasoning = `CV confirms attachment exists (${cvCount}), AI recommends ${xgbCount}`;
     } else if (xgbRecommended && !cvDetected) {
       action = "Add";
-      reasoning = "AI recommends this attachment but CV did not detect it on current product — should be added";
+      reasoning = `AI recommends adding ${xgbCount} attachment(s)`;
     } else if (!xgbRecommended && cvDetected) {
       action = "Remove";
-      reasoning = "CV detected this attachment on current product but AI says it is unnecessary — can be removed to save cost";
+      reasoning = `CV detected ${cvCount} but AI says it is unnecessary — remove to save cost`;
     }
+
+    const finalQty = (action === "Remove") ? 0 : Math.max(1, xgbRecommended ? xgbCount : cvCount);
+    const p = METHOD_PROPS[finalMethod] ?? METHOD_PROPS["No Attachment Required"];
+    const rowCost = p.cost * finalQty;
+    const rowLabor = p.laborMins * finalQty;
+    const laborLabel = rowLabor === 0 ? "None" : rowLabor < 0.7 ? "Low" : "Medium";
+    const risk: "low"|"medium"|"high" = finalMethod === "No Attachment Required" ? "low" : p.stability >= 92 ? "low" : p.stability >= 85 ? "medium" : "high";
 
     plan.push({
       zone: meta.zone,
-      currentMethod: cvDetected ? cvMethod : "—",
-      recommendedMethod: xgbRecommended ? aiMethod : "Not needed",
+      currentMethod: cvDetected ? `${cvMethod} (${cvCount}x)` : "—",
+      recommendedMethod: xgbRecommended ? `${aiMethod} (${xgbCount}x)` : "Not needed",
       action,
       cvDetected,
       xgbRecommended,
-      cost: p.cost,
-      laborMins: p.laborMins,
+      cost: rowCost,
+      laborMins: rowLabor,
       laborLabel,
       sustainability: p.sustainability,
       stability: p.stability,
       riskReduction: p.riskReduction,
       reasoning,
+      quantity: finalQty
     });
 
     vizZones.push({
@@ -248,18 +260,19 @@ function buildZonePlan(xgbData: Record<string, any>, detections: any[], threshol
       const laborLabel = p.laborMins === 0 ? "None" : p.laborMins < 0.7 ? "Low" : "Medium";
       plan.push({
         zone,
-        currentMethod: cv.method,
+        currentMethod: `${cv.method} (${cv.count}x)`,
         recommendedMethod: "Not needed",
         action: "Remove",
         cvDetected: true,
         xgbRecommended: false,
-        cost: p.cost,
-        laborMins: p.laborMins,
+        cost: 0,
+        laborMins: 0,
         laborLabel,
         sustainability: p.sustainability,
         stability: p.stability,
         riskReduction: p.riskReduction,
         reasoning: "CV detected this but AI deems it unnecessary",
+        quantity: 0
       });
       vizZones.push({
         zone: zone.split("/")[0].trim(),
@@ -280,6 +293,7 @@ function buildZonePlan(xgbData: Record<string, any>, detections: any[], threshol
       action: "Keep", cvDetected: false, xgbRecommended: false,
       cost: 0, laborMins: 0, laborLabel: "None", sustainability: 100, stability: 100, riskReduction: 0,
       reasoning: "No attachments needed",
+      quantity: 0
     });
   }
 
@@ -364,6 +378,7 @@ function AttachmentPlannerPage() {
           action: z.action, cvDetected: z.cvDetected, xgbRecommended: z.xgbRecommended,
           cost: z.cost, laborMins: z.laborMins, sustainability: z.sustainability,
           stability: z.stability, riskReduction: z.riskReduction,
+          quantity: z.quantity,
         })),
         totalCost: totalCostVal,
         avgStability: avgStabilityVal,
@@ -728,6 +743,7 @@ function AttachmentPlannerPage() {
                 <TableHead className="text-center">Current (CV Detected)</TableHead>
                 <TableHead className="text-center">AI Recommendation</TableHead>
                 <TableHead className="text-center">Action</TableHead>
+                <TableHead className="text-center">Qty</TableHead>
                 <TableHead className="text-right">Cost</TableHead>
                 <TableHead className="text-right">Stability</TableHead>
                 <TableHead>Reasoning</TableHead>
@@ -778,6 +794,10 @@ function AttachmentPlannerPage() {
                         Remove
                       </Badge>
                     )}
+                  </TableCell>
+                  {/* Quantity */}
+                  <TableCell className="text-center font-semibold text-xs tabular-nums">
+                    {z.quantity}
                   </TableCell>
                   <TableCell className="text-right tabular-nums font-medium">
                     {z.cost === 0 ? <span className="text-muted-foreground">—</span> : `$${z.cost.toFixed(2)}`}
