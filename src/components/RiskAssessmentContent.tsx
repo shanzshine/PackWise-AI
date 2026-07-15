@@ -187,7 +187,7 @@ export default function RiskAssessmentContent() {
       });
 
       // Map accessories from selected_accessories list
-      const SMALL_ACCESSORIES = new Set(["glasses","crown","ring","earring","clip","pin","badge"]);
+      const SMALL_ACCESSORIES = new Set(["glasses", "crown", "ring", "earring", "clip", "pin", "badge"]);
       const accList: Accessory[] = (a.selected_accessories ?? a.accessories ?? []).map((name: string) => ({
         name,
         secured: false,
@@ -238,9 +238,9 @@ export default function RiskAssessmentContent() {
             recommended_leg_strap: zones.some((z: any) => z.zone.toLowerCase().includes("leg") || z.zone.toLowerCase().includes("foot") || z.zone.toLowerCase().includes("ankle")) ? 1 : 0,
           })
         })
-        .then(res => res.json())
-        .then(data => setApiData(data))
-        .catch(err => console.error("Failed to fetch risk assessment API:", err));
+          .then(res => res.json())
+          .then(data => setApiData(data))
+          .catch(err => console.error("Failed to fetch risk assessment API:", err));
       }
     }
   }, []);
@@ -264,15 +264,17 @@ export default function RiskAssessmentContent() {
 
   const unsecuredSmall = accessories.filter((a) => !a.secured && a.small).length;
   const securedCount = accessories.filter((a) => a.secured).length;
+  const securedSmall = accessories.filter((a) => a.secured && a.small).length;
 
   const accessoryLoss = useMemo(
     () => {
       if (apiData?.categories?.["Accessory Loss Risk"]) {
-        return clamp(apiData.categories["Accessory Loss Risk"].risk_percentage * sc.ac);
+        const base = apiData.categories["Accessory Loss Risk"].risk_percentage;
+        return clamp((base - 15 * securedSmall - 10 * securedCount) * sc.ac);
       }
       return clamp((20 + 15 * unsecuredSmall - 10 * securedCount + 25) * sc.ac);
     },
-    [apiData, unsecuredSmall, securedCount, sc.ac],
+    [apiData, unsecuredSmall, securedCount, securedSmall, sc.ac],
   );
 
   const poseStability = useMemo(
@@ -283,11 +285,13 @@ export default function RiskAssessmentContent() {
   const dropScore = useMemo(
     () => {
       if (apiData?.categories?.["Drop Test Risk"]) {
-        return clamp(apiData.categories["Drop Test Risk"].pass_probability * sc.dr);
+        const base = apiData.categories["Drop Test Risk"].pass_probability;
+        const lossRiskDelta = (15 * securedSmall) + (10 * securedCount);
+        return clamp((base + (lossRiskDelta * 0.2)) * sc.dr);
       }
       return clamp((100 - movementRisk * 0.4 - accessoryLoss * 0.2 + poseStability * 0.3) * sc.dr);
     },
-    [apiData, movementRisk, accessoryLoss, poseStability, sc.dr],
+    [apiData, movementRisk, accessoryLoss, poseStability, sc.dr, securedSmall, securedCount],
   );
 
   // Alt plans (deterministic deltas)
@@ -324,19 +328,27 @@ export default function RiskAssessmentContent() {
 
   // Survival timeline — deterministic per-stage probability
   const timeline = useMemo(() => {
-    const assembly  = clamp(100 - movementRisk * 0.10 - accessoryLoss * 0.05);
+    const assembly = clamp(100 - movementRisk * 0.10 - accessoryLoss * 0.05);
     const warehouse = clamp(100 - accessoryLoss * 0.30 - movementRisk * 0.08);
     const transport = clamp(dropScore - (sc.dr < 1 ? 6 : 0));
-    const shelf     = clamp(100 - accessoryLoss * 0.55 - (unsecuredSmall * 4));
+    const shelf = clamp(100 - accessoryLoss * 0.55 - (unsecuredSmall * 4));
     return [
-      { stage: "Assembly",  icon: Factory,   value: assembly,
-        reason: assembly < 80 ? "Operator handling stresses unsecured arms" : "Within line-tolerance"  },
-      { stage: "Warehouse", icon: Warehouse, value: warehouse,
-        reason: warehouse < 80 ? "Stack pressure shifts loose accessories" : "Stable under 3-pallet stack" },
-      { stage: "Transport", icon: Truck,     value: transport,
-        reason: transport < 75 ? "Vibration + 1.2m drop axis exceeds attachment hold" : "Survives ISTA 1A profile" },
-      { stage: "Shelf",     icon: Store,     value: shelf,
-        reason: shelf < 80 ? `${unsecuredSmall} small part(s) prone to consumer tampering` : "Retail-ready" },
+      {
+        stage: "Assembly", icon: Factory, value: assembly,
+        reason: assembly < 80 ? "Operator handling stresses unsecured arms" : "Within line-tolerance"
+      },
+      {
+        stage: "Warehouse", icon: Warehouse, value: warehouse,
+        reason: warehouse < 80 ? "Stack pressure shifts loose accessories" : "Stable under 3-pallet stack"
+      },
+      {
+        stage: "Transport", icon: Truck, value: transport,
+        reason: transport < 75 ? "Vibration + 1.2m drop axis exceeds attachment hold" : "Survives ISTA 1A profile"
+      },
+      {
+        stage: "Shelf", icon: Store, value: shelf,
+        reason: shelf < 80 ? `${unsecuredSmall} small part(s) prone to consumer tampering` : "Retail-ready"
+      },
     ];
   }, [movementRisk, accessoryLoss, dropScore, unsecuredSmall, sc.dr]);
 
@@ -344,9 +356,9 @@ export default function RiskAssessmentContent() {
   const failureZones = useMemo(() => {
     const zones: { region: string; reason: string; severity: number }[] = [];
     const regionMap: Record<string, string> = {
-      Head:  "Hair displacement & face-paint scuff under lateral inertia",
-      Arms:  "Articulation breakage at shoulder joint on drop axis",
-      Legs:  "Knee-joint loosening from repeated vibration",
+      Head: "Hair displacement & face-paint scuff under lateral inertia",
+      Arms: "Articulation breakage at shoulder joint on drop axis",
+      Legs: "Knee-joint loosening from repeated vibration",
       Waist: "Torso shift against blister cradle",
     };
     for (const r of Object.keys(REGION_WEIGHTS)) {
@@ -377,61 +389,91 @@ export default function RiskAssessmentContent() {
   const primaryCauses = useMemo(() => {
     const mv =
       attachmentCoverage < 70 ? "Large Internal Clearance"
-      : product.support < 4  ? "Insufficient Support Points"
-      : "High Product Complexity";
+        : product.support < 4 ? "Insufficient Support Points"
+          : "High Product Complexity";
     const ac =
       unsecuredSmall > 1 ? "Low Attachment Coverage"
-      : unsecuredSmall === 1 ? "Sub-5g Part Unsecured"
-      : "Blister Window Tolerance";
+        : unsecuredSmall === 1 ? "Sub-5g Part Unsecured"
+          : "Blister Window Tolerance";
     const ps =
       product.support < 4 ? "Insufficient Support Points"
-      : "CoG Offset vs Cradle Axis";
+        : "CoG Offset vs Cradle Axis";
     const dr =
       movementRisk > 55 ? "High CoG Offset"
-      : accessoryLoss > 50 ? "Accessory Mass Displacement"
-      : "Cushion Thickness Margin";
+        : accessoryLoss > 50 ? "Accessory Mass Displacement"
+          : "Cushion Thickness Margin";
     return { mv, ac, ps, dr };
   }, [attachmentCoverage, product.support, unsecuredSmall, movementRisk, accessoryLoss]);
 
-  // Improvement suggestions with engineering benefit breakdown
-  const improvementSuggestions = useMemo<ImprovementBenefit[]>(
-    () => [
-      {
-        icon: TrendingDown,
-        title: "Add EVA strap on left arm",
-        detail: "Increases attachment coverage on the head/arms cluster by 18%.",
-        benefits: [
-          { label: "Movement Risk",   value: `-${round(movementRisk * 0.34)}`, positive: true },
-          { label: "Drop Survival",   value: `+${round((100 - dropScore) * 0.18)}`, positive: true },
-          { label: "Packaging Cost",  value: "+$0.08",                          positive: false },
-          { label: "Sustainability",  value: "-4% material",                    positive: true },
-        ],
-      },
-      {
+  // Improvement suggestions with engineering benefit breakdown (DYNAMIC LOGIC)
+  const improvementSuggestions = useMemo<ImprovementBenefit[]>(() => {
+    const suggestions: ImprovementBenefit[] = [];
+
+    // 1. Accessory rule
+    const unsecuredAccessories = accessories.filter((a) => !a.secured);
+    if (unsecuredAccessories.length > 0) {
+      // Prioritize small accessories, then fallback to any
+      const target = unsecuredAccessories.find((a) => a.small) || unsecuredAccessories[0];
+      suggestions.push({
         icon: ShieldCheck,
-        title: "Secure Crown with micro-clip",
-        detail: "Locks the lightest unsecured part; eliminates dominant loss vector.",
+        title: `Secure ${target.name} with micro-clip`,
+        detail: `Locks the ${target.small ? 'lightest' : 'largest'} unsecured part; eliminates major loss vector.`,
         benefits: [
-          { label: "Accessory Loss",  value: `-${round(accessoryLoss * 0.42)}%`, positive: true },
-          { label: "Drop Survival",   value: `+${round((100 - dropScore) * 0.09)}`, positive: true },
-          { label: "Packaging Cost",  value: "+$0.03",                            positive: false },
-          { label: "Sustainability",  value: "±0% material",                      positive: true },
+          { label: "Accessory Loss", value: `-${round(accessoryLoss * 0.42)}%`, positive: true },
+          { label: "Drop Survival", value: `+${round((100 - dropScore) * 0.09)}`, positive: true },
+          { label: "Packaging Cost", value: "+$0.03", positive: false },
+          { label: "Sustainability", value: "±0% material", positive: true },
         ],
-      },
-      {
+      });
+    }
+
+    // 2. Movement Risk / Strap rule
+    if (movementRisk > 30 && regionRisks.length > 0) {
+      // Find region with highest risk
+      const highestRegion = [...regionRisks].sort((a, b) => b.value - a.value)[0];
+      suggestions.push({
+        icon: TrendingDown,
+        title: `Add EVA strap on ${highestRegion.region.toLowerCase()}`,
+        detail: `Increases attachment coverage on the ${highestRegion.region.toLowerCase()} cluster by 18%.`,
+        benefits: [
+          { label: "Movement Risk", value: `-${round(movementRisk * 0.34)}`, positive: true },
+          { label: "Drop Survival", value: `+${round((100 - dropScore) * 0.18)}`, positive: true },
+          { label: "Packaging Cost", value: "+$0.08", positive: false },
+          { label: "Sustainability", value: "-4% material", positive: true },
+        ],
+      });
+    }
+
+    // 3. Complexity / Support rule
+    if (product.complexity > 50) {
+      suggestions.push({
         icon: CheckCircle2,
-        title: "Switch waist PET to molded cradle",
-        detail: "Distributes shock across torso; improves pose stability under 1.2 m drop.",
+        title: "Switch to custom molded cradle",
+        detail: "Distributes shock for high-complexity pose; improves stability under 1.2 m drop.",
         benefits: [
-          { label: "Movement Risk",   value: `-${round(movementRisk * 0.22)}`,  positive: true },
-          { label: "Drop Survival",   value: `+${round((100 - dropScore) * 0.22)}`, positive: true },
-          { label: "Packaging Cost",  value: "+$0.12",                             positive: false },
-          { label: "Sustainability",  value: "-6% material",                       positive: true },
+          { label: "Movement Risk", value: `-${round(movementRisk * 0.22)}`, positive: true },
+          { label: "Drop Survival", value: `+${round((100 - dropScore) * 0.22)}`, positive: true },
+          { label: "Packaging Cost", value: "+$0.15", positive: false },
+          { label: "Sustainability", value: "-8% material", positive: true },
         ],
-      },
-    ],
-    [movementRisk, accessoryLoss, dropScore],
-  );
+      });
+    } else if (suggestions.length < 3) {
+      // Fill up if we have less than 3
+      suggestions.push({
+        icon: CheckCircle2,
+        title: "Increase cushion thickness",
+        detail: "Improves general shock absorption for transport.",
+        benefits: [
+          { label: "Movement Risk", value: `-${round(movementRisk * 0.1)}`, positive: true },
+          { label: "Drop Survival", value: `+${round((100 - dropScore) * 0.08)}`, positive: true },
+          { label: "Packaging Cost", value: "+$0.05", positive: false },
+          { label: "Sustainability", value: "-2% material", positive: true },
+        ],
+      });
+    }
+
+    return suggestions.slice(0, 3);
+  }, [movementRisk, accessoryLoss, dropScore, accessories, regionRisks, product.complexity]);
 
   const toggleSecured = (name: string) =>
     setAccessories((arr) =>
@@ -455,20 +497,22 @@ export default function RiskAssessmentContent() {
               recompute every score live.
             </p>
           </div>
-        <div className="flex items-center rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
+          <div className="flex items-center rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="grid h-10 w-10 place-items-center rounded-full bg-[color:var(--pink-soft)]">
                 <ShieldCheck className="h-5 w-5 text-[color:var(--pink)]" />
               </div>
               <div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Model confidence</div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Assessment Score</div>
                 <div className="text-lg font-semibold tabular-nums">{Math.round(confidence)}%</div>
               </div>
             </div>
             <div className="ml-4 h-10 w-px bg-border" />
             <div className="ml-4">
               <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Run</div>
-              <div className="text-sm font-medium">#PW-2418</div>
+              <div className="text-sm font-medium">
+                {apiData?.assessment_id ? `#${apiData.assessment_id.split("-")[0].toUpperCase()}` : "Syncing DB..."}
+              </div>
             </div>
           </div>
         </section>
@@ -485,8 +529,7 @@ export default function RiskAssessmentContent() {
               <CardContent className="space-y-3">
                 <InfoField label="Name" value={product.name} />
                 <InfoField label="Category" value={product.category} />
-                <InfoField label="Complexity Score" value={String(product.complexity)} />
-                <InfoField label="Support Points" value={String(product.support)} />
+                <InfoField label="Complexity Score" value={product.complexity < 40 ? "Low" : product.complexity < 70 ? "Medium" : "High"} />
               </CardContent>
             </Card>
 
@@ -595,12 +638,12 @@ export default function RiskAssessmentContent() {
                         </div>
                         <div className="mt-2 text-[11.5px] text-muted-foreground">{s.sub}</div>
                         <div className="mt-3 space-y-1 border-t border-border/60 pt-2 text-[11px]">
-                          <ScenarioCondRow k="Drop"  v={s.conditions.dropHeight} />
+                          <ScenarioCondRow k="Drop" v={s.conditions.dropHeight} />
                           <ScenarioCondRow k="Trans" v={s.conditions.transport} />
-                          <ScenarioCondRow k="Vib"   v={s.conditions.vibration} />
-                          <ScenarioCondRow k="Comp"  v={s.conditions.compression} />
-                          <ScenarioCondRow k="Temp"  v={s.conditions.temperature} />
-                          <ScenarioCondRow k="RH"    v={s.conditions.humidity} />
+                          <ScenarioCondRow k="Vib" v={s.conditions.vibration} />
+                          <ScenarioCondRow k="Comp" v={s.conditions.compression} />
+                          <ScenarioCondRow k="Temp" v={s.conditions.temperature} />
+                          <ScenarioCondRow k="RH" v={s.conditions.humidity} />
                         </div>
                       </button>
                     );
@@ -611,10 +654,10 @@ export default function RiskAssessmentContent() {
 
             {/* Top metric cards */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard label="Movement Risk"       value={movementRisk}  suffix=""     tone={level(movementRisk)}       hint="Inertial drift score"   primaryCause={primaryCauses.mv} />
-              <MetricCard label="Accessory Loss Risk" value={accessoryLoss} suffix="%"    tone={level(accessoryLoss)}      hint="Loss probability index" primaryCause={primaryCauses.ac} />
-              <MetricCard label="Pose Stability"      value={poseStability} suffix=""     tone={level(100 - poseStability)} hint="Articulation hold"     primaryCause={primaryCauses.ps} />
-              <MetricCard label="Drop-Test Prediction" value={dropScore}    suffix="/100" tone={dropLevel(dropScore)}      hint="Survival score"        primaryCause={primaryCauses.dr} highlight />
+              <MetricCard label="Movement Risk" value={movementRisk} suffix="" tone={level(movementRisk)} hint="Inertial drift score" primaryCause={primaryCauses.mv} />
+              <MetricCard label="Accessory Loss Risk" value={accessoryLoss} suffix="%" tone={level(accessoryLoss)} hint="Loss probability index" primaryCause={primaryCauses.ac} />
+              <MetricCard label="Pose Stability" value={poseStability} suffix="" tone={level(100 - poseStability)} hint="Articulation hold" primaryCause={primaryCauses.ps} />
+              <MetricCard label="Drop-Test Prediction" value={dropScore} suffix="/100" tone={dropLevel(dropScore)} hint="Survival score" primaryCause={primaryCauses.dr} highlight />
             </div>
 
 
@@ -685,7 +728,7 @@ export default function RiskAssessmentContent() {
             </Card>
 
             {/* Charts row */}
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
               <Card className="rounded-2xl border-border shadow-sm">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
@@ -761,60 +804,44 @@ export default function RiskAssessmentContent() {
                   })}
                 </CardContent>
               </Card>
-            </div>
 
-            {/* Drop-test comparison */}
-            <Card className="rounded-2xl border-border shadow-sm">
-              <CardHeader className="pb-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
+              {/* Drop-test performance */}
+              <Card className="rounded-2xl border-border shadow-sm flex flex-col">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
                     <CardTitle className="text-[15px] font-semibold tracking-tight">
-                      Drop-Test Comparison
+                      Drop-Test Survival
                     </CardTitle>
-                    <p className="mt-0.5 text-[12px] text-muted-foreground">
-                      Survival score across alternative attachment plans (higher is better).
-                    </p>
+                    <Badge className="bg-[color:var(--pink-soft)] text-[color:var(--pink)]">ISTA 1A</Badge>
                   </div>
-                  <Badge className="bg-[color:var(--pink-soft)] text-[color:var(--pink)]">ISTA 1A simulation</Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-4 items-end gap-6 px-2 pt-6">
-                  {[
-                    { label: "Current Plan", v: dropScore, active: true },
-                    { label: "Alt Plan A", v: altA },
-                    { label: "Alt Plan B", v: altB },
-                    { label: "No Attachment", v: noAttach },
-                  ].map((c) => {
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col items-center justify-center pt-4 pb-6">
+                  {(() => {
+                    const c = { label: "Current Plan", v: dropScore, active: true };
                     const lv = dropLevel(c.v);
                     return (
-                      <div key={c.label} className="flex flex-col items-center gap-2">
-                        <div className="text-sm font-semibold tabular-nums">{round(c.v)}</div>
-                        <div className="relative flex h-48 w-full max-w-[88px] items-end overflow-hidden rounded-xl bg-muted">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="text-3xl font-bold tabular-nums">{round(c.v)}<span className="text-muted-foreground text-xl">%</span></div>
+                        <div className="relative flex h-32 w-full max-w-[100px] items-end overflow-hidden rounded-xl bg-muted">
                           <div
                             className="w-full rounded-xl transition-all"
                             style={{
                               height: `${c.v}%`,
-                              backgroundColor: c.active
-                                ? "#d946ef"
-                                : "#cbd5e1",
+                              backgroundColor: "#d946ef",
                             }}
                           />
                         </div>
-                        <div className="text-center">
-                          <div className={`text-[12px] font-medium ${c.active ? "text-[color:var(--pink)]" : "text-foreground"}`}>
-                            {c.label}
-                          </div>
-                          <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${lv.tone}`}>
-                            {lv.label}
+                        <div className="text-center mt-2">
+                          <span className={`inline-block rounded-full px-3 py-1 text-[11px] font-semibold tracking-wider ${lv.tone}`}>
+                            {lv.label} RISK
                           </span>
                         </div>
                       </div>
                     );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+                  })()}
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Critical Failure Zones */}
             <Card className="rounded-2xl border-border shadow-sm">
@@ -899,7 +926,7 @@ export default function RiskAssessmentContent() {
                     </div>
                     <div>
                       <div className="text-sm font-semibold">
-                        Confidence {Math.round(confidence)}% · {dropLevel(dropScore).label} drop-failure risk
+                        Assessment Score {Math.round(confidence)}% · {dropLevel(dropScore).label} drop-failure risk
                       </div>
                       <div className="text-[12px] text-muted-foreground">
                         Based on {accessories.length} accessories, {attachments.length} attachments, complexity {product.complexity}.
@@ -1024,10 +1051,6 @@ function Suggestion({
           </div>
         ))}
       </div>
-      <div className="mt-3 flex items-center text-[12px] font-medium text-[color:var(--pink)]">
-        Apply suggestion
-        <ArrowRight className="ml-1 h-3.5 w-3.5 transition group-hover:translate-x-0.5" />
-      </div>
     </div>
   );
 }
@@ -1115,9 +1138,8 @@ function BeforeAfter({
         </div>
       </div>
       <div
-        className={`mt-2 text-right text-[11px] font-semibold ${
-          improved ? "text-emerald-600" : "text-rose-600"
-        }`}
+        className={`mt-2 text-right text-[11px] font-semibold ${improved ? "text-emerald-600" : "text-rose-600"
+          }`}
       >
         {delta > 0 ? "+" : ""}
         {delta} {improved ? "✓" : ""}
