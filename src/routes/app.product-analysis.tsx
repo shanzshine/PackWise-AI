@@ -128,6 +128,27 @@ function ProductAnalysisPage() {
     loadMasterData();
   }, []);
 
+  useEffect(() => {
+    const details = productFamilies.find((f) => f.product_family === productFamily);
+    const baseWeight = details?.default_weight_max || 120;
+    
+    let hairWeight = 0;
+    if (hairLength === "Medium") hairWeight = 8;
+    else if (hairLength === "Long") hairWeight = 18;
+    else if (hairLength === "Very Long") hairWeight = 30;
+
+    let dressWeight = 5;
+    if (dressLength === "Knee") dressWeight = 15;
+    else if (dressLength === "Long") dressWeight = 45;
+
+    let bodyWeight = 0;
+    if (articulation === "Made to Move") bodyWeight = 15;
+    else if (articulation === "Curvy") bodyWeight = 20;
+
+    const finalWeight = baseWeight + hairWeight + dressWeight + bodyWeight;
+    setWeightG(finalWeight);
+  }, [productFamily, hairLength, dressLength, articulation, productFamilies]);
+
   const handleFile = (f: File) => {
     setImageFile(f);
     const reader = new FileReader();
@@ -648,10 +669,12 @@ function ProductAnalysisPage() {
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Dress Length</Label>
+                  <Label>Dress / Pants Length</Label>
                   <select value={dressLength} onChange={(e) => setDressLength(e.target.value)}
                     className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none">
-                    {["Short", "Knee", "Long"].map((c) => <option key={c} value={c}>{c}</option>)}
+                    <option value="Short">Short (Dress / Shorts)</option>
+                    <option value="Knee">Knee-Length (Dress / Capri Pants)</option>
+                    <option value="Long">Long (Dress / Trousers)</option>
                   </select>
                 </div>
               </div>

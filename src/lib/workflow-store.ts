@@ -173,6 +173,7 @@ export interface PlanResult {
   avgStability: number;
   avgSustainability: number;
   recommendedMaterial: string | null;
+  totalLaborMins?: number;
 }
 
 export function savePlan(plan: PlanResult) {

@@ -123,14 +123,14 @@ function selectMaterial(
 // ─── Time-per-point rates (seconds) ──────────────────────────────────────────
 
 const TIME_RATES: Record<MaterialOption, { rate: number; flat?: number }> = {
-  "Rubber Band":        { rate: 2.5  },
-  "Elastic Strap":      { rate: 3.0  },
-  "EVA Strap":          { rate: 3.5  },
-  "Blister":            { flat: 15.0, rate: 0 },
-  "Inner Tray":         { flat: 15.0, rate: 0 },
-  "PET Support":        { rate: 3.8  },
-  "Cardboard Support":  { rate: 3.2  },
-  "Fastener":           { rate: 4.0  },
+  "Rubber Band":        { rate: 12.0 },
+  "Elastic Strap":      { rate: 15.0 },
+  "EVA Strap":          { rate: 18.0 },
+  "Blister":            { flat: 35.0, rate: 0 },
+  "Inner Tray":         { flat: 35.0, rate: 0 },
+  "PET Support":        { rate: 25.0 },
+  "Cardboard Support":  { rate: 22.0 },
+  "Fastener":           { rate: 20.0 },
 };
 
 // ─── Minimum attachment points per zone ──────────────────────────────────────
@@ -236,34 +236,39 @@ export function runAssemblyEngine(input: EngineInput): EngineOutput {
   // 4. Minimum attachment points
   const attachmentPoints = recommendPoints(material, zones.length);
 
-  // 5. Base assembly time
+  // 5. Base assembly time (includes 15s doll preparation/handling)
   const timing = TIME_RATES[material];
-  let baseTime: number;
+  let baseTime = 15.0; // 15 seconds baseline for factory line prep and handling
+  
   if (timing.flat !== undefined) {
-    // Blister / Inner Tray — flat rate regardless of points
-    baseTime = timing.flat;
+    baseTime += timing.flat;
   } else {
-    baseTime = timing.rate * attachmentPoints;
+    baseTime += timing.rate * attachmentPoints;
   }
 
-  // 6. Complexity penalty (+15 %)
+  // 6. Accessories assembly time (12s per accessory for individual positioning/strapping)
+  const accessoryTime = accessories.length * 12.0;
+  baseTime += accessoryTime;
+
+  // 7. Complexity penalty (+15 %)
   const penaltyMultiplier = isComplexPose ? 1.15 : 1.0;
   const finalTime = parseFloat((baseTime * penaltyMultiplier).toFixed(2));
 
-  // 7. Build breakdown string
+  // 8. Build breakdown string
   const breakdownParts: string[] = [];
+  breakdownParts.push(`Base prep = 15.0s`);
   if (timing.flat !== undefined) {
     breakdownParts.push(`${material} flat-rate = ${timing.flat}s`);
   } else {
     breakdownParts.push(`${material} @ ${timing.rate}s × ${attachmentPoints} points = ${(timing.rate * attachmentPoints).toFixed(1)}s`);
   }
+  if (accessories.length > 0) {
+    breakdownParts.push(`${accessories.length} accessories @ 12s/each = ${accessoryTime}s`);
+  }
   if (isComplexPose) {
     breakdownParts.push(`Complex pose penalty +15% → ×1.15`);
   }
   breakdownParts.push(`Total = ${finalTime}s`);
-  if (accessories.length > 0) {
-    breakdownParts.push(`Accessories noted (${accessories.join(", ")}) — add 2–4s/accessory for individual tying if loose`);
-  }
 
   return {
     retention_zones: zones,
