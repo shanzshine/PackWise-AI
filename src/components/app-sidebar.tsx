@@ -31,12 +31,12 @@ import {
 } from "@/components/ui/sidebar";
 import { Brand } from "@/components/brand";
 import { Button } from "@/components/ui/button";
-import type { AuthUser } from "@/lib/auth";
+import type { AuthUser, Role } from "@/lib/auth";
 import { logout } from "@/lib/auth";
 
 type Item = { title: string; url: string; icon: typeof LayoutDashboard };
 
-const NAV: Record<AuthUser["role"], Item[]> = {
+const NAV: Record<Role, Item[]> = {
   engineer: [
     { title: "Dashboard",             url: "/app/dashboard",              icon: LayoutDashboard },
     { title: "Product Analysis",      url: "/app/product-analysis",       icon: ScanLine        },
@@ -66,12 +66,44 @@ const NAV: Record<AuthUser["role"], Item[]> = {
     { title: "Role Assignment",       url: "/app/roles",               icon: ShieldCheck     },
     { title: "System Settings",       url: "/app/system-settings",     icon: Cog             },
   ],
+  "Packaging Engineer": [
+    { title: "Dashboard",             url: "/app/dashboard",              icon: LayoutDashboard },
+    { title: "Product Analysis",      url: "/app/product-analysis",       icon: ScanLine        },
+    { title: "Attachment Planner",    url: "/app/packaging-planner",      icon: Link2           },
+    { title: "Risk Assessment",       url: "/app/risk-assessment",        icon: ShieldAlert     },
+    { title: "Cost & Sustainability", url: "/app/cost-analysis",          icon: DollarSign      },
+    { title: "Submit Plan",           url: "/app/submit-approval",        icon: Send            },
+    { title: "Reports",               url: "/app/reports",                icon: FileBarChart2   },
+    { title: "Settings",              url: "/app/settings",               icon: Settings        },
+  ],
+  "Operations Manager": [
+    { title: "Dashboard",            url: "/app/dashboard",   icon: LayoutDashboard },
+    { title: "Pending Approvals",    url: "/app/approvals",   icon: CheckSquare     },
+    { title: "Cost & Sustainability",url: "/app/cost-analysis",icon: DollarSign     },
+    { title: "Sustainability",       url: "/app/sustainability",icon: Leaf           },
+    { title: "Reports",              url: "/app/reports",      icon: FileBarChart2  },
+  ],
+  Admin: [
+    { title: "Dashboard",             url: "/app/dashboard",           icon: LayoutDashboard },
+    { title: "Product Analysis",      url: "/app/product-analysis",    icon: ScanLine        },
+    { title: "Attachment Planner",    url: "/app/packaging-planner",   icon: Link2           },
+    { title: "Pending Approvals",     url: "/app/approvals",           icon: CheckSquare     },
+    { title: "Risk Assessment",       url: "/app/risk-assessment",     icon: ShieldAlert     },
+    { title: "Cost & Sustainability", url: "/app/cost-analysis",       icon: DollarSign      },
+    { title: "Reports",               url: "/app/reports",             icon: FileBarChart2   },
+    { title: "User Management",       url: "/app/users",               icon: Users           },
+    { title: "Role Assignment",       url: "/app/roles",               icon: ShieldCheck     },
+    { title: "System Settings",       url: "/app/system-settings",     icon: Cog             },
+  ],
 };
 
-const ROLE_LABEL: Record<AuthUser["role"], string> = {
+const ROLE_LABEL: Record<Role, string> = {
   engineer: "Packaging Engineer",
   manager:  "Operations Manager",
   admin:    "Administrator",
+  "Packaging Engineer": "Packaging Engineer",
+  "Operations Manager": "Operations Manager",
+  Admin: "Administrator",
 };
 
 export function AppSidebar({ user }: { user: AuthUser }) {

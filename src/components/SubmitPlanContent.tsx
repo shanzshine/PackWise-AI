@@ -783,6 +783,7 @@ export default function SubmitPlanContent() {
   const metadata = {
     generatedAt: new Date().toLocaleString(),
     runId: `PW-RUN-${Math.floor(Math.random()*9000)+1000}`,
+    modelVersion: "YOLOv8 & XGBoost v1.0",
     ruleEngineVersion: "Rule Engine v2.5",
     knowledgeBaseVersion: "KB v19.1",
     literaturePapers: 24,
