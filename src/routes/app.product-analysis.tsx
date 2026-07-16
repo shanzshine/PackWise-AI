@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/page-header";
 import { Progress } from "@/components/ui/progress";
 import { saveAnalysis, type AnalysisResult } from "@/lib/workflow-store";
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/product-analysis")({
   head: () => ({ meta: [{ title: "Pose & Doll Analysis — PackWise AI" }] }),
@@ -65,6 +66,11 @@ function ProductAnalysisPage() {
   const [detectedStraps, setDetectedStraps] = useState<{ class_name: string, confidence: number, box?: any }[]>([]);
   const [annotatedImage, setAnnotatedImage] = useState<string | null>(null);
   const [rawKeypoints, setRawKeypoints] = useState<any[]>([]);
+  const [customWeightG, setCustomWeightG] = useState<string>("");
+  const [customHeightCm, setCustomHeightCm] = useState<string>("");
+  const [customAccName, setCustomAccName] = useState("");
+  const [customAccWeight, setCustomAccWeight] = useState("10");
+  const [saveToDb, setSaveToDb] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Image Upload
@@ -109,21 +115,29 @@ function ProductAnalysisPage() {
   useEffect(() => {
     async function loadMasterData() {
       try {
-        const pfRes = await fetch("http://127.0.0.1:8000/api/product-families");
-        if (pfRes.ok) {
-          const pfData = await pfRes.json();
+        const { data: pfData, error: pfError } = await supabase.from('product_families').select('*');
+        if (pfData && !pfError && pfData.length > 0) {
           setProductFamilies(pfData);
-          if (pfData.length > 0) {
-            handleFamilyChange(pfData[0].product_family, pfData);
-          }
+          handleFamilyChange(pfData[0].product_family, pfData);
+        } else {
+          const fallback = [
+            { product_family: "Dreamtopia", articulation: "Standard", default_height_cm: 29.0, default_weight_max: 120 },
+            { product_family: "Fashionistas", articulation: "Standard", default_height_cm: 29.0, default_weight_max: 120 },
+            { product_family: "Careers", articulation: "Standard", default_height_cm: 29.0, default_weight_max: 120 },
+            { product_family: "Signature", articulation: "Standard", default_height_cm: 29.0, default_weight_max: 130 },
+            { product_family: "Extra", articulation: "Standard", default_height_cm: 29.0, default_weight_max: 125 },
+            { product_family: "Made to Move", articulation: "Made to Move", default_height_cm: 29.0, default_weight_max: 135 }
+          ];
+          setProductFamilies(fallback);
+          handleFamilyChange(fallback[0].product_family, fallback);
         }
-        // Accessory fetch disabled, using static data instead
-        // const accRes = await fetch("http://127.0.0.1:8000/api/accessories");
-        // if (accRes.ok) {
-        //   setMasterAccessories(await accRes.json());
-        // }
+
+        const { data: accData, error: accError } = await supabase.from('accessories').select('*');
+        if (accData && !accError && accData.length > 0) {
+          setMasterAccessories(accData);
+        }
       } catch (e) {
-        console.error("Failed to load master data", e);
+        console.error("Failed to load master data from Supabase, using local defaults", e);
       }
     }
     loadMasterData();
@@ -210,8 +224,8 @@ function ProductAnalysisPage() {
     const details = familiesData.find((f) => f.product_family === fam);
     if (details) {
       setArticulation(details.articulation || "Standard");
-      setHeightCm(details.default_height_cm || 29.0);
-      setWeightG(details.default_weight_max || 120);
+      setHeightCm(Number(details.default_height_cm) || 29.0);
+      setWeightG(Number(details.default_weight_max) || 120);
     }
   };
 
@@ -222,6 +236,51 @@ function ProductAnalysisPage() {
 
   const removeAccessory = (idx: number) => {
     setSelectedAccessories(selectedAccessories.filter((_, i) => i !== idx));
+  };
+
+  const handleCustomAccAdd = async () => {
+    const rawName = customAccName.trim();
+    if (!rawName) return;
+
+    // Convert to Title Case (e.g. "pet dog" -> "Pet Dog")
+    const name = rawName
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+    const weight = parseFloat(customAccWeight) || 0;
+
+    setSelectedAccessories([...selectedAccessories, { name, weight }]);
+
+    // Instantly update the local autocomplete template list for zero-latency search
+    const exists = masterAccessories.some(a => a.accessory_name === name);
+    if (!exists) {
+      setMasterAccessories([...masterAccessories, { accessory_name: name, weight_g: weight }]);
+    } else {
+      setMasterAccessories(masterAccessories.map(a => a.accessory_name === name ? { ...a, weight_g: weight } : a));
+    }
+
+    if (saveToDb) {
+      const { error } = await supabase
+        .from('accessories')
+        .upsert({ accessory_name: name, weight_g: weight }, { onConflict: 'accessory_name' });
+      
+      if (!error) {
+        toast.success(`Template "${name}" saved to Supabase.`);
+        const { data } = await supabase.from('accessories').select('*');
+        if (data) setMasterAccessories(data);
+      } else {
+        console.warn("Failed to save accessory template:", error.message);
+        toast.error(`Database Warning: ${error.message}`);
+      }
+    } else {
+      toast.success(`Added "${name}" to current doll.`);
+    }
+
+    setCustomAccName("");
+    setCustomAccWeight("10");
+    setAccSearch("");
   };
 
   const loadDemo = () => {
@@ -235,6 +294,9 @@ function ProductAnalysisPage() {
   };
 
   const handleAnalyse = async () => {
+    const finalWeight = customWeightG !== "" ? parseFloat(customWeightG) : weightG;
+    const finalHeight = customHeightCm !== "" ? parseFloat(customHeightCm) : heightCm;
+
     setStage("analysing");
     setProgress(0);
     const ticks = [15, 32, 50, 66, 82, 100];
@@ -329,8 +391,8 @@ function ProductAnalysisPage() {
         product_family: productFamily,
         articulation: articulation,
         pose: pose,
-        product_weight_g: weightG,
-        height_cm: heightCm,
+        product_weight_g: finalWeight,
+        height_cm: finalHeight,
         center_of_gravity: computedCOG,
         hair_length: hairLength,
         dress_length: dressLength,
@@ -380,6 +442,9 @@ function ProductAnalysisPage() {
     
     // Save full analysis to Supabase product_analyses
     try {
+      const finalWeight = customWeightG !== "" ? parseFloat(customWeightG) : weightG;
+      const finalHeight = customHeightCm !== "" ? parseFloat(customHeightCm) : heightCm;
+
       const mlOutputs = {
         detected_poses: detectedPoses,
         raw_keypoints: rawKeypoints,
@@ -397,8 +462,8 @@ function ProductAnalysisPage() {
         product_family: productFamily,
         articulation: articulation,
         pose: poseStatus ? (poseStatus.left_arm_up || poseStatus.right_arm_up ? "Arms Up" : "Arms Down") : pose,
-        weight_g: weightG,
-        height_cm: heightCm,
+        weight_g: finalWeight,
+        height_cm: finalHeight,
         center_of_gravity: computedCOG,
         hair_length: hairLength,
         dress_length: dressLength,
@@ -423,20 +488,23 @@ function ProductAnalysisPage() {
 
     setIsSaving(false);
 
+    const finalWeight = customWeightG !== "" ? parseFloat(customWeightG) : weightG;
+    const finalHeight = customHeightCm !== "" ? parseFloat(customHeightCm) : heightCm;
+
     const r: AnalysisResult = {
       id: analysisId,
       productName: `${productFamily} Doll`,
       category: "Fashion Doll",
       imageDataUrl: imageDataUrl,
       productType: "Doll",
-      dimensions: `${heightCm}cm`,
+      dimensions: `${finalHeight}cm`,
       analysedAt: new Date().toISOString(),
 
       product_family: productFamily,
       articulation: articulation,
       pose: poseStatus ? (poseStatus.left_arm_up || poseStatus.right_arm_up ? "Arms Up" : "Arms Down") : pose,
-      product_weight_g: weightG,
-      height_cm: heightCm,
+      product_weight_g: finalWeight,
+      height_cm: finalHeight,
       center_of_gravity: computedCOG,
       hair_length: hairLength,
       dress_length: dressLength,
@@ -718,30 +786,142 @@ function ProductAnalysisPage() {
                   </select>
                 </div>
               </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 pt-2 border-t border-border/40">
+                <div className="space-y-2">
+                  <Label className="flex justify-between">
+                    <span>Weight (grams)</span>
+                    <span className="text-[10px] text-muted-foreground italic">(Auto calculated: {weightG}g)</span>
+                  </Label>
+                  <Input 
+                    type="number" 
+                    placeholder={`${weightG}g (Leave empty for auto)`} 
+                    value={customWeightG} 
+                    onChange={(e) => setCustomWeightG(e.target.value)} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex justify-between">
+                    <span>Height (cm)</span>
+                    <span className="text-[10px] text-muted-foreground italic">(Default: {heightCm}cm)</span>
+                  </Label>
+                  <Input 
+                    type="number" 
+                    step="0.1" 
+                    placeholder={`${heightCm}cm (Leave empty for auto)`} 
+                    value={customHeightCm} 
+                    onChange={(e) => setCustomHeightCm(e.target.value)} 
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
 
+
+
+          <Button size="lg" className="w-full" onClick={handleAnalyse}>
+            <ScanLine className="mr-2 h-4 w-4" /> Run Computer Vision & Analytics
+          </Button>
+        </div>
+
+        <div className="space-y-5 lg:col-span-2">
           <Card className="border-border/70 shadow-none">
             <CardHeader>
               <CardTitle className="text-base">Accessories</CardTitle>
-              <CardDescription>Select accessories to include. Weight and count will be calculated automatically.</CardDescription>
+              <CardDescription>Select accessories or create a custom one with weight override.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Search Accessory Database</Label>
-                <Input placeholder="Type to search (e.g., Handbag)" value={accSearch} onChange={(e) => setAccSearch(e.target.value)} />
+                <Input placeholder="Type to search (e.g., Handbag)" value={accSearch} onChange={(e) => {
+                  setAccSearch(e.target.value);
+                  setCustomAccName(e.target.value);
+                }} />
+                
+                {/* Quick Add Suggestions */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-muted-foreground mr-1">Quick Add:</span>
+                  {[
+                    { accessory_name: "Pet Dog", default_weight: 45 },
+                    { accessory_name: "Shoes (Pair)", default_weight: 10 },
+                    { accessory_name: "Handbag", default_weight: 15 }
+                  ].map((s) => {
+                    const dbItem = masterAccessories.find(a => a.accessory_name === s.accessory_name);
+                    const weight = dbItem ? Number(dbItem.weight_g) : s.default_weight;
+                    return (
+                      <button
+                        key={s.accessory_name}
+                        onClick={() => addAccessory({ accessory_name: s.accessory_name, weight_g: weight })}
+                        type="button"
+                        className="text-[10px] px-2 py-0.5 rounded-full border border-border bg-muted/40 hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-all font-medium cursor-pointer"
+                      >
+                        + {s.accessory_name} ({weight}g)
+                      </button>
+                    );
+                  })}
+                </div>
+
                 {accSearch && (
-                  <div className="mt-1 rounded-md border border-border p-2 max-h-40 overflow-y-auto">
+                  <div className="mt-1 rounded-md border border-border p-2 max-h-40 overflow-y-auto bg-background">
                     {masterAccessories
                       .filter(a => a.accessory_name.toLowerCase().includes(accSearch.toLowerCase()))
                       .map(a => (
-                        <div key={a.accessory_name} onClick={() => addAccessory(a)} className="cursor-pointer p-1.5 text-sm hover:bg-muted/50 rounded flex justify-between">
+                        <div key={a.accessory_name} onClick={() => {
+                          addAccessory(a);
+                        }} className="cursor-pointer p-1.5 text-sm hover:bg-muted/50 rounded flex justify-between">
                           <span>{a.accessory_name}</span>
                           <span className="text-muted-foreground">{a.weight_g}g</span>
                         </div>
                       ))}
+                    {masterAccessories.filter(a => a.accessory_name.toLowerCase().includes(accSearch.toLowerCase())).length === 0 && (
+                      <p className="text-xs text-muted-foreground p-1.5 italic">No matching templates found.</p>
+                    )}
                   </div>
                 )}
+              </div>
+
+              {/* Custom / Override Accessory Form */}
+              <div className="p-3 border border-dashed rounded-lg space-y-3 bg-muted/20">
+                <p className="text-xs font-semibold text-foreground">Add Custom / Override Template</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Accessory Name</Label>
+                    <Input 
+                      placeholder="e.g. Magic Wand" 
+                      value={customAccName} 
+                      onChange={(e) => setCustomAccName(e.target.value)} 
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px]">Weight (grams)</Label>
+                    <Input 
+                      type="number" 
+                      placeholder="e.g. 10" 
+                      value={customAccWeight} 
+                      onChange={(e) => setCustomAccWeight(e.target.value)} 
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-1">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={saveToDb} 
+                      onChange={(e) => setSaveToDb(e.target.checked)} 
+                      className="rounded border-input text-primary focus:ring-primary h-3.5 w-3.5"
+                    />
+                    <span className="text-[10px] text-muted-foreground">Save/Overwrite template in database</span>
+                  </label>
+                  <Button 
+                    size="sm" 
+                    onClick={handleCustomAccAdd} 
+                    className="h-7 text-xs px-3"
+                  >
+                    Add to Doll
+                  </Button>
+                </div>
               </div>
 
               {selectedAccessories.length > 0 && (
@@ -760,12 +940,6 @@ function ProductAnalysisPage() {
             </CardContent>
           </Card>
 
-          <Button size="lg" className="w-full" onClick={handleAnalyse}>
-            <ScanLine className="mr-2 h-4 w-4" /> Run Computer Vision & Analytics
-          </Button>
-        </div>
-
-        <div className="space-y-4 lg:col-span-2">
           <Card className="border-border/70 shadow-none bg-[color:var(--primary-soft)]/40">
             <CardHeader>
               <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
