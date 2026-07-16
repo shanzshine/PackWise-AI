@@ -146,6 +146,19 @@ def create_user(body: CreateUserRequest, admin: dict = Depends(require_admin)):
             "email_confirm": True,
             "user_metadata": {"name": body.name, "role": body.role},
         })
+        
+        # Explicitly upsert the user into app_user to prevent failures if DB trigger is missing
+        try:
+            client.table("app_user").upsert({
+                "user_id": result.user.id,
+                "email": body.email,
+                "name": body.name,
+                "role": body.role,
+                "must_change_password": True
+            }).execute()
+        except Exception as ue:
+            print(f"Warning: app_user upsert failed (might already be handled by trigger): {ue}")
+
         return {
             "id": result.user.id,
             "email": result.user.email,
