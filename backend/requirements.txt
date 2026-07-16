@@ -7,7 +7,6 @@ pydantic>=2.6.0
 pillow
 pandas
 scikit-learn==1.6.1
-xgboost==2.0.3
 joblib
 email-validator>=2.1.0
 supabase>=2.31.0

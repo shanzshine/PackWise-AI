@@ -31,7 +31,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { loadApprovalRequests, type ApprovalRequest } from "@/lib/workflow-store";
+import { type ApprovalRequest } from "@/lib/workflow-store";
+import { supabase } from "@/lib/supabase";
 import { recommendPose } from "@/lib/pose-recommendation";
 import { PoseBlueprint } from "@/components/pose-blueprint";
 
@@ -57,21 +58,21 @@ interface DerivedReport {
   snapshot?: ApprovalRequest["reportSnapshot"];
 }
 
-function toReport(req: ApprovalRequest): DerivedReport {
+function toReport(req: any): DerivedReport {
   return {
-    id: `RPT-${req.id}`,
-    reqId: req.id,
-    name: `${req.sku} — Attachment Plan`,
+    id: req.req_id ? `REP-${req.req_id.slice(-4)}` : `REP-${Math.floor(Math.random() * 10000)}`,
+    reqId: req.req_id,
+    name: `${req.sku} - Attachment Plan Report`,
     product: req.sku,
-    engineer: req.engineer,
-    date: req.date,
-    status: req.status as "Approved" | "Rejected",
-    decidedAt: req.decidedAt,
-    risk: req.risk,
-    cost: req.cost,
-    laborTime: req.laborTime,
+    engineer: req.engineer_name,
+    date: new Date(req.submitted_at).toLocaleDateString(),
+    status: req.status,
+    decidedAt: req.decided_at,
+    risk: req.risk_level,
+    cost: req.est_cost,
+    laborTime: req.labor_time,
     sustainability: req.sustainability,
-    snapshot: req.reportSnapshot,
+    snapshot: req.report_snapshot,
   };
 }
 
@@ -615,10 +616,17 @@ function ReportsPage() {
   const [tab, setTab] = useState<"approved" | "rejected">("approved");
 
   useEffect(() => {
-    const reqs = loadApprovalRequests().filter(
-      (r) => r.status === "Approved" || r.status === "Rejected"
-    );
-    setReports(reqs.map(toReport));
+    async function fetchData() {
+      const { data } = await supabase
+        .from('approval_requests')
+        .select('*')
+        .in('status', ['Approved', 'Rejected']);
+      
+      if (data) {
+        setReports(data.map(toReport));
+      }
+    }
+    fetchData();
   }, []);
 
   const approved = reports.filter((r) => r.status === "Approved");

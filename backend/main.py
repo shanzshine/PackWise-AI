@@ -303,7 +303,7 @@ async def analyze_image(file: UploadFile = File(...)):
 # ---------------------------------------------------------------------
 
 class ProductRow(BaseModel):
-    plan_id: int = Field(..., description="The packaging_plan.plan_id this assessment belongs to")
+    plan_id: str = Field(..., description="The packaging_plans.id (UUID) this assessment belongs to")
     product_weight_g: float
     height_cm: float
     fragility_score: float
@@ -321,7 +321,7 @@ class ProductRow(BaseModel):
     class Config:
         json_schema_extra = {
             "example": {
-                "plan_id": 1,
+                "plan_id": "123e4567-e89b-12d3-a456-426614174000",
                 "product_weight_g": 123,
                 "height_cm": 30.0,
                 "fragility_score": 5,

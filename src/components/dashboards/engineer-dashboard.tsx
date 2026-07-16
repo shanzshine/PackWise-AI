@@ -11,7 +11,8 @@ import { PageHeader } from "@/components/page-header";
 import { performanceTrend, recommendations } from "@/lib/mock-data";
 import type { AuthUser } from "@/lib/auth";
 import { useState, useEffect } from "react";
-import { loadApprovalRequests, loadAnalysis, type ApprovalRequest } from "@/lib/workflow-store";
+import { loadAnalysis, type ApprovalRequest } from "@/lib/workflow-store";
+import { supabase } from "@/lib/supabase";
 
 const statusStyles: Record<string, string> = {
   Optimized: "bg-[color:var(--success)]/10 text-[color:var(--success)] border-transparent",
@@ -22,10 +23,35 @@ const statusStyles: Record<string, string> = {
 };
 
 export function EngineerDashboard({ user }: { user: AuthUser }) {
-  const [myApprovals, setMyApprovals] = useState<ApprovalRequest[]>([]);
+  const [myApprovals, setMyApprovals] = useState<any[]>([]);
+  const [lastAnalysisDate, setLastAnalysisDate] = useState<string>("—");
   const analysis = loadAnalysis();
 
-  useEffect(() => { setMyApprovals(loadApprovalRequests()); }, []);
+  useEffect(() => {
+    async function fetchData() {
+      // Fetch approvals
+      const { data: approvals } = await supabase
+        .from('approval_requests')
+        .select('*')
+        .eq('pe_id', user.user_id)
+        .order('submitted_at', { ascending: false });
+      
+      if (approvals) setMyApprovals(approvals);
+
+      // Fetch last analysis
+      const { data: analyses } = await supabase
+        .from('product_analyses')
+        .select('created_at')
+        .eq('user_id', user.user_id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (analyses && analyses.length > 0) {
+        setLastAnalysisDate(new Date(analyses[0].created_at).toLocaleDateString());
+      }
+    }
+    fetchData();
+  }, [user.user_id]);
 
   return (
     <div className="space-y-8">
@@ -48,7 +74,7 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
         <KpiCard label="SUBMITTED PLANS" value={`${myApprovals.length}`} icon={Activity} hint="Plans submitted for approval" />
         <KpiCard label="PENDING REVIEW" value={`${myApprovals.filter(a => a.status === 'Pending').length}`} icon={ScanLine} hint="Awaiting manager approval" />
         <KpiCard label="APPROVED" value={`${myApprovals.filter(a => a.status === 'Approved').length}`} icon={ShieldAlert} hint="Plans approved for production" />
-        <KpiCard label="LAST ANALYSIS" value={analysis ? new Date(analysis.analysedAt).toLocaleDateString() : "—"} icon={Sparkles} hint="Most recent product scan" />
+        <KpiCard label="LAST ANALYSIS" value={lastAnalysisDate} icon={Sparkles} hint="Most recent product scan" />
       </div>
 
       {/* Approvals Status */}
@@ -71,10 +97,10 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
                 <div key={i} className="flex items-center justify-between rounded-lg border border-border/70 bg-background p-4">
                   <div>
                     <p className="text-sm font-semibold text-foreground">{req.sku}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{req.date}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{new Date(req.submitted_at).toLocaleString()}</p>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-sm text-muted-foreground">{req.cost}</span>
+                    <span className="text-sm text-muted-foreground">{req.est_cost}</span>
                     <Badge variant="outline" className={statusStyles[req.status] ?? ""}>{req.status}</Badge>
                   </div>
                 </div>

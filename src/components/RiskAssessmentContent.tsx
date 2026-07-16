@@ -216,13 +216,14 @@ export default function RiskAssessmentContent() {
       }
 
       // Re-connect the backend AI model
+      const plan = loadPlan();
       const token = getToken();
-      if (token) {
+      if (token && plan && plan.plan_id) {
         fetch("http://localhost:8000/predict", {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({
-            plan_id: 1,
+            plan_id: plan.plan_id,
             product_weight_g: a.product_weight_g ?? 250,
             height_cm: a.height_cm ?? 30.0,
             fragility_score: 5,
@@ -240,7 +241,10 @@ export default function RiskAssessmentContent() {
         })
           .then(res => res.json())
           .then(data => setApiData(data))
-          .catch(err => console.error("Failed to fetch risk assessment API:", err));
+          .catch(err => {
+            console.error("Failed to fetch risk assessment API:", err);
+            setApiData({ error: err.message || String(err) });
+          });
       }
     }
   }, []);
@@ -510,8 +514,16 @@ export default function RiskAssessmentContent() {
             <div className="ml-4 h-10 w-px bg-border" />
             <div className="ml-4">
               <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Run</div>
-              <div className="text-sm font-medium">
-                {apiData?.assessment_id ? `#${apiData.assessment_id.split("-")[0].toUpperCase()}` : "Syncing DB..."}
+              <div className="text-sm font-medium text-red-500">
+                {apiData?.assessment_id ? (
+                  <span className="text-foreground">#{apiData.assessment_id.split("-")[0].toUpperCase()}</span>
+                ) : apiData?.detail ? (
+                  `Error: ${typeof apiData.detail === 'string' ? apiData.detail : JSON.stringify(apiData.detail)}`
+                ) : apiData?.error ? (
+                  `Error: ${apiData.error}`
+                ) : (
+                  <span className="text-foreground">Syncing DB...</span>
+                )}
               </div>
             </div>
           </div>

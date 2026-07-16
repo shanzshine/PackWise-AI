@@ -371,7 +371,7 @@ function OptimizationSummary({ rows }: { rows: OptimizationRow[] }) {
   return (
     <Card className="border-border/70 shadow-none">
       <CardContent className="pt-6">
-        <SectionHeader index={6} icon={TrendingUp} title="Optimization Summary" sub="Current design vs. recommended optimized design." />
+        <SectionHeader index={4} icon={TrendingUp} title="Optimization Summary" sub="Current design vs. recommended optimized design." />
         <div className="flex items-center gap-3 mb-4">
           <Badge variant="outline" className="rounded-full">Current Design</Badge>
           <ArrowRight className="h-4 w-4 text-[color:var(--pink)]" />
@@ -524,7 +524,7 @@ function FinalRecommendationCard({ rec }: { rec: FinalRecommendation }) {
   return (
     <Card className="border-border/70 shadow-none overflow-hidden">
       <div className="bg-gradient-to-br from-background to-[color:var(--pink-soft)] p-6">
-        <SectionHeader index={8} icon={Sparkles} title="Final Packaging Recommendation" sub="The deployment-ready configuration produced by PackWise AI." />
+        <SectionHeader index={5} icon={Sparkles} title="Final Packaging Recommendation" sub="The deployment-ready configuration produced by PackWise AI." />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           <KV label="Recommended Packaging" value={rec.packaging} />
           <KV label="Recommended Cushion" value={rec.cushion} />
@@ -554,7 +554,7 @@ function EngineeringNotes({
   return (
     <Card className="border-border/70 shadow-none">
       <CardContent className="pt-6">
-        <SectionHeader index={9} icon={Wrench} title="Engineering Notes" sub="Reviewer observations captured before export." />
+        <SectionHeader index={6} icon={Wrench} title="Engineering Notes" sub="Reviewer observations captured before export." />
         <Textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -584,7 +584,7 @@ function ExportCenter({
   return (
     <Card className="border-border/70 shadow-none">
       <CardContent className="pt-6">
-        <SectionHeader index={10} icon={Download} title="Export Center" sub="Distribute the report to engineering, QA, and manufacturing partners." />
+        <SectionHeader index={7} icon={Download} title="Export Center" sub="Distribute the report to engineering, QA, and manufacturing partners." />
         <div className="flex flex-col md:flex-row md:items-center gap-3">
           <Button
             onClick={onExportPdf}
@@ -857,7 +857,7 @@ function buildReportBlueprintSvg(analysis: any, plan: any): string {
   `;
 }
 
-export default function SubmitPlanContent() {
+export default function SubmitPlanContent({ onDataLoaded }: { onDataLoaded?: (data: any) => void }) {
   const [notes, setNotes] = useState("");
   const [apiData, setApiData] = useState<any>(null);
   const [analysis, setAnalysis] = useState<any>(null);
@@ -907,13 +907,17 @@ export default function SubmitPlanContent() {
           })
         });
         if (res.ok) {
-          setApiData(await res.json());
+          const data = await res.json();
+          setApiData(data);
+          onDataLoaded?.(data);
         } else {
           setApiData(mockApi);
+          onDataLoaded?.(mockApi);
         }
       } catch (e) {
         console.error("Failed to fetch API:", e);
         setApiData(mockApi);
+        onDataLoaded?.(mockApi);
       }
     }
     fetchApi();
@@ -945,7 +949,7 @@ export default function SubmitPlanContent() {
     packagingType: "Rigid Paperboard Window Box",
     packagingMethod: "Plastic-free Display Box",
     attachmentMethod: plan.recommendedMaterial || "Optimized Strapping",
-    supportPoints: 4,
+    supportPoints: plan.zones ? plan.zones.filter((z: any) => z.action !== 'Remove').length : 4,
     centerOfGravity: analysis.center_of_gravity || "Center",
     internalClearance: "5.0 mm",
     cushionMaterial: "EPE Foam / Molded Pulp",
@@ -1243,6 +1247,15 @@ export default function SubmitPlanContent() {
     </div>
   </div>
 
+  ${notes.trim() ? `
+  <div class="section">
+    <div class="stitle">Engineering Notes & Observations</div>
+    <div style="padding: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 9.5px; color: #334155; white-space: pre-wrap;">
+      ${notes.replace(/</g, "&lt;").replace(/>/g, "&gt;")}
+    </div>
+  </div>
+  ` : ""}
+
   <div class="footer">
     <div>PackWise AI &middot; Powered by YOLOv11 &amp; Expert System KB v19.1</div>
     <div>Strictly Confidential &middot; Internal Engineering Document</div>
@@ -1336,10 +1349,7 @@ export default function SubmitPlanContent() {
         />
         <ConfigurationSummary config={config} />
         <RiskDashboard m={metrics} />
-        <EngineeringFindings findings={findings} />
-        <TriggeredRulesTable rules={rules} />
         <OptimizationSummary rows={optimization} />
-        <DecisionTrace steps={trace} />
         <FinalRecommendationCard rec={finalRecommendation} />
         <EngineeringNotes value={notes} onChange={setNotes} />
         <div className="print:hidden">

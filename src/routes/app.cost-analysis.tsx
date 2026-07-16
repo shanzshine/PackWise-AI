@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   ArrowLeft, ChevronRight, Leaf,
@@ -21,6 +21,12 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/cost-analysis")({
   head: () => ({ meta: [{ title: "Cost & Sustainability — PackWise AI" }] }),
+  beforeLoad: () => {
+    const plan = loadPlan();
+    if (!plan?.plan_id) {
+      throw redirect({ to: "/app/risk-assessment" });
+    }
+  },
   component: CostSustainabilityPage,
 });
 

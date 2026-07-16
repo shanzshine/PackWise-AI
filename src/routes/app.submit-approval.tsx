@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { Send, CheckCircle2, FileText, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
-import { saveApprovalRequest, loadAnalysis, loadPlan } from "@/lib/workflow-store";
+import { saveApprovalRequest, loadAnalysis, loadPlan, clearAllWorkflowData } from "@/lib/workflow-store";
 import { getUser } from "@/lib/auth";
 import { runAssemblyEngine } from "@/lib/assembly-engine";
 import { supabase } from "@/lib/supabase";
@@ -14,6 +14,12 @@ import SubmitPlanContent from "@/components/SubmitPlanContent";
 
 export const Route = createFileRoute("/app/submit-approval")({
   head: () => ({ meta: [{ title: "Submit Plan — PackWise AI" }] }),
+  beforeLoad: () => {
+    const plan = loadPlan();
+    if (!plan?.plan_id) {
+      throw redirect({ to: "/app/cost-analysis" });
+    }
+  },
   component: SubmitApprovalPage,
 });
 
@@ -21,21 +27,12 @@ function SubmitApprovalPage() {
   const navigate = useNavigate();
   const [reportGenerated, setReportGenerated] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [apiData, setApiData] = useState<any>(null);
   const user = getUser();
 
   // Guard: redirect to Product Analysis if no analysis has been run yet
   useEffect(() => {
-    const analysisCheck = loadAnalysis();
-    if (!analysisCheck) {
-      toast.error("Please complete Product Analysis before submitting a plan.");
-      navigate({ to: "/app/product-analysis" });
-      return;
-    }
-    const planCheck = loadPlan();
-    if (!planCheck) {
-      toast.error("Please run the Packaging Planner before submitting a plan.");
-      navigate({ to: "/app/packaging-planner" });
-    }
+    // Other setup logic if needed
   }, []);
 
   const hasAnalysis = !!loadAnalysis();
@@ -74,19 +71,25 @@ function SubmitApprovalPage() {
       : undefined;
 
     const reqId = `REQ-${Math.floor(Math.random() * 9000) + 1000}`;
-    const riskLevel = analysis && analysis.movementRiskScore > 60 ? "High"
-      : analysis && analysis.movementRiskScore > 30 ? "Medium" : "Low";
+    
+    // Fallbacks if apiData is missing for some reason
+    const finalRiskLevel = apiData?.overall_risk_level || (analysis && analysis.movementRiskScore > 60 ? "High" : analysis && analysis.movementRiskScore > 30 ? "Medium" : "Low");
+    const grade = finalRiskLevel === "LOW" ? "A" : finalRiskLevel === "MEDIUM" ? "B" : "C";
+    const dropSurvival = apiData?.categories?.["Drop Test Risk"]?.pass_probability || (analysis ? Math.max(0, 100 - analysis.movementRiskScore) : 80);
+    const movementRisk = apiData?.categories?.["Movement Risk"]?.risk_percentage || (analysis?.movementRiskScore ?? 0);
+    const accessoryLoss = apiData?.categories?.["Accessory Loss Risk"]?.risk_percentage || (analysis?.accessoryLossRisk ?? 0);
+
     const estCost = plan ? `$${plan.totalCost.toFixed(2)}/unit` : "$0.00/unit";
     const laborTimeStr = `${assemblyTimeSec}s (${assemblyTimeMins} min)`;
     const submittedDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
       + ", " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
     const reportSnapshot = {
-      grade: "B",
-      overallRisk: riskLevel.toUpperCase(),
-      dropSurvival: analysis ? Math.max(0, 100 - analysis.movementRiskScore) : 80,
-      movementRisk: analysis?.movementRiskScore ?? 0,
-      accessoryLoss: analysis?.accessoryLossRisk ?? 0,
+      grade: grade,
+      overallRisk: finalRiskLevel.toUpperCase(),
+      dropSurvival: dropSurvival,
+      movementRisk: movementRisk,
+      accessoryLoss: accessoryLoss,
       zones: (plan?.zones || []).map((z: any) => ({
         zone: z.zone,
         recommendedMethod: z.recommendedMethod,
@@ -120,7 +123,7 @@ function SubmitApprovalPage() {
       sku: analysis?.productName || "Custom Plan",
       engineer: user?.name || user?.email || "Packaging Engineer",
       date: submittedDate,
-      risk: riskLevel,
+      risk: finalRiskLevel,
       cost: estCost,
       laborTime: laborTimeStr,
       sustainability: avgSustain,
@@ -128,13 +131,14 @@ function SubmitApprovalPage() {
       reportSnapshot,
     });
 
-    // 2. Save to Supabase approval table (non-blocking)
-    supabase.from('approval').insert([{
+    // 2. Save to Supabase approval_requests table (non-blocking)
+    supabase.from('approval_requests').insert([{
       req_id: reqId,
+      assessment_id: apiData?.assessment_id || null,
       sku: analysis?.productName || "Custom Plan",
       engineer_name: user?.name || user?.email || "Packaging Engineer",
       pe_id: user?.user_id ?? null,
-      risk_level: riskLevel,
+      risk_level: finalRiskLevel,
       est_cost: estCost,
       labor_time: laborTimeStr,
       sustainability: avgSustain,
@@ -147,6 +151,7 @@ function SubmitApprovalPage() {
     });
 
     toast.success("Attachment plan successfully submitted to Operations Manager.");
+    clearAllWorkflowData();
     setTimeout(() => {
       navigate({ to: "/app/dashboard" });
     }, 2000);
@@ -202,7 +207,7 @@ function SubmitApprovalPage() {
         {/* Report content (shown after generate) */}
         {reportGenerated && (
           <div id="report-section" className="lg:col-span-2">
-            <SubmitPlanContent />
+            <SubmitPlanContent onDataLoaded={setApiData} />
           </div>
         )}
 

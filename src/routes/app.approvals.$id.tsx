@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
-import { loadAnalysis, loadApprovalRequests, updateApprovalStatus, type AnalysisResult } from "@/lib/workflow-store";
+import { loadAnalysis, type AnalysisResult } from "@/lib/workflow-store";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { getUser } from "@/lib/auth";
 import {
@@ -156,22 +157,34 @@ function ApprovalDetailsPage() {
   const isApprover = user?.role === "manager" || user?.role === "admin";
 
   useEffect(() => {
-    // Load the specific approval request
-    const reqs = loadApprovalRequests();
-    const req = reqs.find((r) => r.id === id);
-    if (req) setApprovalReq(req);
-    // Also load live analysis if available
-    const a = loadAnalysis();
-    if (a) {
-      setAnalysis(a);
-      setSelected(a.attachmentZones?.[0]?.zone ?? null);
-    } else if (req?.reportSnapshot?.zones?.length) {
-      // Fall back to snapshot zones
-      setSelected(req.reportSnapshot.zones[0]?.zone ?? null);
+    async function fetchData() {
+      const { data } = await supabase.from('approval_requests').select('*').eq('req_id', id).single();
+      if (data) {
+        setApprovalReq({
+          id: data.req_id,
+          sku: data.sku,
+          engineer: data.engineer_name,
+          date: new Date(data.submitted_at).toLocaleString(),
+          risk: data.risk_level,
+          cost: data.est_cost,
+          laborTime: data.labor_time,
+          status: data.status,
+          reportSnapshot: data.report_snapshot,
+          assessment_id: data.assessment_id,
+        });
+      }
+      
+      const a = loadAnalysis();
+      if (a) {
+        setAnalysis(a);
+        setSelected(a.attachmentZones?.[0]?.zone ?? null);
+      } else if (data?.report_snapshot?.zones?.length) {
+        setSelected(data.report_snapshot.zones[0]?.zone ?? null);
+      }
     }
+    fetchData();
   }, [id]);
 
-  // Prefer live analysis zones, fall back to snapshot
   const zones = analysis?.attachmentZones
     ?? (approvalReq?.reportSnapshot?.zones?.map((z: any) => ({
         zone: z.zone,

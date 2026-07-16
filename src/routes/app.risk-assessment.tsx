@@ -1,13 +1,19 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ChevronRight, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
-import { loadAnalysis } from "@/lib/workflow-store";
+import { loadAnalysis, loadPlan } from "@/lib/workflow-store";
 import RiskAssessmentContent from "@/components/RiskAssessmentContent";
 
 export const Route = createFileRoute("/app/risk-assessment")({
   head: () => ({ meta: [{ title: "Risk Assessment — PackWise AI" }] }),
+  beforeLoad: () => {
+    const plan = loadPlan();
+    if (!plan?.plan_id) {
+      throw redirect({ to: "/app/packaging-planner" });
+    }
+  },
   component: RiskAssessmentPage,
 });
 

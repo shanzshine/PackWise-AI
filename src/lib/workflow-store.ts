@@ -20,6 +20,7 @@ export interface AttachmentZone {
 
 export interface AnalysisResult {
   // Core identity
+  id?: string;
   productName: string;
   category: string;
   imageDataUrl: string | null;
@@ -148,6 +149,15 @@ export function clearAnalysis() {
   try { localStorage.removeItem(KEY); } catch { }
 }
 
+export function clearAllWorkflowData() {
+  try {
+    localStorage.removeItem(KEY);
+    localStorage.removeItem(PLAN_KEY);
+    sessionStorage.removeItem(IMG_KEY);
+    sessionStorage.removeItem(ANNOTATED_IMG_KEY);
+  } catch { }
+}
+
 // ─── Plan persistence (Attachment Planner → Cost page) ─────────────────────
 
 const PLAN_KEY = "packwise_plan";
@@ -168,6 +178,7 @@ export interface PlanZoneRow {
 }
 
 export interface PlanResult {
+  plan_id?: string;
   zones: PlanZoneRow[];
   totalCost: number;
   avgStability: number;

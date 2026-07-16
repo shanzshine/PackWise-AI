@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
 import {
   ArrowLeft, Eye, CheckCircle2, Sparkles, BarChart3, Brain, ChevronRight, Info, ScanLine, ImageIcon, AlertTriangle, Wifi, WifiOff, RefreshCw
@@ -16,7 +16,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
-import { loadAnalysis, saveAnalysis, savePlan, DEMO_RESULT, type AnalysisResult, type AttachmentZone } from "@/lib/workflow-store";
+import { loadAnalysis, saveAnalysis, savePlan, loadPlan, DEMO_RESULT, type AnalysisResult, type AttachmentZone } from "@/lib/workflow-store";
 import { runAssemblyEngine } from "@/lib/assembly-engine";
 import { ATTACHMENT_METHODS } from "@/lib/mock-data";
 import { supabase } from "@/lib/supabase";
@@ -26,6 +26,12 @@ import { PoseBlueprint } from "@/components/pose-blueprint";
 
 export const Route = createFileRoute("/app/packaging-planner")({
   head: () => ({ meta: [{ title: "Attachment Planner — PackWise AI" }] }),
+  beforeLoad: () => {
+    const analysis = loadAnalysis();
+    if (!analysis?.id) {
+      throw redirect({ to: "/app/product-analysis" });
+    }
+  },
   component: AttachmentPlannerPage,
 });
 
@@ -448,6 +454,7 @@ function getPoseRationaleAndStrings(analysis: any, rec: any) {
 
 function AttachmentPlannerPage() {
   const navigate = useNavigate();
+  const [isSaving, setIsSaving] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [zonePlan, setZonePlan] = useState<ReturnType<typeof buildZonePlan>["plan"]>([]);
   const [recommendedMaterial, setRecommendedMaterial] = useState<string | null>(null);
@@ -540,25 +547,6 @@ function AttachmentPlannerPage() {
         totalLaborMins: asmResult.assembly_time_seconds / 60,
       };
       savePlan(planPayload);
-
-      // Save to Supabase packaging_plan (non-blocking)
-      const user = (() => { try { return JSON.parse(localStorage.getItem("packwise_user") || ""); } catch { return null; } })();
-      supabase.from('packaging_plan').insert([{
-        pe_id: user?.user_id ?? null,
-        title: `${analysis.productName ?? "Doll"} — Packaging Plan`,
-        status: 'draft',
-        zones: planPayload.zones,
-        total_cost: totalCostVal,
-        avg_stability: avgStabilityVal,
-        avg_sustainability: avgSustainVal,
-        recommended_material: recommendedMaterial,
-        assembly_time_seconds: asmResult.assembly_time_seconds,
-        assembly_breakdown: asmResult.calculation_breakdown,
-        is_complex_pose: asmResult.is_complex_pose,
-      }]).then(({ error }) => {
-        if (error) console.warn("[PackWise] packaging_plan save warning:", error.message);
-        else console.log("[PackWise] Packaging plan saved to Supabase ✓");
-      });
     }
   }, [xgbData, analysis, threshold]);
 
@@ -609,8 +597,60 @@ function AttachmentPlannerPage() {
             <Button variant="outline" size="sm" onClick={() => navigate({ to: "/app/product-analysis" })}>
               <ArrowLeft className="h-4 w-4" /> Back to Analysis
             </Button>
-            <Button size="sm" onClick={() => navigate({ to: "/app/risk-assessment" })}>
-              Proceed to Risk Assessment <ChevronRight className="ml-2 h-4 w-4" />
+            <Button size="sm" disabled={isSaving} onClick={async () => {
+              if (analysis?.id) {
+                setIsSaving(true);
+                try {
+                  const active = zonePlan.filter(z => z.action !== "Remove" && z.recommendedMethod !== "Not needed");
+                  const totalCostVal = parseFloat(active.reduce((s, z) => s + z.cost, 0).toFixed(2));
+                  const asmResult = runAssemblyEngine({
+                    weightGrams: analysis.product_weight_g ?? 120,
+                    accessories: analysis.selected_accessories ?? [],
+                    skeletonKeypoints: analysis.raw_keypoints ?? [],
+                    poseComplexityScore: analysis.poseComplexityScore ?? 0,
+                  });
+                  const totalLaborMins = asmResult.assembly_time_seconds / 60;
+                  const avgSustainVal = active.length > 0 ? Math.round(active.reduce((s, z) => s + z.sustainability, 0) / active.length) : 100;
+
+                  const { data, error } = await supabase
+                    .from("packaging_plans")
+                    .insert({
+                      analysis_id: analysis.id,
+                      total_cost: totalCostVal,
+                      total_labor_mins: totalLaborMins,
+                      avg_sustainability: avgSustainVal,
+                      zones: zonePlan.map(z => ({
+                        zone: z.zone,
+                        recommendedMethod: z.recommendedMethod,
+                        action: z.action,
+                        cost: z.cost,
+                        laborMins: z.laborMins
+                      }))
+                    })
+                    .select("id")
+                    .single();
+                    
+                  if (data) {
+                    const currentPlan = loadPlan();
+                    if (currentPlan) {
+                      savePlan({ ...currentPlan, plan_id: data.id } as any);
+                    }
+                    navigate({ to: "/app/risk-assessment" });
+                  } else if (error) {
+                    console.error("Failed to save packaging plan:", error);
+                    alert("Database Error: " + error.message + "\nMake sure you started a new analysis from the first page so it gets a valid UUID.");
+                  }
+                } catch (e: any) {
+                  console.error("Caught error in Proceed to Risk Assessment:", e);
+                  alert("Error: " + e.message);
+                } finally {
+                  setIsSaving(false);
+                }
+              } else {
+                alert("Missing analysis ID. Please restart from the Product Analysis page.");
+              }
+            }}>
+              {isSaving ? "Saving..." : "Proceed to Risk Assessment"} <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           </>
         }
@@ -1339,7 +1379,26 @@ function AttachmentPlannerPage() {
             <p className="text-sm font-semibold">Proceed to Risk Assessment</p>
             <p className="mt-0.5 text-xs text-muted-foreground">Analyze potential packaging risks and mitigations based on the plan.</p>
           </div>
-          <Button size="sm" onClick={() => navigate({ to: "/app/risk-assessment" })} className="shrink-0">
+          <Button size="sm" onClick={async () => {
+            const currentPlan = loadPlan();
+            if (currentPlan && analysis?.id) {
+              const { data, error } = await supabase.from('packaging_plans').insert([{
+                analysis_id: analysis.id,
+                total_cost: currentPlan.totalCost,
+                total_labor_mins: currentPlan.totalLaborMins || 0,
+                avg_sustainability: currentPlan.avgSustainability,
+                zones: currentPlan.zones,
+                created_at: new Date().toISOString()
+              }]).select();
+              if (data && data.length > 0) {
+                currentPlan.plan_id = data[0].id;
+                savePlan(currentPlan);
+              } else if (error) {
+                console.error("Failed to save packaging plan:", error);
+              }
+            }
+            navigate({ to: "/app/risk-assessment" });
+          }} className="shrink-0">
             Risk Assessment <ChevronRight className="ml-2 h-4 w-4" />
           </Button>
         </CardContent>

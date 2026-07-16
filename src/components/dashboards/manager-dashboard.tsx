@@ -13,7 +13,8 @@ import { PageHeader } from "@/components/page-header";
 import { costBreakdown, monthlyTrends, sustainabilityMetrics } from "@/lib/mock-data";
 import type { AuthUser } from "@/lib/auth";
 import { useState, useEffect } from "react";
-import { loadApprovalRequests, type ApprovalRequest } from "@/lib/workflow-store";
+import { type ApprovalRequest } from "@/lib/workflow-store";
+import { supabase } from "@/lib/supabase";
 
 const PIE_COLORS = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)", "var(--color-chart-4)"];
 
@@ -27,13 +28,18 @@ const riskTrend = [
 ];
 
 export function ManagerDashboard({ user }: { user: AuthUser }) {
-  const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
+  const [approvals, setApprovals] = useState<any[]>([]);
 
   useEffect(() => {
-    const localReqs = loadApprovalRequests();
-    if (localReqs.length > 0) {
-      setApprovals([...localReqs, ...approvals].slice(0, 3));
+    async function fetchData() {
+      const { data } = await supabase
+        .from('approval_requests')
+        .select('*')
+        .order('submitted_at', { ascending: false })
+        .limit(3);
+      if (data) setApprovals(data);
     }
+    fetchData();
   }, []);
 
   return (
@@ -69,20 +75,20 @@ export function ManagerDashboard({ user }: { user: AuthUser }) {
               <div key={i} className="flex items-center justify-between rounded-lg border border-border/70 bg-background p-4">
                 <div>
                   <p className="text-sm font-semibold text-foreground">{req.sku}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Requested by {req.engineer} on {req.date}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Requested by {req.engineer_name} on {new Date(req.submitted_at).toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-6">
                   <div className="hidden sm:block text-right">
                     <p className="text-[10px] font-medium uppercase text-muted-foreground">Est. Cost</p>
-                    <p className="text-sm font-medium">{req.cost}</p>
+                    <p className="text-sm font-medium">{req.est_cost}</p>
                   </div>
                   <div className="hidden sm:block text-right">
                     <p className="text-[10px] font-medium uppercase text-muted-foreground">Risk Level</p>
-                    <p className={`text-sm font-medium ${req.risk === "Low" ? "text-[color:var(--success)]" : "text-[color:var(--warning-foreground)]"}`}>{req.risk}</p>
+                    <p className={`text-sm font-medium ${req.risk_level === "Low" ? "text-[color:var(--success)]" : "text-[color:var(--warning-foreground)]"}`}>{req.risk_level}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button size="sm" asChild>
-                      <Link to="/app/approvals/$id" params={{ id: req.id || 'REQ-000' }}>View Details</Link>
+                      <Link to="/app/approvals/$id" params={{ id: req.req_id || 'REQ-000' }}>View Details</Link>
                     </Button>
                   </div>
                 </div>

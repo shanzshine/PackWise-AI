@@ -355,16 +355,47 @@ function ProductAnalysisPage() {
     setIsSaving(true);
 
     const user = (() => { try { return JSON.parse(localStorage.getItem("packwise_user") || ""); } catch { return null; } })();
+    
+    let publicImageUrl = null;
+    if (imageFile) {
+      try {
+        const fileExt = imageFile.name.split('.').pop() || 'jpg';
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${user?.user_id || 'anonymous'}/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage.from('product-images').upload(filePath, imageFile);
+        if (!uploadError) {
+          const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
+          publicImageUrl = data.publicUrl;
+        } else {
+          console.warn("Supabase Storage upload failed:", uploadError);
+        }
+      } catch (err) {
+        console.warn("Failed to upload image:", err);
+      }
+    }
 
+    let analysisId = undefined;
+    
     // Save full analysis to Supabase product_analyses
     try {
-      const { error } = await supabase.from('product_analyses').insert([{
+      const mlOutputs = {
+        detected_poses: detectedPoses,
+        raw_keypoints: rawKeypoints,
+        cv_detections: detectedStraps,
+        pose_status: poseStatus,
+        computed_height: computedHeight,
+        computed_complexity: computedComplexity,
+        computed_cog: computedCOG
+      };
+
+      const { data, error } = await supabase.from('product_analyses').insert([{
         user_id: user?.user_id ?? null,
         product_name: `${productFamily} Doll`,
         product_family: productFamily,
         articulation: articulation,
         pose: poseStatus ? (poseStatus.left_arm_up || poseStatus.right_arm_up ? "Arms Up" : "Arms Down") : pose,
-        product_weight_g: weightG,
+        weight_g: weightG,
         height_cm: heightCm,
         center_of_gravity: computedCOG,
         hair_length: hairLength,
@@ -372,20 +403,17 @@ function ProductAnalysisPage() {
         accessory_count: selectedAccessories.length,
         accessory_weight_g: selectedAccessories.reduce((acc, curr) => acc + curr.weight, 0),
         selected_accessories: selectedAccessories.map((a) => a.name),
-        detected_poses: detectedPoses,
-        raw_keypoints: rawKeypoints,
-        cv_detections: detectedStraps,
-        pose_status: poseStatus,
-        computed_height: computedHeight,
-        computed_complexity: computedComplexity,
-        computed_cog: computedCOG,
-        analysed_at: new Date().toISOString(),
-      }]);
+        image_url: publicImageUrl,
+        annotated_image_url: null, // Can be updated later if needed
+        ml_outputs: mlOutputs,
+        created_at: new Date().toISOString(),
+      }]).select();
 
       if (error) {
         console.warn("Supabase save warning:", error.message);
-      } else {
-        console.log("[PackWise] Analysis saved to Supabase ✓");
+      } else if (data && data.length > 0) {
+        console.log("[PackWise] Analysis saved to Supabase ✓", data[0].id);
+        analysisId = data[0].id;
       }
     } catch (err) {
       console.warn("Supabase save failed (offline?):", err);
@@ -394,6 +422,7 @@ function ProductAnalysisPage() {
     setIsSaving(false);
 
     const r: AnalysisResult = {
+      id: analysisId,
       productName: `${productFamily} Doll`,
       category: "Fashion Doll",
       imageDataUrl: imageDataUrl,
