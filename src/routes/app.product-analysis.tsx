@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 import { Progress } from "@/components/ui/progress";
-import { saveAnalysis, type AnalysisResult } from "@/lib/workflow-store";
+import { saveAnalysis, clearAllWorkflowData, type AnalysisResult } from "@/lib/workflow-store";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
@@ -113,6 +113,9 @@ function ProductAnalysisPage() {
   const [accSearch, setAccSearch] = useState("");
 
   useEffect(() => {
+    // Entering Step 1 implies starting a fresh session. Wipe residual state.
+    clearAllWorkflowData();
+
     async function loadMasterData() {
       try {
         const { data: pfData, error: pfError } = await supabase.from('product_families').select('*');
@@ -281,16 +284,6 @@ function ProductAnalysisPage() {
     setCustomAccName("");
     setCustomAccWeight("10");
     setAccSearch("");
-  };
-
-  const loadDemo = () => {
-    handleFamilyChange("Fashionistas", productFamilies);
-    setHairLength("Long");
-    setDressLength("Short");
-    setSelectedAccessories([
-      { name: "Handbag", weight: 8 },
-      { name: "Shoes", weight: 15 },
-    ]);
   };
 
   const handleAnalyse = async () => {
@@ -636,7 +629,7 @@ function ProductAnalysisPage() {
           <div className="absolute inset-0 animate-ping rounded-full bg-primary/10" />
         </div>
         <div className="w-full max-w-md space-y-4 text-center">
-          <h2 className="text-xl font-semibold">Running PyTorch Model…</h2>
+          <h2 className="text-xl font-semibold">Running AI Model…</h2>
           <p className="text-sm text-muted-foreground">Detecting optimal strap zones and extracting features.</p>
           <Progress value={progress} className="h-2" />
           <p className="text-xs text-muted-foreground">{progress}% complete</p>
@@ -659,9 +652,6 @@ function ProductAnalysisPage() {
         description="Upload an image for the YOLO model to detect strap zones, and enter product details."
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={loadDemo}>
-              Load Demo Product
-            </Button>
             <Badge variant="outline" className="border-border/70 font-normal"><Sparkles className="mr-1 h-3 w-3 text-primary" />AI-Powered</Badge>
           </div>
         }

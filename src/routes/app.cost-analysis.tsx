@@ -40,9 +40,9 @@ export const Route = createFileRoute("/app/cost-analysis")({
     const isManagerOrAdmin = user?.role === "manager" || user?.role === "admin";
     if (isManagerOrAdmin) return;
 
-    const plan = loadPlan();
-    if (!plan?.plan_id) {
-      throw redirect({ to: "/app/risk-assessment" });
+    const analysis = loadAnalysis();
+    if (!analysis?.id) {
+      throw redirect({ to: "/app/product-analysis" });
     }
   },
   component: CostSustainabilityPage,
@@ -85,29 +85,19 @@ function WorkflowBar() {
 function CostSustainabilityPage() {
   const navigate = useNavigate();
   const [analysisId, setAnalysisId] = useState("");
-  const [productName, setProductName] = useState("");
+  const [productName, setProductName] = useState("Cost & Sustainability");
   const [plan, setPlan] = useState<PlanResult | null>(null);
-  const [methodProps, setMethodProps] = useState<Record<string, any>>({});
+  const [methodProps, setMethodProps] = useState<Record<string, any> | null>(null);
   const [ready, setReady] = useState(false);
-  const [hasActiveSession, setHasActiveSession] = useState(true);
 
   useEffect(() => {
-    const analysis = loadAnalysis();
-    if (!analysis) {
-      toast.error("Please complete Product Analysis first.");
-      navigate({ to: "/app/product-analysis" });
-      return;
+    let p = loadPlan();
+    if (!p) {
+      p = DEMO_PLAN;
     }
+    const analysis = loadAnalysis() || DEMO_RESULT;
+
     setAnalysisId(analysis.id || "");
-    setProductName(analysis.productName);
-    const p = loadPlan();
-
-    if (!analysis || !p) {
-      setHasActiveSession(false);
-      setReady(true);
-      return;
-    }
-
     setProductName(analysis.productName);
     setPlan(p);
     
@@ -129,49 +119,9 @@ function CostSustainabilityPage() {
 
   if (!ready) return null;
 
-  if (!hasActiveSession) {
-    const user = getUser();
-    const isManagerOrAdmin = user?.role === "manager" || user?.role === "admin";
-
-    return (
-      <div className="space-y-6">
-        <PageHeader
-          title="Cost & Sustainability"
-          description="Attachment costs, material analysis, and environmental impact"
-        />
-
-        <div className="flex min-h-[400px] flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-            <DollarSign className="h-6 w-6" />
-          </div>
-          <h3 className="mt-4 text-lg font-semibold">No Active Packaging Plan</h3>
-          <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-            {isManagerOrAdmin
-              ? "There is no active packaging design session in progress. Please review submitted plans from the approvals queue to inspect their cost breakdown."
-              : "You haven't designed a packaging plan yet. Start by uploading a product to run the AI features analysis."}
-          </p>
-          <div className="mt-6">
-            {isManagerOrAdmin ? (
-              <Button onClick={() => navigate({ to: "/app/approvals" })} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                Go to Pending Approvals
-              </Button>
-            ) : (
-              <Button onClick={() => navigate({ to: "/app/product-analysis" })} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                Start Product Analysis
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // Compute derived data from plan
   const activeZones = plan?.zones.filter(z => z.action !== "Remove") ?? [];
   const removedZones = plan?.zones.filter(z => z.action === "Remove") ?? [];
-  const addedZones = plan?.zones.filter(z => z.action === "Add") ?? [];
-  const keptZones = plan?.zones.filter(z => z.action === "Keep") ?? [];
-
   const totalCost = plan?.totalCost ?? 0;
   const avgSustainability = plan?.avgSustainability ?? 78;
   const avgStability = plan?.avgStability ?? 88;
@@ -259,7 +209,7 @@ function CostSustainabilityPage() {
                 const materialName = z.action === "Remove" ? z.currentMethod : z.recommendedMethod;
                 // Strip counts from string (e.g. "Elastic Strap (2x)" -> "Elastic Strap")
                 const baseMaterial = materialName.split(" (")[0];
-                const unitCost = methodProps[baseMaterial]?.cost || 0;
+                const unitCost = methodProps?.[baseMaterial]?.cost || 0;
 
                 return (
                   <TableRow key={z.zone} className={

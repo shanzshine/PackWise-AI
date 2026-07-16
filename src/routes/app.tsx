@@ -41,7 +41,27 @@ function AppLayout() {
   }, [navigate]);
 
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [unread, setUnread] = useState(false);
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (user) {
+      const stored = localStorage.getItem(`read_notifications_${user.user_id || user.name}`);
+      if (stored) {
+        setReadIds(new Set(JSON.parse(stored)));
+      }
+    }
+  }, [user]);
+
+  const markAsRead = (id: string) => {
+    setReadIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      if (user) {
+        localStorage.setItem(`read_notifications_${user.user_id || user.name}`, JSON.stringify(Array.from(next)));
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -65,7 +85,6 @@ function AppLayout() {
       const { data } = await query;
       if (data && data.length > 0) {
         setNotifications(data);
-        setUnread(true); // Just hardcode true if there's any data for demo
       }
     }
     fetchNotifications();
@@ -83,6 +102,8 @@ function AppLayout() {
     );
   }
 
+  const unreadCount = notifications.filter(n => !readIds.has(n.req_id)).length;
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -91,45 +112,53 @@ function AppLayout() {
           <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border/70 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="h-5" />
-            <div className="relative hidden flex-1 max-w-md md:block">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Search analyses, products, reports…" className="h-9 pl-8" />
-            </div>
+            <div className="flex-1" />
             <div className="ml-auto flex items-center gap-2">
-              <DropdownMenu onOpenChange={(open) => { if (open) setUnread(false) }}>
+              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" aria-label="Notifications" className="relative cursor-pointer">
                     <Bell className="h-4 w-4" />
-                    {unread && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />}
+                    {unreadCount > 0 && <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-80">
-                  <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                  <DropdownMenuLabel>Notifications {unreadCount > 0 && `(${unreadCount} unread)`}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {notifications.length === 0 ? (
                     <div className="p-4 text-center text-sm text-muted-foreground">No new notifications.</div>
                   ) : (
-                    notifications.map((n, i) => (
-                      <DropdownMenuItem key={i} className="flex flex-col items-start gap-1 p-3 cursor-pointer" onClick={() => navigate({ to: `/app/approvals/${n.req_id}` })}>
-                        <div className="flex items-center justify-between w-full">
-                          <span className="font-semibold text-sm">{n.sku}</span>
-                          <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
-                            n.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
-                            n.status === 'Approved' ? 'bg-green-100 text-green-700' :
-                            'bg-red-100 text-red-700'
-                          }`}>{n.status}</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground line-clamp-2">
-                          {["manager", "admin", "Operations Manager", "Admin"].includes(user?.role || "")
-                            ? `${n.engineer_name} submitted a new packaging plan for approval.`
-                            : `Your plan was ${n.status.toLowerCase()} by Operations.`}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground/70 mt-1">{new Date(n.submitted_at).toLocaleString()}</span>
-                      </DropdownMenuItem>
-                    ))
+                    notifications.map((n, i) => {
+                      const isUnread = !readIds.has(n.req_id);
+                      return (
+                        <DropdownMenuItem 
+                          key={i} 
+                          className={`flex flex-col items-start gap-1 p-3 cursor-pointer ${isUnread ? 'bg-primary/5' : 'opacity-70'}`} 
+                          onClick={() => {
+                            markAsRead(n.req_id);
+                            navigate({ to: `/app/approvals/${n.req_id}` });
+                          }}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <div className="flex items-center gap-2">
+                              {isUnread && <div className="h-2 w-2 rounded-full bg-primary shrink-0" />}
+                              <span className="font-semibold text-sm truncate">{n.sku}</span>
+                            </div>
+                            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                              n.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
+                              n.status === 'Approved' ? 'bg-green-100 text-green-700' :
+                              'bg-red-100 text-red-700'
+                            }`}>{n.status}</span>
+                          </div>
+                          <span className={`text-xs ${isUnread ? 'text-foreground' : 'text-muted-foreground'} line-clamp-2`}>
+                            {["manager", "admin", "Operations Manager", "Admin"].includes(user?.role || "")
+                              ? `${n.engineer_name} submitted a new packaging plan for approval.`
+                              : `Your plan was ${n.status.toLowerCase()} by Operations.`}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground/70 mt-1">{new Date(n.submitted_at).toLocaleString()}</span>
+                        </DropdownMenuItem>
+                      );
+                    })
                   )}
-                  <DropdownMenuSeparator />
-                  <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => navigate({ to: "/app/approvals" })}>View All</Button>
                 </DropdownMenuContent>
               </DropdownMenu>
               <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--primary-soft)] text-xs font-semibold text-primary">

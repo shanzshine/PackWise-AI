@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
 import {
-  ArrowLeft, Eye, CheckCircle2, Sparkles, BarChart3, Brain, ChevronRight, Info, ScanLine, ImageIcon, AlertTriangle, Wifi, WifiOff, RefreshCw
+  ArrowLeft, Eye, CheckCircle2, Sparkles, BarChart3, Brain, ChevronRight, Info, ScanLine, ImageIcon, AlertTriangle, Wifi, WifiOff, RefreshCw, Link2
 } from "lucide-react";
 import {
   Tooltip, ResponsiveContainer,
@@ -467,7 +467,8 @@ function AttachmentPlannerPage() {
   const [isSimulatingImgGen, setIsSimulatingImgGen] = useState(false);
 
   useEffect(() => {
-    const a = loadAnalysis() ?? DEMO_RESULT;
+    const a = loadAnalysis();
+    if (!a) return;
     setAnalysis(a);
 
     async function fetchPredictions() {
@@ -476,21 +477,21 @@ function AttachmentPlannerPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            product_family: a.product_family ?? "Fashionistas",
-            articulation: a.articulation ?? "Standard",
-            pose: a.pose ?? "Arms Open",
-            product_weight_g: a.product_weight_g ?? 120,
-            height_cm: a.height_cm ?? 29.0,
-            center_of_gravity: a.center_of_gravity ?? "Center",
-            hair_length: a.hair_length ?? "Short",
-            dress_length: a.dress_length ?? "Short",
-            accessory_count: a.accessory_count ?? 1,
-            accessory_weight_g: a.accessory_weight_g ?? 15,
-            complexity_score: Math.round((a.poseComplexityScore ?? 50) / 10),
-            stability_index: Math.round((a.poseStabilityScore ?? 50) / 10),
+            product_family: a!.product_family ?? "Fashionistas",
+            articulation: a!.articulation ?? "Standard",
+            pose: a!.pose ?? "Arms Open",
+            product_weight_g: a!.product_weight_g ?? 120,
+            height_cm: a!.height_cm ?? 29.0,
+            center_of_gravity: a!.center_of_gravity ?? "Center",
+            hair_length: a!.hair_length ?? "Short",
+            dress_length: a!.dress_length ?? "Short",
+            accessory_count: a!.accessory_count ?? 1,
+            accessory_weight_g: a!.accessory_weight_g ?? 15,
+            complexity_score: Math.round((a!.poseComplexityScore ?? 50) / 10),
+            stability_index: Math.round((a!.poseStabilityScore ?? 50) / 10),
             fragility_score: 5,
             attachment_needed: 1,
-            fragile_parts_count: Math.max(1, Math.floor((a.accessory_count ?? 1) / 2)),
+            fragile_parts_count: Math.max(1, Math.floor((a!.accessory_count ?? 1) / 2)),
           })
         });
         const data = await res.json();

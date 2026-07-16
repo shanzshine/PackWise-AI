@@ -33,16 +33,17 @@ import { Brand } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import type { AuthUser, Role } from "@/lib/auth";
 import { logout } from "@/lib/auth";
+import { loadAnalysis, clearAllWorkflowData } from "@/lib/workflow-store";
 
-type Item = { title: string; url: string; icon: typeof LayoutDashboard };
+type Item = { title: string; url: string; icon: typeof LayoutDashboard; requiresAnalysis?: boolean };
 
 const NAV: Record<Role, Item[]> = {
   engineer: [
     { title: "Dashboard",             url: "/app/dashboard",              icon: LayoutDashboard },
     { title: "Product Analysis",      url: "/app/product-analysis",       icon: ScanLine        },
-    { title: "Attachment Planner",    url: "/app/packaging-planner",      icon: Link2           },
-    { title: "Risk Assessment",       url: "/app/risk-assessment",        icon: ShieldAlert     },
-    { title: "Cost & Sustainability", url: "/app/cost-analysis",          icon: DollarSign      },
+    { title: "Attachment Planner",    url: "/app/packaging-planner",      icon: Link2,          requiresAnalysis: true },
+    { title: "Risk Assessment",       url: "/app/risk-assessment",        icon: ShieldAlert,    requiresAnalysis: true },
+    { title: "Cost & Sustainability", url: "/app/cost-analysis",          icon: DollarSign,     requiresAnalysis: true },
     { title: "Reports",               url: "/app/reports",                icon: FileBarChart2   },
     { title: "Settings",              url: "/app/settings",               icon: Settings        },
   ],
@@ -62,9 +63,9 @@ const NAV: Record<Role, Item[]> = {
   "Packaging Engineer": [
     { title: "Dashboard",             url: "/app/dashboard",              icon: LayoutDashboard },
     { title: "Product Analysis",      url: "/app/product-analysis",       icon: ScanLine        },
-    { title: "Attachment Planner",    url: "/app/packaging-planner",      icon: Link2           },
-    { title: "Risk Assessment",       url: "/app/risk-assessment",        icon: ShieldAlert     },
-    { title: "Cost & Sustainability", url: "/app/cost-analysis",          icon: DollarSign      },
+    { title: "Attachment Planner",    url: "/app/packaging-planner",      icon: Link2,          requiresAnalysis: true },
+    { title: "Risk Assessment",       url: "/app/risk-assessment",        icon: ShieldAlert,    requiresAnalysis: true },
+    { title: "Cost & Sustainability", url: "/app/cost-analysis",          icon: DollarSign,     requiresAnalysis: true },
     { title: "Reports",               url: "/app/reports",                icon: FileBarChart2   },
     { title: "Settings",              url: "/app/settings",               icon: Settings        },
   ],
@@ -97,6 +98,13 @@ export function AppSidebar({ user }: { user: AuthUser }) {
   const navigate  = useNavigate();
   const items     = NAV[user.role];
 
+  // If user returns to the Dashboard, wipe any residual session to enforce the lock
+  if (pathname === "/app/dashboard" && typeof window !== "undefined") {
+    clearAllWorkflowData();
+  }
+
+  const hasAnalysis = !!loadAnalysis()?.id;
+
   const handleLogout = async () => { await logout(); navigate({ to: "/login" }); };
 
   return (
@@ -110,16 +118,30 @@ export function AppSidebar({ user }: { user: AuthUser }) {
           <SidebarGroupLabel>Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
-                    <Link to={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {items.map((item) => {
+                const isDisabled = item.requiresAnalysis && !hasAnalysis;
+                return (
+                  <SidebarMenuItem key={item.url}>
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={pathname === item.url} 
+                      tooltip={isDisabled ? "Requires Product Analysis" : item.title}
+                    >
+                      <Link 
+                        to={isDisabled ? "#" : item.url} 
+                        disabled={isDisabled}
+                        className={isDisabled ? "pointer-events-none opacity-50" : ""}
+                        onClick={(e) => {
+                          if (isDisabled) e.preventDefault();
+                        }}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

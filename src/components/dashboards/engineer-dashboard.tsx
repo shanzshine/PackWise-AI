@@ -7,7 +7,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import type { AuthUser } from "@/lib/auth";
 import { useState, useEffect } from "react";
-import { loadAnalysis, type ApprovalRequest } from "@/lib/workflow-store";
+import { loadAnalysis, clearAllWorkflowData, type ApprovalRequest } from "@/lib/workflow-store";
 import { supabase } from "@/lib/supabase";
 import { openReportInNewTab } from "@/lib/report-generator";
 
@@ -20,10 +20,16 @@ const statusStyles: Record<string, string> = {
 };
 
 export function EngineerDashboard({ user }: { user: AuthUser }) {
+  // Wipe any residual session synchronously when the dashboard renders
+  // to guarantee the UI is locked until a new analysis is explicitly started.
+  if (typeof window !== "undefined") {
+    clearAllWorkflowData();
+  }
+
   const [myApprovals, setMyApprovals] = useState<any[]>([]);
   const [lastAnalysisDate, setLastAnalysisDate] = useState<string>("—");
   const [isLoading, setIsLoading] = useState(true);
-  const analysis = loadAnalysis();
+  const analysis: any = null; // Force null since we just cleared it
 
   useEffect(() => {
     async function fetchData() {
@@ -154,22 +160,30 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
         <CardContent>
           <div className="flex items-center gap-0">
             {[
-              { label: "Product Input", url: "/app/product-analysis", icon: ScanLine },
-              { label: "Analysis Results", url: "/app/product-analysis", icon: ScanLine },
-              { label: "Attachment Planner", url: "/app/packaging-planner", icon: Link2 },
-              { label: "Risk Assessment", url: "/app/risk-assessment", icon: ShieldAlert },
-              { label: "Cost & Sustainability", url: "/app/cost-analysis", icon: Activity },
-            ].map((step, i, arr) => (
-              <div key={step.label} className="flex flex-1 items-center">
-                <Link to={step.url} className="group flex flex-col items-center gap-1.5 px-2 text-center">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-border bg-muted text-muted-foreground group-hover:border-primary/50 transition">
-                    <step.icon className="h-3.5 w-3.5" />
-                  </div>
-                  <span className="text-[10px] font-medium leading-tight text-muted-foreground">{step.label}</span>
-                </Link>
-                {i < arr.length - 1 && <div className="h-px flex-1 bg-border" />}
-              </div>
-            ))}
+              { label: "Product Input", url: "/app/product-analysis", icon: ScanLine, reqA: false },
+              { label: "Analysis Results", url: "/app/product-analysis", icon: ScanLine, reqA: false },
+              { label: "Attachment Planner", url: "/app/packaging-planner", icon: Link2, reqA: true },
+              { label: "Risk Assessment", url: "/app/risk-assessment", icon: ShieldAlert, reqA: true },
+              { label: "Cost & Sustainability", url: "/app/cost-analysis", icon: Activity, reqA: true },
+            ].map((step, i, arr) => {
+              const isDisabled = step.reqA && !analysis?.id;
+              return (
+                <div key={step.label} className="flex flex-1 items-center">
+                  <Link 
+                    to={isDisabled ? "#" : step.url} 
+                    disabled={isDisabled}
+                    onClick={(e) => isDisabled && e.preventDefault()}
+                    className={`group flex flex-col items-center gap-1.5 px-2 text-center ${isDisabled ? "pointer-events-none opacity-50" : ""}`}
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-border bg-muted text-muted-foreground group-hover:border-primary/50 transition">
+                      <step.icon className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="text-[10px] font-medium leading-tight text-muted-foreground">{step.label}</span>
+                  </Link>
+                  {i < arr.length - 1 && <div className="h-px flex-1 bg-border" />}
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

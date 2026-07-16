@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ChevronRight, DollarSign } from "lucide-react";
+import { ArrowLeft, ChevronRight, DollarSign, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { loadAnalysis, loadPlan } from "@/lib/workflow-store";
@@ -14,9 +14,9 @@ export const Route = createFileRoute("/app/risk-assessment")({
     const isManagerOrAdmin = user?.role === "manager" || user?.role === "admin";
     if (isManagerOrAdmin) return;
 
-    const plan = loadPlan();
-    if (!plan?.plan_id) {
-      throw redirect({ to: "/app/packaging-planner" });
+    const analysis = loadAnalysis();
+    if (!analysis?.id) {
+      throw redirect({ to: "/app/product-analysis" });
     }
   },
   component: RiskAssessmentPage,
@@ -64,7 +64,7 @@ function WorkflowBar() {
 
 function RiskAssessmentPage() {
   const navigate = useNavigate();
-  const [productName, setProductName] = useState("Risk Assessment");
+  const [productName, setProductName] = useState("");
 
   useEffect(() => {
     const a = loadAnalysis();
