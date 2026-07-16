@@ -110,41 +110,61 @@ function CostSustainabilityPage() {
   const [productName, setProductName] = useState("");
   const [plan, setPlan] = useState<PlanResult | null>(null);
   const [ready, setReady] = useState(false);
+  const [hasActiveSession, setHasActiveSession] = useState(true);
 
   useEffect(() => {
-    const user = getUser();
-    const isManagerOrAdmin = user?.role === "manager" || user?.role === "admin";
-
     const analysis = loadAnalysis();
-    if (!analysis) {
-      if (isManagerOrAdmin) {
-        setProductName(DEMO_RESULT.productName);
-        setPlan(DEMO_PLAN);
-        setReady(true);
-        return;
-      }
-      toast.error("Please complete Product Analysis first.");
-      navigate({ to: "/app/product-analysis" });
-      return;
-    }
-    setProductName(analysis.productName);
-
     const p = loadPlan();
-    if (!p) {
-      if (isManagerOrAdmin) {
-        setPlan(DEMO_PLAN);
-        setReady(true);
-        return;
-      }
-      toast.error("Please run the Packaging Planner before viewing Cost Analysis.");
-      navigate({ to: "/app/packaging-planner" });
+
+    if (!analysis || !p) {
+      setHasActiveSession(false);
+      setReady(true);
       return;
     }
+
+    setProductName(analysis.productName);
     setPlan(p);
     setReady(true);
   }, []);
 
   if (!ready) return null;
+
+  if (!hasActiveSession) {
+    const user = getUser();
+    const isManagerOrAdmin = user?.role === "manager" || user?.role === "admin";
+
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Cost & Sustainability"
+          description="Attachment costs, material analysis, and environmental impact"
+        />
+
+        <div className="flex min-h-[400px] flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 p-8 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <DollarSign className="h-6 w-6" />
+          </div>
+          <h3 className="mt-4 text-lg font-semibold">No Active Packaging Plan</h3>
+          <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+            {isManagerOrAdmin
+              ? "There is no active packaging design session in progress. Please review submitted plans from the approvals queue to inspect their cost breakdown."
+              : "You haven't designed a packaging plan yet. Start by uploading a product to run the AI features analysis."}
+          </p>
+          <div className="mt-6">
+            {isManagerOrAdmin ? (
+              <Button onClick={() => navigate({ to: "/app/approvals" })} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                Go to Pending Approvals
+              </Button>
+            ) : (
+              <Button onClick={() => navigate({ to: "/app/product-analysis" })} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                Start Product Analysis
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Compute derived data from plan
   const activeZones = plan?.zones.filter(z => z.action !== "Remove") ?? [];
