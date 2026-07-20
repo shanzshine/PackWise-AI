@@ -61,7 +61,7 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
   return (
     <div className="space-y-8">
       <PageHeader
-        title={`Welcome back, ${user.name.split(" ")[0]}`}
+        title={`Welcome back, ${(user?.name || "User").split(" ")[0]}`}
         description="Here's your attachment optimization workspace — active projects, risk flags, and AI recommendations."
         actions={
           <>

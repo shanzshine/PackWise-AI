@@ -109,7 +109,7 @@ function SettingsPage() {
             {/* Top row: Avatar + Name/Email (large and unconstrained horizontally) */}
             <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-border/60">
               <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-[color:var(--primary-soft)] text-2xl font-bold text-primary shadow-sm border border-primary/10">
-                {user.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                {(user?.name || "U").split(" ").map((n) => n[0]).slice(0, 2).join("")}
               </div>
               <div className="text-center sm:text-left space-y-1.5 min-w-0 flex-1">
                 <h3 className="font-bold text-2xl text-foreground break-all tracking-tight leading-tight">

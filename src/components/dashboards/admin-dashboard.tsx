@@ -71,7 +71,7 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
     <div className="space-y-8">
       <PageHeader
         title={`Administration`}
-        description={`Manage users, roles, and platform health, ${user.name.split(" ")[0]}.`}
+        description={`Manage users, roles, and platform health, ${(user?.name || "Admin").split(" ")[0]}.`}
         actions={
           <Button asChild size="sm">
             <Link to="/app/users"><UserPlus className="h-4 w-4" />Review approvals</Link>

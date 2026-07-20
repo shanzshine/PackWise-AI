@@ -45,7 +45,7 @@ function LoginPage() {
         return;
       }
       
-      toast.success(`Welcome back, ${user.name.split(" ")[0]}`);
+      toast.success(`Welcome back, ${(user?.name || "User").split(" ")[0]}`);
       navigate({ to: "/app/dashboard" });
     } catch (err: any) {
       toast.error(err.message || "Account not found", { description: "Please check your email and password." });
@@ -115,16 +115,6 @@ function LoginPage() {
             </div>
           </div>
         </div>
-
-        <Card className="border-border/70 shadow-none">
-          <CardContent className="p-5">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">In production</p>
-            <p className="mt-2 text-sm font-medium text-foreground">
-              “PackWise AI cut our prototype iteration time by 40% and helped us hit our 2026 sustainability targets a full year early.”
-            </p>
-            <p className="mt-3 text-xs text-muted-foreground">— Director of Packaging, global toy manufacturer</p>
-          </CardContent>
-        </Card>
       </aside>
     </div>
   );

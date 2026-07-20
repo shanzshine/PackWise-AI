@@ -162,7 +162,7 @@ function AppLayout() {
                 </DropdownMenuContent>
               </DropdownMenu>
               <div className="hidden sm:flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--primary-soft)] text-xs font-semibold text-primary">
-                {user.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                {(user?.name || "U").split(" ").map((n) => n[0]).slice(0, 2).join("")}
               </div>
             </div>
           </header>

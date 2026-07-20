@@ -105,8 +105,8 @@ function SubmitApprovalPage() {
         support: "—",
         ista: "—",
       },
-      imageDataUrl,
-      annotatedImageDataUrl,
+      imageDataUrl: undefined, // Omit to prevent localStorage quota exceeded and DB payload limits
+      annotatedImageDataUrl: undefined, // Omit to prevent localStorage quota exceeded and DB payload limits
       accessories: analysis?.accessories,
       detectedPoses: analysis?.detectedPoses,
       raw_keypoints: analysis?.raw_keypoints || [],

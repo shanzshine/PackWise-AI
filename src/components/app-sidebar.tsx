@@ -96,7 +96,7 @@ const ROLE_LABEL: Record<Role, string> = {
 export function AppSidebar({ user }: { user: AuthUser }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate  = useNavigate();
-  const items     = NAV[user.role];
+  const items     = (user?.role && NAV[user.role]) ? NAV[user.role] : NAV.engineer;
 
   // If user returns to the Dashboard, wipe any residual session to enforce the lock
   if (pathname === "/app/dashboard" && typeof window !== "undefined") {
@@ -153,11 +153,11 @@ export function AppSidebar({ user }: { user: AuthUser }) {
           className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors w-full text-left"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--primary-soft)] text-sm font-semibold text-primary">
-            {user.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+            {(user?.name || "U").split(" ").map((n) => n[0]).slice(0, 2).join("")}
           </div>
           <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-            <p className="truncate text-sm font-medium text-sidebar-foreground">{user.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{ROLE_LABEL[user.role]}</p>
+            <p className="truncate text-sm font-medium text-sidebar-foreground">{user?.name || "User"}</p>
+            <p className="truncate text-xs text-muted-foreground">{user?.role ? ROLE_LABEL[user.role] || user.role : "Role"}</p>
           </div>
         </Link>
         <Button
