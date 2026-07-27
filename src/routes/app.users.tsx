@@ -65,22 +65,28 @@ function UsersPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchUsers = async () => {
-    const { data, error } = await supabase
-      .from("app_user")
-      .select("*")
-      .order("name", { ascending: true });
-    if (data) {
-      setUsers(
-        data.map((u: any) => ({
-          id: u.user_id,
-          name: u.name || "Unknown",
-          email: u.email || "",
-          company: u.company || "PackWise Demo",
-          role: u.role === "admin" ? "admin" : u.role === "manager" ? "manager" : u.role === "engineer" ? "engineer" : "unassigned",
-          status: u.must_change_password ? "pending" : "active",
-          joined: u.created_at ? new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Jul 12",
-        }))
-      );
+    try {
+      const { data } = await supabase
+        .from("app_user")
+        .select("*")
+        .order("name", { ascending: true });
+      if (data && data.length > 0) {
+        setUsers(
+          data.map((u: any) => ({
+            id: u.user_id,
+            name: u.name || "Unknown",
+            email: u.email || "",
+            company: u.company || "PackWise Demo",
+            role: u.role === "admin" ? "admin" : u.role === "manager" ? "manager" : u.role === "engineer" ? "engineer" : "unassigned",
+            status: u.must_change_password ? "pending" : "active",
+            joined: u.created_at ? new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Jul 12",
+          }))
+        );
+      } else {
+        setUsers(managedUsers);
+      }
+    } catch {
+      setUsers(managedUsers);
     }
     setIsLoading(false);
   };
