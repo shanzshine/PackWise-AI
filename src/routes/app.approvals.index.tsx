@@ -152,7 +152,7 @@ function ApprovalsPage() {
 
   useEffect(() => {
     async function fetchData() {
-      const { data } = await supabase.from('approval_requests').select('*').order('submitted_at', { ascending: false });
+      const { data } = await supabase.from('approval').select('*').order('submitted_at', { ascending: false });
       if (data) {
         setAll(data.map((d: any) => ({
           id: d.req_id,

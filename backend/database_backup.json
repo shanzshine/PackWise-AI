@@ -1,0 +1,160 @@
+{
+  "app_user": [
+    {
+      "user_id": "683405bf-c29b-4d02-bb00-5b109c1cd4d1",
+      "email": "nasywa.admin@packwise.demo",
+      "name": "nasywa.admin@packwise.demo",
+      "role": "Admin",
+      "created_by": null,
+      "created_at": "2026-07-13T00:57:31.935683+00:00",
+      "updated_at": "2026-07-13T00:57:31.935683+00:00",
+      "must_change_password": false
+    },
+    {
+      "user_id": "31796fdc-5118-4188-b60e-07126d129cfe",
+      "email": "test.pm@packwise.demo",
+      "name": "Test",
+      "role": "Product Manager",
+      "created_by": null,
+      "created_at": "2026-07-13T23:50:51.803415+00:00",
+      "updated_at": "2026-07-13T23:50:51.803415+00:00",
+      "must_change_password": true
+    },
+    {
+      "user_id": "2a834efa-fbcd-463b-b9d5-e36171117012",
+      "email": "shanty.pm@packwise.demo",
+      "name": "Shanty",
+      "role": "Product Manager",
+      "created_by": null,
+      "created_at": "2026-07-13T23:53:21.859237+00:00",
+      "updated_at": "2026-07-13T23:53:21.859237+00:00",
+      "must_change_password": false
+    },
+    {
+      "user_id": "e38192b3-2cdf-498f-b630-7ee172900c9b",
+      "email": "nina.pe@packwise.demo",
+      "name": "NIna",
+      "role": "Packaging Engineer",
+      "created_by": null,
+      "created_at": "2026-07-16T06:55:41.910466+00:00",
+      "updated_at": "2026-07-16T06:55:41.910466+00:00",
+      "must_change_password": false
+    },
+    {
+      "user_id": "b872ca06-6e31-41f0-91aa-f77cbc7f5d95",
+      "email": "cristine.pe@packwise.demo",
+      "name": "Cristine (PE)",
+      "role": "Packaging Engineer",
+      "created_by": null,
+      "created_at": "2026-07-13T07:52:09.646814+00:00",
+      "updated_at": "2026-07-13T07:52:09.646814+00:00",
+      "must_change_password": false
+    }
+  ],
+  "product_families": [
+    {
+      "id": "9b84fb2a-f860-4dd4-acea-f43a11da484d",
+      "product_family": "Dreamtopia",
+      "articulation": "Standard",
+      "default_height_cm": 29.0,
+      "default_weight_max": 120.0,
+      "created_at": "2026-07-16T08:22:19.570593+00:00"
+    },
+    {
+      "id": "c0de9bbe-db37-4e14-859f-b5a07862bb22",
+      "product_family": "Fashionistas",
+      "articulation": "Standard",
+      "default_height_cm": 29.0,
+      "default_weight_max": 120.0,
+      "created_at": "2026-07-16T08:22:19.570593+00:00"
+    },
+    {
+      "id": "4457cc92-c246-41a7-b1f3-301bbb89d9b2",
+      "product_family": "Careers",
+      "articulation": "Standard",
+      "default_height_cm": 29.0,
+      "default_weight_max": 120.0,
+      "created_at": "2026-07-16T08:22:19.570593+00:00"
+    },
+    {
+      "id": "d0ac277b-c59c-4fc2-84e4-8c335355223c",
+      "product_family": "Signature",
+      "articulation": "Standard",
+      "default_height_cm": 29.0,
+      "default_weight_max": 130.0,
+      "created_at": "2026-07-16T08:22:19.570593+00:00"
+    },
+    {
+      "id": "1765ef67-d558-4249-bf0f-fd27e69f73c8",
+      "product_family": "Extra",
+      "articulation": "Standard",
+      "default_height_cm": 29.0,
+      "default_weight_max": 125.0,
+      "created_at": "2026-07-16T08:22:19.570593+00:00"
+    },
+    {
+      "id": "c4635e23-c671-4937-a538-0a6326f46e41",
+      "product_family": "Made to Move",
+      "articulation": "Made to Move",
+      "default_height_cm": 29.0,
+      "default_weight_max": 135.0,
+      "created_at": "2026-07-16T08:22:19.570593+00:00"
+    }
+  ],
+  "accessories": [
+    {
+      "id": "a47cf816-45ac-43b0-9337-41971079b242",
+      "accessory_name": "Handbag",
+      "weight_g": 15.0,
+      "created_at": "2026-07-16T08:22:19.570593+00:00"
+    },
+    {
+      "id": "20550d22-5fc7-4b43-bc0b-53cff8308c55",
+      "accessory_name": "Shoes (Pair)",
+      "weight_g": 10.0,
+      "created_at": "2026-07-16T08:22:19.570593+00:00"
+    },
+    {
+      "id": "0b4d5379-6788-4f5b-8997-baa7dff0bdff",
+      "accessory_name": "Sunglasses",
+      "weight_g": 5.0,
+      "created_at": "2026-07-16T08:22:19.570593+00:00"
+    },
+    {
+      "id": "ac42a0ec-943c-4e1b-abd0-87d34ea9dd4f",
+      "accessory_name": "Hat",
+      "weight_g": 20.0,
+      "created_at": "2026-07-16T08:22:19.570593+00:00"
+    },
+    {
+      "id": "3ae3114c-0646-4cbc-ab8d-5b511b3c9a64",
+      "accessory_name": "Necklace",
+      "weight_g": 2.0,
+      "created_at": "2026-07-16T08:22:19.570593+00:00"
+    },
+    {
+      "id": "2be03490-0720-4737-a23b-32e26247f92e",
+      "accessory_name": "Brush",
+      "weight_g": 8.0,
+      "created_at": "2026-07-16T08:22:19.570593+00:00"
+    },
+    {
+      "id": "00536bbf-0178-428e-9d9c-eede761efb3e",
+      "accessory_name": "Backpack",
+      "weight_g": 25.0,
+      "created_at": "2026-07-16T08:22:19.570593+00:00"
+    },
+    {
+      "id": "6a8fd358-7fa1-48e9-99fe-67269adb4503",
+      "accessory_name": "Pet Dog",
+      "weight_g": 50.0,
+      "created_at": "2026-07-16T08:22:19.570593+00:00"
+    },
+    {
+      "id": "ccfa6130-83c2-4fd6-8ca2-992922e3b35e",
+      "accessory_name": "Pet Cage",
+      "weight_g": 30.0,
+      "created_at": "2026-07-16T08:39:47.750487+00:00"
+    }
+  ]
+}

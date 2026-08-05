@@ -641,11 +641,11 @@ function AttachmentPlannerPage() {
                   const avgSustainVal = active.length > 0 ? Math.round(active.reduce((s, z) => s + z.sustainability, 0) / active.length) : 100;
 
                   const { data, error } = await supabase
-                    .from("packaging_plans")
+                    .from("packaging_plan")
                     .insert({
                       analysis_id: analysis.id,
                       total_cost: totalCostVal,
-                      total_labor_mins: totalLaborMins,
+                      assembly_time_seconds: totalLaborMins * 60,
                       avg_sustainability: avgSustainVal,
                       zones: zonePlan.map(z => ({
                         zone: z.zone,
@@ -655,13 +655,13 @@ function AttachmentPlannerPage() {
                         laborMins: z.laborMins
                       }))
                     })
-                    .select("id")
+                    .select("plan_id")
                     .single();
 
                   if (data) {
                     const currentPlan = loadPlan();
                     if (currentPlan) {
-                      savePlan({ ...currentPlan, plan_id: data.id } as any);
+                      savePlan({ ...currentPlan, plan_id: data.plan_id } as any);
                     }
                     navigate({ to: "/app/risk-assessment" });
                   } else if (error) {

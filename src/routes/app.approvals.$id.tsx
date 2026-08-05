@@ -369,7 +369,7 @@ function ApprovalDetailsPage() {
 
   useEffect(() => {
     async function fetchData() {
-      const { data } = await supabase.from('approval_requests').select('*').eq('req_id', id).single();
+      const { data } = await supabase.from('approval').select('*').eq('req_id', id).single();
       if (data) {
         setApprovalReq({
           id: data.req_id,
@@ -701,7 +701,7 @@ function ApprovalDetailsPage() {
             <CardContent className="flex items-center justify-between gap-4 p-5">
               <div>
                 <p className="text-base font-semibold">Status: Under Review</p>
-                <p className="mt-0.5 text-sm text-muted-foreground">This attachment plan is currently waiting for Operations Manager approval.</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">This attachment plan is currently waiting for Product Manager approval.</p>
               </div>
               <Badge variant="outline" className="border-[color:var(--warning)] text-[color:var(--warning-foreground)] px-3 py-1 text-xs">
                 Pending

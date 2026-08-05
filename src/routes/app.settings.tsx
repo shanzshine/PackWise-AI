@@ -17,10 +17,10 @@ export const Route = createFileRoute("/app/settings")({
 
 const ROLE_LABEL: Record<string, string> = {
   engineer: "Packaging Engineer",
-  manager:  "Operations Manager",
+  manager:  "Product Manager",
   admin:    "Administrator",
   "Packaging Engineer": "Packaging Engineer",
-  "Operations Manager": "Operations Manager",
+  "Product Manager": "Product Manager",
   Admin: "Administrator",
 };
 
@@ -139,7 +139,7 @@ function SettingsPage() {
                   <Shield className="h-3.5 w-3.5" /> Role Permissions
                 </span>
                 <span className="text-foreground font-semibold block capitalize bg-muted/30 p-2.5 rounded-lg border border-border/50">
-                  {user.role}
+                  {ROLE_LABEL[user.role] || user.role}
                 </span>
               </div>
 

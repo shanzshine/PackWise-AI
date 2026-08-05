@@ -11,7 +11,7 @@ export const Route = createFileRoute("/app/roles")({
       icon={ShieldCheck}
       sections={[
         { title: "Engineer", description: "Run analyses, plan packaging, and export technical reports." },
-        { title: "Operations Manager", description: "View KPIs, approve programs, and access executive summaries." },
+        { title: "Product Manager", description: "View KPIs, approve programs, and access executive summaries." },
         { title: "Administrator", description: "Manage accounts, billing, security, and global system settings." },
       ]}
     />

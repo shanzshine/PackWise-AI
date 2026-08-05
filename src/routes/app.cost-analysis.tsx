@@ -289,7 +289,7 @@ function CostSustainabilityPage() {
         <CardContent className="flex items-center justify-between gap-4 p-5">
           <div>
             <p className="text-sm font-semibold">Ready to Submit?</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Preview the full engineering report, then submit your packaging plan to the Operations Manager for approval.</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Preview the full engineering report, then submit your packaging plan to the Product Manager for approval.</p>
           </div>
           <Button size="sm" onClick={() => navigate({ to: "/app/submit-approval" })} className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90">
             <Send className="mr-2 h-4 w-4" /> Submit Plan

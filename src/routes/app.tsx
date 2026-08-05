@@ -66,9 +66,9 @@ function AppLayout() {
   useEffect(() => {
     if (!user) return;
     async function fetchNotifications() {
-      const isManager = ["manager", "admin", "Operations Manager", "Admin"].includes(user?.role || "");
+      const isManager = ["manager", "admin", "Product Manager", "Admin"].includes(user?.role || "");
       
-      let query = supabase.from('approval_requests').select('*').order('submitted_at', { ascending: false }).limit(5);
+      let query = supabase.from('approval').select('*').order('submitted_at', { ascending: false }).limit(5);
       
       if (isManager) {
         query = query.eq('status', 'Pending');
@@ -150,7 +150,7 @@ function AppLayout() {
                             }`}>{n.status}</span>
                           </div>
                           <span className={`text-xs ${isUnread ? 'text-foreground' : 'text-muted-foreground'} line-clamp-2`}>
-                            {["manager", "admin", "Operations Manager", "Admin"].includes(user?.role || "")
+                            {["manager", "admin", "Product Manager", "Admin"].includes(user?.role || "")
                               ? `${n.engineer_name} submitted a new packaging plan for approval.`
                               : `Your plan was ${n.status.toLowerCase()} by Operations.`}
                           </span>

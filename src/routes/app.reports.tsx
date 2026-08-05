@@ -623,7 +623,7 @@ function ReportsPage() {
   useEffect(() => {
     async function fetchData() {
       const { data } = await supabase
-        .from('approval_requests')
+        .from('approval')
         .select('*');
       
       if (data) {
@@ -716,7 +716,7 @@ function ReportsPage() {
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             {tab === "approved"
-              ? "Once the Operations Manager approves a plan, the report will appear here."
+              ? "Once the Product Manager approves a plan, the report will appear here."
               : "Rejected plans will appear here."}
           </p>
         </div>

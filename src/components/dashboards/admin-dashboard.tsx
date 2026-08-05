@@ -34,7 +34,7 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
 
         // 3. Fetch recent approval requests for activity feed
         const { data: approvals } = await supabase
-          .from('approval_requests')
+          .from('approval')
           .select('*')
           .order('submitted_at', { ascending: false })
           .limit(3);

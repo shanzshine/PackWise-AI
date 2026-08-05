@@ -1,7 +1,7 @@
 import { redirect } from "@tanstack/react-router";
 import { supabase } from "./supabase";
 
-export type Role = "engineer" | "manager" | "admin" | "Packaging Engineer" | "Operations Manager" | "Admin";
+export type Role = "engineer" | "manager" | "admin" | "Packaging Engineer" | "Product Manager" | "Admin";
 
 export interface AuthUser {
   user_id?: string;
@@ -45,9 +45,9 @@ export function getUser(): AuthUser | null {
     const u = JSON.parse(raw) as AuthUser; 
     if (u && u.role) {
       const r = u.role.toLowerCase();
-      if (r.includes("engineer")) u.role = "engineer";
-      else if (r.includes("manager")) u.role = "manager";
-      else if (r.includes("admin")) u.role = "admin";
+      if (r.includes("admin")) u.role = "admin";
+      else if (r.includes("manager") || r === "pm" || r.includes("product")) u.role = "manager";
+      else if (r.includes("engineer") || r === "pe") u.role = "engineer";
     }
     return u;
   } catch { return null; }
@@ -80,19 +80,45 @@ export async function loginApi(email: string, password: string): Promise<AuthUse
 
       // Fetch full profile from Supabase
       try {
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('app_user')
           .select('*')
           .eq('user_id', user_id)
           .single();
+        
+        // DEBUG: log so we can see what's returned
+        console.log("[PackWise Auth] user_id from Supabase Auth:", user_id);
+        console.log("[PackWise Auth] profileData from app_user:", profileData);
+        console.log("[PackWise Auth] profileError:", profileError);
           
         if (profileData) {
           const profile = profileData as AuthUser;
           if (profile && profile.role) {
             const r = profile.role.toLowerCase();
-            if (r.includes("engineer")) profile.role = "engineer";
-            else if (r.includes("manager")) profile.role = "manager";
-            else if (r.includes("admin")) profile.role = "admin";
+            console.log("[PackWise Auth] raw role from DB:", profile.role, "→ normalized r:", r);
+            if (r.includes("admin")) profile.role = "admin";
+            else if (r.includes("manager") || r === "pm" || r.includes("product")) profile.role = "manager";
+            else if (r.includes("engineer") || r === "pe") profile.role = "engineer";
+            console.log("[PackWise Auth] final role set to:", profile.role);
+          }
+          setAuthData(token, profile);
+          return profile;
+        }
+
+        // app_user not found by user_id — try by email as fallback
+        const { data: profileByEmail } = await supabase
+          .from('app_user')
+          .select('*')
+          .eq('email', data.user.email || email)
+          .single();
+        console.log("[PackWise Auth] profileByEmail fallback:", profileByEmail);
+        if (profileByEmail) {
+          const profile = profileByEmail as AuthUser;
+          if (profile && profile.role) {
+            const r = profile.role.toLowerCase();
+            if (r.includes("admin")) profile.role = "admin";
+            else if (r.includes("manager") || r === "pm" || r.includes("product")) profile.role = "manager";
+            else if (r.includes("engineer") || r === "pe") profile.role = "engineer";
           }
           setAuthData(token, profile);
           return profile;
@@ -122,7 +148,7 @@ export async function loginApi(email: string, password: string): Promise<AuthUse
 
   if (cleanEmail.includes("admin")) {
     role = "admin";
-  } else if (cleanEmail.includes("manager")) {
+  } else if (cleanEmail.includes("manager") || cleanEmail.includes(".pm") || cleanEmail.includes("_pm") || cleanEmail.startsWith("pm.")) {
     role = "manager";
   }
 

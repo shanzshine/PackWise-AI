@@ -263,7 +263,7 @@ function UsersPage() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Packaging Engineer">Packaging Engineer</SelectItem>
-                            <SelectItem value="Product Manager">Operations Manager</SelectItem>
+                            <SelectItem value="Product Manager">Product Manager</SelectItem>
                             <SelectItem value="Admin">Admin</SelectItem>
                           </SelectContent>
                         </Select>

@@ -34,7 +34,7 @@ export function ManagerDashboard({ user }: { user: AuthUser }) {
   useEffect(() => {
     async function fetchData() {
       const { data } = await supabase
-        .from('approval_requests')
+        .from('approval')
         .select('*')
         .order('submitted_at', { ascending: false })
         .limit(3);

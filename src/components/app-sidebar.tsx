@@ -69,7 +69,7 @@ const NAV: Record<Role, Item[]> = {
     { title: "Reports",               url: "/app/reports",                icon: FileBarChart2   },
     { title: "Settings",              url: "/app/settings",               icon: Settings        },
   ],
-  "Operations Manager": [
+  "Product Manager": [
     { title: "Dashboard",            url: "/app/dashboard",   icon: LayoutDashboard },
     { title: "Pending Approvals",    url: "/app/approvals",   icon: CheckSquare     },
     { title: "Reports",              url: "/app/reports",      icon: FileBarChart2  },
@@ -86,10 +86,10 @@ const NAV: Record<Role, Item[]> = {
 
 const ROLE_LABEL: Record<Role, string> = {
   engineer: "Packaging Engineer",
-  manager:  "Operations Manager",
+  manager:  "Product Manager",
   admin:    "Administrator",
   "Packaging Engineer": "Packaging Engineer",
-  "Operations Manager": "Operations Manager",
+  "Product Manager": "Product Manager",
   Admin: "Administrator",
 };
 

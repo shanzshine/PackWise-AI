@@ -27,41 +27,43 @@ else:
 def save_assessment(plan_id: str, report_dict: dict, input_snapshot: dict,
                      rule_engine_version: str = "v1.0") -> str | None:
     """
-    Saves a full risk report into risk_assessments.
-    Returns the new assessment_id, or None if saving fails.
+    Menyimpan risk report ke dalam kolom `zones` di tabel packaging_plan.
+    Schema baru tidak punya tabel terpisah risk_assessments — data risk
+    disimpan sebagai bagian dari packaging_plan.zones (JSONB).
+    Returns plan_id sebagai assessment_id agar workflow frontend tidak break.
     """
     if _client is None:
         return None
 
     try:
-        categories = report_dict["categories"]
-        
-        # Collect triggered rules across all categories
-        triggered_rules_list = []
-        for category_name, category_data in categories.items():
-            for rule in category_data.get("matched_rules", []):
-                triggered_rules_list.append({
-                    "category": category_name,
-                    "rule_id": rule["rule_id"],
-                    "evidence_id": rule["evidence_id"],
-                    "severity": rule["severity"],
-                    "confidence": rule["confidence"],
-                    "source_reference": rule["source_reference"],
-                    "explanation": rule["explanation"],
-                })
+        categories = report_dict.get("categories", {})
 
-        assessment_row = {
-            "plan_id": plan_id,
-            "overall_risk_level": report_dict["overall_risk_level"],
-            "drop_test_risk_pct": categories["Drop Test Risk"]["risk_percentage"],
-            "movement_risk_pct": categories["Movement Risk"]["risk_percentage"],
-            "accessory_loss_risk_pct": categories["Accessory Loss Risk"]["risk_percentage"],
-            "triggered_rules": triggered_rules_list,
+        risk_summary = {
+            "overall_risk_level": report_dict.get("overall_risk_level"),
+            "drop_test_risk_pct": categories.get("Drop Test Risk", {}).get("risk_percentage"),
+            "movement_risk_pct": categories.get("Movement Risk", {}).get("risk_percentage"),
+            "accessory_loss_risk_pct": categories.get("Accessory Loss Risk", {}).get("risk_percentage"),
+            "triggered_rules": [
+                {
+                    "category": cat,
+                    "rule_id": rule["rule_id"],
+                    "severity": rule["severity"],
+                    "explanation": rule["explanation"],
+                }
+                for cat, cat_data in categories.items()
+                for rule in cat_data.get("matched_rules", [])
+            ],
+            "input_snapshot": input_snapshot,
         }
-        
-        result = _client.table("risk_assessments").insert(assessment_row).execute()
-        assessment_id = result.data[0]["id"]
-        return assessment_id
+
+        # Simpan risk summary ke packaging_plan.zones sebagai field tambahan
+        _client.table("packaging_plan").update({
+            "zones": risk_summary
+        }).eq("plan_id", plan_id).execute()
+
+        logger.info(f"Risk assessment saved into packaging_plan {plan_id}")
+        return plan_id  # Return plan_id sebagai pengganti assessment_id
+
     except Exception as e:
-        logger.error(f"Failed to save assessment to Supabase: {e}")
+        logger.error(f"Failed to save risk assessment: {e}")
         return None

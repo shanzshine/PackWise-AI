@@ -15,9 +15,10 @@ import SubmitPlanContent from "@/components/SubmitPlanContent";
 export const Route = createFileRoute("/app/submit-approval")({
   head: () => ({ meta: [{ title: "Submit Plan — PackWise AI" }] }),
   beforeLoad: () => {
-    const plan = loadPlan();
-    if (!plan?.plan_id) {
-      throw redirect({ to: "/app/cost-analysis" });
+    // Hanya block kalau belum ada analysis sama sekali
+    const analysis = loadAnalysis();
+    if (!analysis?.id) {
+      throw redirect({ to: "/app/product-analysis" });
     }
   },
   component: SubmitApprovalPage,
@@ -45,7 +46,7 @@ function SubmitApprovalPage() {
     }, 100);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setIsSubmitted(true);
 
     const analysis = loadAnalysis();
@@ -62,13 +63,20 @@ function SubmitApprovalPage() {
     const assemblyTimeMins = (assemblyTimeSec / 60).toFixed(2);
     const avgSustain = plan?.avgSustainability ?? 100;
 
-    // Build report snapshot to embed in approval request
-    const imageDataUrl = typeof sessionStorage !== "undefined"
-      ? (sessionStorage.getItem("packwise_image") || undefined)
-      : undefined;
-    const annotatedImageDataUrl = typeof sessionStorage !== "undefined"
-      ? (sessionStorage.getItem("packwise_annotated_image") || undefined)
-      : undefined;
+    let imageDataUrl = analysis?.imageDataUrl;
+    let annotatedImageDataUrl = analysis?.annotatedImageDataUrl;
+
+    if (analysis?.id) {
+      try {
+        const { data } = await supabase.from('product_analyses').select('image_url, annotated_image_url').eq('id', analysis.id).single();
+        if (data) {
+          if (data.image_url) imageDataUrl = data.image_url;
+          if (data.annotated_image_url) annotatedImageDataUrl = data.annotated_image_url;
+        }
+      } catch (e) {
+        console.warn("Failed to fetch public image URLs:", e);
+      }
+    }
 
     const reqId = analysis?.id || `REQ-${Math.floor(Math.random() * 9000) + 1000}`;
     
@@ -105,8 +113,8 @@ function SubmitApprovalPage() {
         support: "—",
         ista: "—",
       },
-      imageDataUrl: undefined, // Omit to prevent localStorage quota exceeded and DB payload limits
-      annotatedImageDataUrl: undefined, // Omit to prevent localStorage quota exceeded and DB payload limits
+      imageDataUrl: imageDataUrl,
+      annotatedImageDataUrl: annotatedImageDataUrl,
       accessories: analysis?.accessories,
       detectedPoses: analysis?.detectedPoses,
       raw_keypoints: analysis?.raw_keypoints || [],
@@ -126,6 +134,7 @@ function SubmitApprovalPage() {
     };
 
     // 1. Save to localStorage (for offline/fast access)
+    const localSnapshot = { ...reportSnapshot, imageDataUrl: undefined, annotatedImageDataUrl: undefined };
     saveApprovalRequest({
       id: reqId,
       sku: analysis?.productName || "Custom Plan",
@@ -136,13 +145,13 @@ function SubmitApprovalPage() {
       laborTime: laborTimeStr,
       sustainability: avgSustain,
       status: "Pending",
-      reportSnapshot,
+      reportSnapshot: localSnapshot,
     });
 
-    // 2. Save to Supabase approval_requests table (non-blocking)
-    supabase.from('approval_requests').insert([{
+    // 2. Save to Supabase approval table (non-blocking)
+    supabase.from('approval').insert([{
       req_id: reqId,
-      assessment_id: apiData?.assessment_id || null,
+      plan_id: plan?.plan_id ?? null,
       sku: analysis?.productName || "Custom Plan",
       engineer_name: user?.name || user?.email || "Packaging Engineer",
       pe_id: user?.user_id ?? null,
@@ -158,7 +167,7 @@ function SubmitApprovalPage() {
       else console.log("[PackWise] Approval request saved to Supabase ✓");
     });
 
-    toast.success("Attachment plan successfully submitted to Operations Manager.");
+    toast.success("Attachment plan successfully submitted to Product Manager.");
     clearAllWorkflowData();
     setTimeout(() => {
       navigate({ to: "/app/dashboard" });
@@ -171,7 +180,7 @@ function SubmitApprovalPage() {
     <div className="space-y-6">
       <PageHeader
         title="Submit Plan for Approval"
-        description="Generate your engineering report first, then submit it to the Operations Manager for review."
+        description="Generate your engineering report first, then submit it to the Product Manager for review."
       />
 
       {/* Step indicator */}
@@ -229,7 +238,7 @@ function SubmitApprovalPage() {
               </CardTitle>
               <CardDescription>
                 {reportGenerated
-                  ? "Report is ready. Submit to the Operations Manager for approval."
+                  ? "Report is ready. Submit to the Product Manager for approval."
                   : "Generate the report first before submitting."}
               </CardDescription>
             </CardHeader>

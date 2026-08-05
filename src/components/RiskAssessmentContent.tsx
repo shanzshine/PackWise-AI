@@ -843,14 +843,15 @@ export default function RiskAssessmentContent() {
                   <div className="flex items-center justify-between text-xs font-semibold text-amber-900 mb-1">
                     <div className="flex items-center gap-1.5">
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                      <span>Predicted Drop Observations & Failure Details (Failure_Details_If_Any)</span>
+                      <span>Predicted Drop Observations & Failure Details</span>
                     </div>
-                    <span className="text-[10px] font-mono text-amber-700">AI Simulation Log</span>
+                    <span className="text-[10px] font-medium text-amber-700">AI Simulation Log</span>
                   </div>
-                  <p className="text-[11.5px] text-amber-900/90 leading-relaxed font-mono bg-white/80 p-2 rounded-lg border border-amber-200/80">
+                  <p className="text-[11.5px] text-amber-900/90 leading-relaxed bg-white/80 p-2 rounded-lg border border-amber-200/80">
                     {liveMattelDrops.failureDetails || "No failure recorded."}
                   </p>
                 </div>
+
               </CardContent>
             </Card>
 

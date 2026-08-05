@@ -35,7 +35,7 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
     async function fetchData() {
       // Fetch approvals
       const { data: approvals } = await supabase
-        .from('approval_requests')
+        .from('approval')
         .select('*')
         .eq('pe_id', user.user_id)
         .order('submitted_at', { ascending: false });

@@ -957,16 +957,33 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
     confidence: 94,
   };
 
+  // ── Derive packaging recommendations from analysis data ─────────────────
+  const weight = analysis.product_weight_g || 120;
+  const accCount = analysis.accessory_count || 1;
+  const complexity = analysis.poseComplexityScore || 50;
+
+  const packagingType = snapshot?.finalRecommendation?.packaging
+    || (weight > 200 ? "Rigid Paperboard Box with Blister Window" : "Window Display Box (Paperboard)");
+
+  const cushionMaterial = snapshot?.finalRecommendation?.cushion
+    || (weight > 200 ? "Molded Pulp + EPE Foam Insert" : "EPE Foam Sheet / Molded Pulp Tray");
+
+  const supportType = snapshot?.finalRecommendation?.support
+    || (accCount > 3 ? "Accessory Blister Tray + Cardboard Backing" : "Cardboard Backing Card");
+
+  const istaStandard = snapshot?.finalRecommendation?.ista
+    || (complexity > 65 ? "ISTA 3A (Recommended for complex poses)" : "ISTA 1A (Standard Baseline)");
+
   const config = {
     productName: analysis.productName || "Custom Package",
-    packagingType: snapshot?.finalRecommendation?.packaging || "Rigid Paperboard Window Box (Recommended)",
+    packagingType,
     packagingMethod: "Plastic-free Display Box (Recommended)",
     attachmentMethod: plan?.recommendedMaterial || "Optimized Strapping",
     centerOfGravity: analysis.center_of_gravity || "Center (Estimated)",
     internalClearance: "5.0 mm (Recommended)",
-    cushionMaterial: snapshot?.finalRecommendation?.cushion || "EPE Foam / Molded Pulp (Recommended)",
-    cushionThickness: "15 mm (Recommended)",
-    istaStandard: snapshot?.finalRecommendation?.ista || "ISTA 3A (Target)",
+    cushionMaterial,
+    cushionThickness: weight > 200 ? "20 mm (Reinforced)" : "15 mm (Standard)",
+    istaStandard,
     scenario: "Normal Shipping",
     weight: analysis.product_weight_g ? `${analysis.product_weight_g + (analysis.accessory_weight_g || 0)} g` : "170 g (Estimated)",
     dimensions: analysis.height_cm ? `${analysis.height_cm} cm (H)` : "29.0 cm (H)",
@@ -1003,11 +1020,11 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
   }));
 
   const finalRecommendation = {
-    packaging: snapshot?.finalRecommendation?.packaging || "Eco-friendly Window Box (Recommended)",
-    cushion: snapshot?.finalRecommendation?.cushion || "Molded Pulp Insert (Recommended)",
+    packaging: snapshot?.finalRecommendation?.packaging || packagingType,
+    cushion: snapshot?.finalRecommendation?.cushion || cushionMaterial,
     attachment: snapshot?.finalRecommendation?.attachment || plan?.recommendedMaterial || "Optimized Strapping",
-    support: snapshot?.finalRecommendation?.support || "Multi-point support (Recommended)",
-    ista: snapshot?.finalRecommendation?.ista || "ISTA 3A Certified",
+    support: snapshot?.finalRecommendation?.support || supportType,
+    ista: snapshot?.finalRecommendation?.ista || istaStandard,
     status: snapshot?.status === "approved" ? "Approved" : "Ready for Review",
   };
 

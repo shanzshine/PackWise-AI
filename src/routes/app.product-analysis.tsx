@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/page-header";
 import { Progress } from "@/components/ui/progress";
 import { saveAnalysis, clearAllWorkflowData, type AnalysisResult } from "@/lib/workflow-store";
 import { supabase } from "@/lib/supabase";
+import { uploadToCloudinary, uploadBase64ToCloudinary } from "@/lib/cloudinary";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/product-analysis")({
@@ -412,22 +413,35 @@ function ProductAnalysisPage() {
     try {
       const user = (() => { try { return JSON.parse(localStorage.getItem("packwise_user") || ""); } catch { return null; } })();
       
-      let publicImageUrl = null;
+      // Upload foto asli ke Cloudinary
+      let publicImageUrl: string | null = null;
       if (imageFile) {
         try {
-          const fileExt = imageFile.name.split('.').pop() || 'jpg';
-          const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-          const filePath = `${user?.user_id || 'anonymous'}/${fileName}`;
-          
-          const { error: uploadError } = await supabase.storage.from('product-images').upload(filePath, imageFile);
-          if (!uploadError) {
-            const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
-            publicImageUrl = data.publicUrl;
+          toast.loading("Uploading image to Cloudinary...");
+          publicImageUrl = await uploadToCloudinary(imageFile);
+          if (publicImageUrl) {
+            toast.dismiss();
+            console.log("[Cloudinary] Original image uploaded:", publicImageUrl);
           } else {
-            console.warn("Supabase Storage upload failed:", uploadError);
+            toast.dismiss();
+            toast.warning("Image upload to Cloudinary failed, proceeding without image.");
           }
         } catch (err) {
-          console.warn("Failed to upload image:", err);
+          toast.dismiss();
+          console.warn("Failed to upload image to Cloudinary:", err);
+        }
+      }
+
+      // Upload annotated image (hasil YOLO) ke Cloudinary
+      let publicAnnotatedUrl: string | null = null;
+      if (annotatedImage) {
+        try {
+          publicAnnotatedUrl = await uploadBase64ToCloudinary(annotatedImage);
+          if (publicAnnotatedUrl) {
+            console.log("[Cloudinary] Annotated image uploaded:", publicAnnotatedUrl);
+          }
+        } catch (err) {
+          console.warn("Failed to upload annotated image to Cloudinary:", err);
         }
       }
 
@@ -453,7 +467,7 @@ function ProductAnalysisPage() {
           product_family: productFamily,
           articulation: articulation,
           pose: poseStatus ? (poseStatus.left_arm_up || poseStatus.right_arm_up ? "Arms Up" : "Arms Down") : pose,
-          weight_g: finalWeight,
+          product_weight_g: finalWeight,
           height_cm: finalHeight,
           center_of_gravity: computedCOG,
           hair_length: hairLength,
@@ -462,7 +476,7 @@ function ProductAnalysisPage() {
           accessory_weight_g: selectedAccessories.reduce((acc, curr) => acc + curr.weight, 0),
           selected_accessories: selectedAccessories.map((a) => a.name),
           image_url: publicImageUrl,
-          annotated_image_url: null, // Can be updated later if needed
+          annotated_image_url: publicAnnotatedUrl,
           ml_outputs: mlOutputs,
           created_at: new Date().toISOString(),
         }]).select();
