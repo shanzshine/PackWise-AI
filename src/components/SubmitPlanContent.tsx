@@ -860,7 +860,7 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
         computedComplexity: snapshot.computedComplexity || "High / Dynamic (Arm bent)",
         computedCOG: snapshot.computedCOG || "Center (Hip Midpoint)",
       });
-      const activeZones = (snapshot.zones || []).filter((z: any) => z.action !== "Remove" && z.recommendedMethod !== "Not needed");
+      const activeZones = (snapshot.zones || []).filter((z: any) => z.action !== "Remove" && z.recommendedMethod !== "Not needed" && z.recommendedMethod !== "No Attachment Required");
       setPlan({
         totalCost: activeZones.reduce((sum: number, z: any) => sum + (Number(z.cost) || 0), 0) || 0,
         avgSustainability: activeZones.length > 0 ? Math.round(activeZones.reduce((sum: number, z: any) => sum + (z.sustainability || 100), 0) / activeZones.length) : 100,
@@ -881,6 +881,11 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
 
     const a = loadAnalysis() || { productName: "Mock Doll", product_weight_g: 120, height_cm: 29.0, center_of_gravity: "Center", accessory_count: 1, accessory_weight_g: 15.0, poseComplexityScore: 50, poseStabilityScore: 50, accessories: [] };
     const p = loadPlan() || { totalCost: 0, avgSustainability: 100, recommendedMaterial: "Standard", zones: [] };
+    
+    // Explicitly recalculate to ensure consistency between planner UI and report
+    const activeZonesP = (p.zones || []).filter((z: any) => z.action !== "Remove" && z.recommendedMethod !== "Not needed" && z.recommendedMethod !== "No Attachment Required");
+    p.avgSustainability = activeZonesP.length > 0 ? Math.round(activeZonesP.reduce((sum: number, z: any) => sum + (z.sustainability || 100), 0) / activeZonesP.length) : 100;
+    
     setAnalysis(a);
     setPlan(p);
 

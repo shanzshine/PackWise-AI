@@ -542,7 +542,7 @@ function AttachmentPlannerPage() {
       saveAnalysis({ ...analysis, attachmentZones: newAttachmentZones });
 
       // Persist plan for Cost & Sustainability page
-      const active = newPlan.filter(z => z.action !== "Remove" && z.recommendedMethod !== "Not needed");
+      const active = newPlan.filter(z => z.action !== "Remove" && z.recommendedMethod !== "Not needed" && z.recommendedMethod !== "No Attachment Required");
       const totalCostVal = parseFloat(active.reduce((s, z) => s + z.cost, 0).toFixed(2));
       const avgStabilityVal = active.length > 0 ? Math.round(active.reduce((s, z) => s + z.stability, 0) / active.length) : 100;
       const avgSustainVal = active.length > 0 ? Math.round(active.reduce((s, z) => s + z.sustainability, 0) / active.length) : 100;
