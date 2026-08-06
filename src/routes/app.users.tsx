@@ -77,7 +77,13 @@ function UsersPage() {
             name: u.name || "Unknown",
             email: u.email || "",
             company: u.company || "PackWise Demo",
-            role: u.role === "admin" ? "admin" : u.role === "manager" ? "manager" : u.role === "engineer" ? "engineer" : "unassigned",
+            role: (() => {
+              const r = (u.role || "").toLowerCase();
+              if (r.includes("admin")) return "admin";
+              if (r.includes("manager") || r.includes("product") || r === "pm") return "manager";
+              if (r.includes("engineer") || r === "pe") return "engineer";
+              return "unassigned";
+            })(),
             status: u.must_change_password ? "pending" : "active",
             joined: u.created_at ? new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Jul 12",
           }))
@@ -124,9 +130,14 @@ function UsersPage() {
   );
 
   const updateRole = async (id: string, role: ManagedUser["role"]) => {
+    let dbRole = role as string;
+    if (role === "admin") dbRole = "Admin";
+    if (role === "manager") dbRole = "Product Manager";
+    if (role === "engineer") dbRole = "Packaging Engineer";
+
     const { error } = await supabase
       .from("app_user")
-      .update({ role })
+      .update({ role: dbRole })
       .eq("user_id", id);
 
     if (error) {
