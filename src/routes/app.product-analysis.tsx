@@ -416,21 +416,22 @@ function ProductAnalysisPage() {
       // Upload foto asli ke Cloudinary
       let publicImageUrl: string | null = null;
       if (imageFile) {
+        const toastId = toast.loading("Uploading image to Cloudinary...");
         try {
-          toast.loading("Uploading image to Cloudinary...");
           publicImageUrl = await uploadToCloudinary(imageFile);
+          toast.dismiss(toastId);
           if (publicImageUrl) {
-            toast.dismiss();
+            toast.success("Image uploaded to Cloudinary!");
             console.log("[Cloudinary] Original image uploaded:", publicImageUrl);
           } else {
-            toast.dismiss();
             toast.warning("Image upload to Cloudinary failed, proceeding without image.");
           }
         } catch (err) {
-          toast.dismiss();
+          toast.dismiss(toastId);
           console.warn("Failed to upload image to Cloudinary:", err);
         }
       }
+
 
       // Upload annotated image (hasil YOLO) ke Cloudinary
       let publicAnnotatedUrl: string | null = null;
