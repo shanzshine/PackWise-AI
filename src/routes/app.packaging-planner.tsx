@@ -629,7 +629,7 @@ function AttachmentPlannerPage() {
               if (analysis?.id) {
                 setIsSaving(true);
                 try {
-                  const active = zonePlan.filter(z => z.action !== "Remove" && z.recommendedMethod !== "Not needed");
+                  const active = zonePlan.filter(z => z.action !== "Remove" && z.recommendedMethod !== "Not needed" && z.recommendedMethod !== "No Attachment Required");
                   const totalCostVal = parseFloat(active.reduce((s, z) => s + z.cost, 0).toFixed(2));
                   const asmResult = runAssemblyEngine({
                     weightGrams: analysis.product_weight_g ?? 120,
@@ -652,7 +652,9 @@ function AttachmentPlannerPage() {
                         recommendedMethod: z.recommendedMethod,
                         action: z.action,
                         cost: z.cost,
-                        laborMins: z.laborMins
+                        laborMins: z.laborMins,
+                        sustainability: z.sustainability,
+                        stability: z.stability,
                       }))
                     })
                     .select("plan_id")

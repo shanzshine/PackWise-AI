@@ -861,9 +861,14 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
         computedCOG: snapshot.computedCOG || "Center (Hip Midpoint)",
       });
       const activeZones = (snapshot.zones || []).filter((z: any) => z.action !== "Remove" && z.recommendedMethod !== "Not needed" && z.recommendedMethod !== "No Attachment Required");
+      // Use per-zone recalculation if sustainability data is present, else fall back to the pre-computed value in snapshot
+      const zonesHaveSustainability = activeZones.some((z: any) => z.sustainability !== undefined && z.sustainability !== null);
+      const computedAvgSustain = zonesHaveSustainability
+        ? Math.round(activeZones.reduce((sum: number, z: any) => sum + (z.sustainability ?? 100), 0) / Math.max(1, activeZones.length))
+        : (snapshot.avgSustainability ?? 100);
       setPlan({
         totalCost: activeZones.reduce((sum: number, z: any) => sum + (Number(z.cost) || 0), 0) || 0,
-        avgSustainability: activeZones.length > 0 ? Math.round(activeZones.reduce((sum: number, z: any) => sum + (z.sustainability ?? 100), 0) / activeZones.length) : 100,
+        avgSustainability: activeZones.length > 0 ? computedAvgSustain : (snapshot.avgSustainability ?? 100),
         recommendedMaterial: snapshot.finalRecommendation?.attachment || "Standard",
         zones: snapshot.zones || []
       });

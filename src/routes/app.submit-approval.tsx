@@ -98,6 +98,7 @@ function SubmitApprovalPage() {
       dropSurvival: dropSurvival,
       movementRisk: movementRisk,
       accessoryLoss: accessoryLoss,
+      avgSustainability: avgSustain,
       zones: (plan?.zones || []).map((z: any) => ({
         zone: z.zone,
         recommendedMethod: z.recommendedMethod,
