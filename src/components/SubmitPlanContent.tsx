@@ -860,9 +860,10 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
         computedComplexity: snapshot.computedComplexity || "High / Dynamic (Arm bent)",
         computedCOG: snapshot.computedCOG || "Center (Hip Midpoint)",
       });
+      const activeZones = (snapshot.zones || []).filter((z: any) => z.action !== "Remove" && z.recommendedMethod !== "Not needed");
       setPlan({
-        totalCost: snapshot.zones?.reduce((sum: number, z: any) => sum + (Number(z.cost) || 0), 0) || 0,
-        avgSustainability: snapshot.zones?.length > 0 ? Math.round(snapshot.zones.reduce((sum: number, z: any) => sum + (z.sustainability || 100), 0) / snapshot.zones.length) : 100,
+        totalCost: activeZones.reduce((sum: number, z: any) => sum + (Number(z.cost) || 0), 0) || 0,
+        avgSustainability: activeZones.length > 0 ? Math.round(activeZones.reduce((sum: number, z: any) => sum + (z.sustainability || 100), 0) / activeZones.length) : 100,
         recommendedMaterial: snapshot.finalRecommendation?.attachment || "Standard",
         zones: snapshot.zones || []
       });

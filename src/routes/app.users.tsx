@@ -51,7 +51,7 @@ const ROLE_OPTIONS: { value: ManagedUser["role"]; label: string }[] = [
 
 function statusBadge(status: ManagedUser["status"]) {
   if (status === "active") return "bg-[color:var(--success)]/10 text-[color:var(--success)] border-transparent";
-  if (status === "pending") return "bg-[color:var(--warning)]/15 text-[color:var(--warning-foreground)] border-transparent";
+  if (status === "invited") return "bg-[color:var(--warning)]/15 text-[color:var(--warning-foreground)] border-transparent";
   return "bg-destructive/10 text-destructive border-transparent";
 }
 
@@ -84,7 +84,7 @@ function UsersPage() {
               if (r.includes("engineer") || r === "pe") return "engineer";
               return "unassigned";
             })(),
-            status: u.must_change_password ? "pending" : "active",
+            status: u.must_change_password ? "invited" : "active",
             joined: u.created_at ? new Date(u.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Jul 12",
           }))
         );
@@ -115,7 +115,7 @@ function UsersPage() {
         email: res.email,
         company: "PackWise Demo",
         role: res.role.includes("Manager") || res.role === "manager" ? "manager" : res.role === "Packaging Engineer" || res.role === "engineer" ? "engineer" : "admin",
-        status: "pending",
+        status: "invited",
         joined: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })
       }, ...prev]);
     } catch (err: any) {
@@ -148,37 +148,21 @@ function UsersPage() {
     }
   };
 
-  const approve = async (id: string) => {
-    const { error } = await supabase
-      .from("app_user")
-      .update({ must_change_password: false })
-      .eq("user_id", id);
-
-    if (error) {
-      toast.error("Failed to approve user");
-    } else {
-      setUsers((prev) =>
-        prev.map((u) => (u.id === id ? { ...u, status: "active", role: u.role === "unassigned" ? "engineer" : u.role } : u)),
-      );
-      toast.success("User approved");
-    }
-  };
-
-  const reject = async (id: string) => {
+  const removeUser = async (id: string) => {
     const { error } = await supabase
       .from("app_user")
       .delete()
       .eq("user_id", id);
 
     if (error) {
-      toast.error("Failed to reject user");
+      toast.error("Failed to remove user");
     } else {
       setUsers((prev) => prev.filter((u) => u.id !== id));
-      toast.error("User rejected");
+      toast.success("User removed");
     }
   };
 
-  const pendingCount = users.filter((u) => u.status === "pending").length;
+  const invitedCount = users.filter((u) => u.status === "invited").length;
   const activeCount = users.filter((u) => u.status === "active").length;
 
   return (
@@ -197,8 +181,8 @@ function UsersPage() {
         </Card>
         <Card className="border-border/70 shadow-none">
           <CardContent className="p-5">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Pending approval</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">{pendingCount}</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Invited</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">{invitedCount}</p>
           </CardContent>
         </Card>
         <Card className="border-border/70 shadow-none">
@@ -354,23 +338,12 @@ function UsersPage() {
                       <div className="flex justify-end gap-1">
                         <Button
                           size="sm"
-                          variant="outline"
-                          onClick={() => approve(u.id)}
-                          disabled={u.status === "active"}
-                          className="h-8"
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                          Approve
-                        </Button>
-                        <Button
-                          size="sm"
                           variant="ghost"
-                          onClick={() => reject(u.id)}
-                          disabled={u.status === "rejected"}
-                          className="h-8 text-destructive hover:text-destructive"
+                          onClick={() => removeUser(u.id)}
+                          className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                         >
-                          <X className="h-3.5 w-3.5" />
-                          Reject
+                          <X className="h-3.5 w-3.5 mr-1" />
+                          Remove
                         </Button>
                       </div>
                     </TableCell>
