@@ -104,7 +104,7 @@ function SubmitApprovalPage() {
         action: z.action,
         cost: z.cost || 0,
         laborMins: z.laborMins || 0,
-        sustainability: z.sustainability || 100,
+        sustainability: z.sustainability ?? 100,
       })),
       finalRecommendation: {
         packaging: "—",

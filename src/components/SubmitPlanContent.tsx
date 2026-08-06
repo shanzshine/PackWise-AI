@@ -863,7 +863,7 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
       const activeZones = (snapshot.zones || []).filter((z: any) => z.action !== "Remove" && z.recommendedMethod !== "Not needed" && z.recommendedMethod !== "No Attachment Required");
       setPlan({
         totalCost: activeZones.reduce((sum: number, z: any) => sum + (Number(z.cost) || 0), 0) || 0,
-        avgSustainability: activeZones.length > 0 ? Math.round(activeZones.reduce((sum: number, z: any) => sum + (z.sustainability || 100), 0) / activeZones.length) : 100,
+        avgSustainability: activeZones.length > 0 ? Math.round(activeZones.reduce((sum: number, z: any) => sum + (z.sustainability ?? 100), 0) / activeZones.length) : 100,
         recommendedMaterial: snapshot.finalRecommendation?.attachment || "Standard",
         zones: snapshot.zones || []
       });
@@ -884,7 +884,7 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
     
     // Explicitly recalculate to ensure consistency between planner UI and report
     const activeZonesP = (p.zones || []).filter((z: any) => z.action !== "Remove" && z.recommendedMethod !== "Not needed" && z.recommendedMethod !== "No Attachment Required");
-    p.avgSustainability = activeZonesP.length > 0 ? Math.round(activeZonesP.reduce((sum: number, z: any) => sum + (z.sustainability || 100), 0) / activeZonesP.length) : 100;
+    p.avgSustainability = activeZonesP.length > 0 ? Math.round(activeZonesP.reduce((sum: number, z: any) => sum + (z.sustainability ?? 100), 0) / activeZonesP.length) : 100;
     
     setAnalysis(a);
     setPlan(p);
