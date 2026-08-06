@@ -899,11 +899,11 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
         return;
       }
       try {
-        const res = await fetch("http://127.0.0.1:8000/predict", {
+        const res = await fetch(`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}/predict`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({
-            plan_id: Math.floor(Math.random() * 9000) + 1000,
+            plan_id: (p?.plan_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.plan_id)) ? p.plan_id : crypto.randomUUID(),
             product_weight_g: a?.product_weight_g || 120,
             height_cm: a?.height_cm || 29.0,
             fragility_score: 5,

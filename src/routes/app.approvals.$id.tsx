@@ -411,8 +411,40 @@ function ApprovalDetailsPage() {
   const imageUrl = analysis?.imageDataUrl ?? approvalReq?.reportSnapshot?.imageDataUrl;
   const sel = zones.find((z: any) => z.zone === selected);
 
-  const handleDecision = (status: "Approved" | "Rejected", feedback: string) => {
+  const handleDecision = async (status: "Approved" | "Rejected", feedback: string) => {
     updateApprovalStatus(id, status, feedback || undefined);
+    
+    try {
+      let dbPmId = null;
+      if (user?.user_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.user_id)) {
+        const { data: pmExists } = await supabase
+          .from('app_user')
+          .select('user_id')
+          .eq('user_id', user.user_id)
+          .maybeSingle();
+        if (pmExists) {
+          dbPmId = user.user_id;
+        }
+      }
+      
+      const { error } = await supabase
+        .from('approval')
+        .update({
+          status: status,
+          decided_at: new Date().toISOString(),
+          pm_id: dbPmId
+        })
+        .eq('req_id', id);
+        
+      if (error) {
+        console.warn("[PackWise] Failed to update approval in database:", error.message);
+      } else {
+        console.log("[PackWise] Approval updated in database ✓");
+      }
+    } catch (e) {
+      console.warn("[PackWise] Error updating approval in database:", e);
+    }
+
     setModalMode(null);
     toast[status === "Approved" ? "success" : "error"](
       `Request ${shortId(id)} ${status.toLowerCase()}.`

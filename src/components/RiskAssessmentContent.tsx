@@ -262,12 +262,13 @@ export default function RiskAssessmentContent() {
       // Re-connect the backend AI model
       const plan = loadPlan();
       const token = getToken();
-      if (token && plan && plan.plan_id) {
-        fetch("http://localhost:8000/predict", {
+      const dbPlanId = (plan?.plan_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(plan.plan_id)) ? plan.plan_id : crypto.randomUUID();
+      if (token) {
+        fetch(`${import.meta.env.VITE_API_URL ?? "http://localhost:8000"}/predict`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({
-            plan_id: plan.plan_id,
+            plan_id: dbPlanId,
             product_weight_g: a.product_weight_g ?? 250,
             height_cm: a.height_cm ?? 30.0,
             fragility_score: 5,

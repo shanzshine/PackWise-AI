@@ -33,25 +33,31 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
 
   useEffect(() => {
     async function fetchData() {
+      const isUuid = user?.user_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.user_id);
+
       // Fetch approvals
-      const { data: approvals } = await supabase
-        .from('approval')
-        .select('*')
-        .eq('pe_id', user.user_id)
-        .order('submitted_at', { ascending: false });
+      let approvalsQuery = supabase.from('approval').select('*');
+      if (isUuid) {
+        approvalsQuery = approvalsQuery.eq('pe_id', user.user_id);
+      } else {
+        approvalsQuery = approvalsQuery.eq('engineer_name', user.name);
+      }
+      const { data: approvals } = await approvalsQuery.order('submitted_at', { ascending: false });
       
       if (approvals) setMyApprovals(approvals);
 
       // Fetch last analysis
-      const { data: analyses } = await supabase
-        .from('product_analyses')
-        .select('created_at')
-        .eq('user_id', user.user_id)
-        .order('created_at', { ascending: false })
-        .limit(1);
-      
-      if (analyses && analyses.length > 0) {
-        setLastAnalysisDate(new Date(analyses[0].created_at).toLocaleDateString());
+      if (isUuid) {
+        const { data: analyses } = await supabase
+          .from('product_analyses')
+          .select('created_at')
+          .eq('user_id', user.user_id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (analyses && analyses.length > 0) {
+          setLastAnalysisDate(new Date(analyses[0].created_at).toLocaleDateString());
+        }
       }
       setIsLoading(false);
     }

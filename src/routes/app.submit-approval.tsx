@@ -148,13 +148,34 @@ function SubmitApprovalPage() {
       reportSnapshot: localSnapshot,
     });
 
+    // Validate foreign keys for approval table
+    let dbPeId = null;
+    if (user?.user_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.user_id)) {
+      try {
+        const { data: userExists } = await supabase
+          .from('app_user')
+          .select('user_id')
+          .eq('user_id', user.user_id)
+          .maybeSingle();
+        if (userExists) {
+          dbPeId = user.user_id;
+        }
+      } catch (e) {
+        console.warn("Error checking app_user database presence:", e);
+      }
+    }
+
+    const dbPlanId = (plan?.plan_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(plan.plan_id))
+      ? plan.plan_id
+      : null;
+
     // 2. Save to Supabase approval table (non-blocking)
     supabase.from('approval').insert([{
       req_id: reqId,
-      plan_id: plan?.plan_id ?? null,
+      plan_id: dbPlanId,
       sku: analysis?.productName || "Custom Plan",
       engineer_name: user?.name || user?.email || "Packaging Engineer",
-      pe_id: user?.user_id ?? null,
+      pe_id: dbPeId,
       risk_level: finalRiskLevel,
       est_cost: estCost,
       labor_time: laborTimeStr,

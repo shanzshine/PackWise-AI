@@ -302,7 +302,7 @@ function ProductAnalysisPage() {
       try {
         const formData = new FormData();
         formData.append("file", imageFile);
-        const res = await fetch("http://127.0.0.1:8000/api/analyze-image", {
+        const res = await fetch(`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}/api/analyze-image`, {
           method: "POST",
           body: formData
         });
@@ -460,9 +460,25 @@ function ProductAnalysisPage() {
           computed_cog: computedCOG
         };
 
+        let dbUserId = null;
+        if (user?.user_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.user_id)) {
+          try {
+            const { data: userExists } = await supabase
+              .from('app_user')
+              .select('user_id')
+              .eq('user_id', user.user_id)
+              .maybeSingle();
+            if (userExists) {
+              dbUserId = user.user_id;
+            }
+          } catch (e) {
+            console.warn("Error checking app_user database presence:", e);
+          }
+        }
+
         const { data, error } = await supabase.from('product_analyses').insert([{
           id: runId,
-          user_id: user?.user_id ?? null,
+          user_id: dbUserId,
           product_name: `${productFamily} Doll`,
           product_family: productFamily,
           articulation: articulation,

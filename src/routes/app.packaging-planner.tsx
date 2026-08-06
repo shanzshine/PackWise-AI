@@ -473,7 +473,7 @@ function AttachmentPlannerPage() {
 
     async function fetchPredictions() {
       try {
-        const res = await fetch("http://127.0.0.1:8000/api/predict-packaging", {
+        const res = await fetch(`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}/api/predict-packaging`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1047,7 +1047,7 @@ function AttachmentPlannerPage() {
                     <div className="flex flex-col gap-3">
                       <textarea
                         readOnly
-                        className="w-full text-xs font-mono p-3 border bg-muted/40 rounded-lg h-24 leading-relaxed text-muted-foreground outline-none cursor-default"
+                        className="w-full text-xs p-3 border bg-muted/40 rounded-lg h-24 leading-relaxed text-muted-foreground outline-none cursor-default"
                         value={`Catalog shot, Barbie ${analysis?.product_family ?? "Fashionistas"} Doll in a ${recBlueprint?.poseName ?? "Compact Stand"} pose inside a cardboard display box, secured with transparent ${recBlueprint?.attachmentPlacements.find(p => p.zone === "Waist")?.method || "PET"} support and ${recBlueprint?.attachmentPlacements.find(p => p.zone === "Head/Hair")?.method || "Elastic"} straps${analysis?.selected_accessories && analysis.selected_accessories.length > 0 ? `, with accessories: ${analysis.selected_accessories.join(", ")}` : ""}, high detail, studio packaging photography --v 6.0`}
                       />
                       <div className="flex justify-end">
