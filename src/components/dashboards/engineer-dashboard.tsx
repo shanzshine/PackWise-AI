@@ -58,10 +58,23 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
         if (analyses && analyses.length > 0) {
           setLastAnalysisDate(new Date(analyses[0].created_at).toLocaleDateString());
         }
+      } else {
+        // Fallback for demo users without a valid UUID
+        const { data: analyses } = await supabase
+          .from('product_analyses')
+          .select('created_at')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (analyses && analyses.length > 0) {
+          setLastAnalysisDate(new Date(analyses[0].created_at).toLocaleDateString());
+        }
       }
       setIsLoading(false);
     }
     fetchData();
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
   }, [user.user_id]);
 
   return (

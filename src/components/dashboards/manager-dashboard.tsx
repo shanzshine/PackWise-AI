@@ -42,6 +42,8 @@ export function ManagerDashboard({ user }: { user: AuthUser }) {
       setIsLoading(false);
     }
     fetchData();
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
