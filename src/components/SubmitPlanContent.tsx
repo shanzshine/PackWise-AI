@@ -861,14 +861,15 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
         computedCOG: snapshot.computedCOG || "Center (Hip Midpoint)",
       });
       const activeZones = (snapshot.zones || []).filter((z: any) => z.action !== "Remove" && z.recommendedMethod !== "Not needed" && z.recommendedMethod !== "No Attachment Required");
-      // Use per-zone recalculation if sustainability data is present, else fall back to the pre-computed value in snapshot
       const zonesHaveSustainability = activeZones.some((z: any) => z.sustainability !== undefined && z.sustainability !== null);
-      const computedAvgSustain = zonesHaveSustainability
-        ? Math.round(activeZones.reduce((sum: number, z: any) => sum + (z.sustainability ?? 100), 0) / Math.max(1, activeZones.length))
+      // If zones carry per-zone sustainability data, recalculate from them.
+      // Otherwise fall back to the pre-computed avgSustainability baked into the snapshot.
+      const avgSustain = (zonesHaveSustainability && activeZones.length > 0)
+        ? Math.round(activeZones.reduce((sum: number, z: any) => sum + (z.sustainability ?? 100), 0) / activeZones.length)
         : (snapshot.avgSustainability ?? 100);
       setPlan({
         totalCost: activeZones.reduce((sum: number, z: any) => sum + (Number(z.cost) || 0), 0) || 0,
-        avgSustainability: activeZones.length > 0 ? computedAvgSustain : (snapshot.avgSustainability ?? 100),
+        avgSustainability: avgSustain,
         recommendedMaterial: snapshot.finalRecommendation?.attachment || "Standard",
         zones: snapshot.zones || []
       });
@@ -885,21 +886,14 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
     }
 
     const a = loadAnalysis() || { productName: "Mock Doll", product_weight_g: 120, height_cm: 29.0, center_of_gravity: "Center", accessory_count: 1, accessory_weight_g: 15.0, poseComplexityScore: 50, poseStabilityScore: 50, accessories: [] };
-    const p = loadPlan() || { totalCost: 0, avgSustainability: 100, recommendedMaterial: "Standard", zones: [] };
-    
-    // Explicitly recalculate to ensure consistency between planner UI and report
-    const activeZonesP = (p.zones || []).filter((z: any) => z.action !== "Remove" && z.recommendedMethod !== "Not needed" && z.recommendedMethod !== "No Attachment Required");
-    const recalcSustain = activeZonesP.length > 0 
-      ? Math.round(activeZonesP.reduce((sum: number, z: any) => sum + (z.sustainability ?? 100), 0) / activeZonesP.length) 
-      : null;
-    // Use recalculated value only if zones have sustainability data; else keep stored value
-    const zonesHaveData = activeZonesP.some((z: any) => z.sustainability !== undefined && z.sustainability !== null);
-    if (recalcSustain !== null && zonesHaveData) {
-      p.avgSustainability = recalcSustain;
-    }
-    // If no zones or no sustainability data, keep the stored avgSustainability from savePlan()
-    console.log("[SubmitPlanContent] plan from localStorage:", { totalCost: p.totalCost, avgSustainability: p.avgSustainability, zonesCount: p.zones?.length, activeZones: activeZonesP.length, zonesHaveData });
-    
+    const p = loadPlan() || { totalCost: 0.46, avgSustainability: 82, avgStability: 86, recommendedMaterial: "Cardboard Support / PET Support", totalLaborMins: 2.5, zones: [
+      { zone: "Hair", currentMethod: "None", recommendedMethod: "Elastic Strap", action: "Add", cvDetected: true, xgbRecommended: true, cost: 0.16, laborMins: 0.8, sustainability: 68, stability: 85, riskReduction: 40, quantity: 2 },
+      { zone: "Waist", currentMethod: "None", recommendedMethod: "PET Support", action: "Add", cvDetected: true, xgbRecommended: true, cost: 0.18, laborMins: 1.2, sustainability: 78, stability: 90, riskReduction: 50, quantity: 1 },
+      { zone: "Right Wrist", currentMethod: "None", recommendedMethod: "EVA Strap", action: "Add", cvDetected: true, xgbRecommended: true, cost: 0.12, laborMins: 0.5, sustainability: 82, stability: 75, riskReduction: 30, quantity: 1 },
+    ]};
+
+    // Trust the stored avgSustainability from Packaging Planner — do NOT recalculate here.
+    // The packaging planner already computed this correctly and saved it.
     setAnalysis(a);
     setPlan(p);
 
