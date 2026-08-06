@@ -42,7 +42,7 @@ export function ManagerDashboard({ user }: { user: AuthUser }) {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="TOTAL SKUs SUBMITTED" value={approvals.length.toString()} icon={Target} hint="Products with attachment plans" />
         <KpiCard label="PENDING DECISIONS" value={approvals.filter(a => a.status === "Pending").length.toString()} icon={ShieldAlert} hint="Plans awaiting your review" />
-        <KpiCard label="AVG. SUSTAINABILITY" value={`${approvals.length > 0 ? Math.round(approvals.reduce((sum, a) => sum + (a.report_snapshot?.zones?.reduce((s:number,z:any)=>s+(z.sustainability||100),0)/(a.report_snapshot?.zones?.length||1) || 100), 0) / approvals.length) : 0}%`} icon={Leaf} hint="Eco-friendly score across plans" />
+        <KpiCard label="AVG. SUSTAINABILITY" value={`${approvals.length > 0 ? Math.round(approvals.reduce((sum, a) => sum + (a.sustainability || 0), 0) / approvals.length) : 0}%`} icon={Leaf} hint="Eco-friendly score across plans" />
         <KpiCard label="REJECTED PLANS" value={approvals.filter(a => a.status === "Rejected").length.toString()} icon={TrendingDown} hint="Plans sent back for revision" />
       </div>
 
