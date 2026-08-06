@@ -456,7 +456,7 @@ function AttachmentPlannerPage() {
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
-  const [methodProps, setMethodProps] = useState<Record<string, any> | null>(null);
+  const [methodProps, setMethodProps] = useState<Record<string, any>>(METHOD_PROPS);
   const [zonePlan, setZonePlan] = useState<ReturnType<typeof buildZonePlan>["plan"]>([]);
   const [recommendedMaterial, setRecommendedMaterial] = useState<string | null>(null);
   const [threshold] = useState(0.15); // Fixed threshold — confidence filtering handled by backend
@@ -515,9 +515,9 @@ function AttachmentPlannerPage() {
           props[d.name] = {
             cost: Number(d.cost_per_gram) || 0,
             laborMins: Number(d.labor_mins) || 0,
-            sustainability: d.sustainability_score || 0,
-            stability: d.stability_score || 0,
-            riskReduction: d.risk_reduction_score || 0
+            sustainability: d.sustainability_score ?? 0,
+            stability: d.stability_score ?? 0,
+            riskReduction: d.risk_reduction_score ?? 0
           };
         });
         setMethodProps(props);
