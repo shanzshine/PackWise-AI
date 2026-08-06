@@ -889,7 +889,16 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
     
     // Explicitly recalculate to ensure consistency between planner UI and report
     const activeZonesP = (p.zones || []).filter((z: any) => z.action !== "Remove" && z.recommendedMethod !== "Not needed" && z.recommendedMethod !== "No Attachment Required");
-    p.avgSustainability = activeZonesP.length > 0 ? Math.round(activeZonesP.reduce((sum: number, z: any) => sum + (z.sustainability ?? 100), 0) / activeZonesP.length) : 100;
+    const recalcSustain = activeZonesP.length > 0 
+      ? Math.round(activeZonesP.reduce((sum: number, z: any) => sum + (z.sustainability ?? 100), 0) / activeZonesP.length) 
+      : null;
+    // Use recalculated value only if zones have sustainability data; else keep stored value
+    const zonesHaveData = activeZonesP.some((z: any) => z.sustainability !== undefined && z.sustainability !== null);
+    if (recalcSustain !== null && zonesHaveData) {
+      p.avgSustainability = recalcSustain;
+    }
+    // If no zones or no sustainability data, keep the stored avgSustainability from savePlan()
+    console.log("[SubmitPlanContent] plan from localStorage:", { totalCost: p.totalCost, avgSustainability: p.avgSustainability, zonesCount: p.zones?.length, activeZones: activeZonesP.length, zonesHaveData });
     
     setAnalysis(a);
     setPlan(p);
@@ -964,7 +973,7 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
     accessoryLoss: apiData.categories?.["Accessory Loss Risk"]?.risk_percentage || 0,
     dropSurvival: apiData.categories?.["Drop Test Risk"]?.pass_probability || 0,
     packagingCost: `$${plan.totalCost?.toFixed(2) || "0.00"}`,
-    sustainability: plan.avgSustainability || 100,
+    sustainability: plan.avgSustainability ?? 100,
     confidence: 94,
   };
 
