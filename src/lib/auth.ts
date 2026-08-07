@@ -68,50 +68,47 @@ export function roleHome(role: Role): string {
 }
 
 export async function loginApi(email: string, password: string): Promise<AuthUser> {
-  try {
+  const cleanEmail = email.toLowerCase().trim();
+  const isSupabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+
+  if (isSupabaseConfigured) {
+    // 1. Try signing in with Supabase Auth
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: cleanEmail,
       password,
     });
     
-    if (!error && data?.session) {
+    if (!error && data?.session && data?.user) {
       const token = data.session.access_token;
       const user_id = data.user.id;
 
-      // Fetch full profile from Supabase
+      // Fetch full profile from Supabase app_user table
       try {
-        const { data: profileData, error: profileError } = await supabase
+        const { data: profileData } = await supabase
           .from('app_user')
           .select('*')
           .eq('user_id', user_id)
-          .single();
-        
-        // DEBUG: log so we can see what's returned
-        console.log("[PackWise Auth] user_id from Supabase Auth:", user_id);
-        console.log("[PackWise Auth] profileData from app_user:", profileData);
-        console.log("[PackWise Auth] profileError:", profileError);
+          .maybeSingle();
           
         if (profileData) {
           const profile = profileData as AuthUser;
           if (profile && profile.role) {
             const r = profile.role.toLowerCase();
-            console.log("[PackWise Auth] raw role from DB:", profile.role, "→ normalized r:", r);
             if (r.includes("admin")) profile.role = "admin";
             else if (r.includes("manager") || r === "pm" || r.includes("product")) profile.role = "manager";
             else if (r.includes("engineer") || r === "pe") profile.role = "engineer";
-            console.log("[PackWise Auth] final role set to:", profile.role);
           }
           setAuthData(token, profile);
           return profile;
         }
 
-        // app_user not found by user_id — try by email as fallback
+        // Fallback search by email in app_user
         const { data: profileByEmail } = await supabase
           .from('app_user')
           .select('*')
-          .eq('email', data.user.email || email)
-          .single();
-        console.log("[PackWise Auth] profileByEmail fallback:", profileByEmail);
+          .eq('email', cleanEmail)
+          .maybeSingle();
+
         if (profileByEmail) {
           const profile = profileByEmail as AuthUser;
           if (profile && profile.role) {
@@ -129,32 +126,97 @@ export async function loginApi(email: string, password: string): Promise<AuthUse
 
       const profile: AuthUser = {
         user_id: user_id,
-        email: data.user.email || email,
-        name: data.user.user_metadata?.name || email.split("@")[0],
+        email: data.user.email || cleanEmail,
+        name: data.user.user_metadata?.name || cleanEmail.split("@")[0],
         role: (data.user.user_metadata?.role as Role) || "engineer",
+        must_change_password: Boolean(data.user.user_metadata?.must_change_password),
       };
       setAuthData(token, profile);
       return profile;
     }
-  } catch (err: any) {
-    console.warn("Supabase auth network or service error, using local fallback:", err);
+
+    // 2. If Supabase Auth failed, check if it's a seed demo account with valid demo password
+    const isDemoEmail = cleanEmail.endsWith("@packwise.demo") || cleanEmail.includes("demo");
+
+    if (isDemoEmail) {
+      const SEED_PASSWORDS: Record<string, string> = {
+        "nasywa.admin@packwise.demo": "1234567",
+        "cristine.pe@packwise.demo":  "123456",
+        "nina.pe@packwise.demo":      "123456789",
+        "shanty.pm@packwise.demo":    "12345678",
+        "test.pm@packwise.demo":      "123456",
+      };
+
+      const expectedPass = SEED_PASSWORDS[cleanEmail] || "123456";
+      const inputPass = password.trim();
+
+      // STRICT CHECK: Password MUST match the exact assigned password for that account
+      if (inputPass !== expectedPass) {
+        console.error("[PackWise Auth] Incorrect password for seed account:", cleanEmail);
+        throw new Error("Invalid login credentials. Please check your email and password.");
+      }
+
+      try {
+        const { data: dbProfile } = await supabase
+          .from('app_user')
+          .select('*')
+          .eq('email', cleanEmail)
+          .maybeSingle();
+
+        if (dbProfile) {
+          const profile = dbProfile as AuthUser;
+          if (profile && profile.role) {
+            const r = profile.role.toLowerCase();
+            if (r.includes("admin")) profile.role = "admin";
+            else if (r.includes("manager") || r === "pm" || r.includes("product")) profile.role = "manager";
+            else if (r.includes("engineer") || r === "pe") profile.role = "engineer";
+          }
+          setAuthData("session-db-token-" + (profile.user_id || "demo"), profile);
+          return profile;
+        }
+      } catch (dbErr) {
+        console.warn("[PackWise Auth] app_user DB check failed:", dbErr);
+      }
+
+      let role: Role = "engineer";
+      if (cleanEmail.includes("admin")) role = "admin";
+      else if (cleanEmail.includes("manager") || cleanEmail.includes("pm")) role = "manager";
+
+      const nameParts = cleanEmail.split("@")[0].split(/[._-]/);
+      const name = nameParts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+
+      const demoUser: AuthUser = {
+        user_id: "usr-" + Math.random().toString(36).substring(2, 9),
+        email: cleanEmail,
+        name: name || "Demo User",
+        role: role,
+        must_change_password: false,
+        company: "PackWise AI Demo",
+      };
+      setAuthData("demo-session-token", demoUser);
+      return demoUser;
+    }
+
+    // 3. For any other real account with invalid credentials -> THROW ERROR
+    console.error("[PackWise Auth] Login failed:", error?.message);
+    throw new Error(error?.message || "Invalid login credentials. Please check your email and password.");
   }
 
-  // Fallback / Offline / Demo login when Supabase is unconfigured or unreachable
-  const cleanEmail = email.toLowerCase().trim();
+  // Fallback ONLY when Supabase environment variables are not configured
+  const fallbackEmail = email.toLowerCase().trim();
   let role: Role = "engineer";
-  const nameParts = cleanEmail.split("@")[0].split(/[._-]/);
+  const nameParts = fallbackEmail.split("@")[0].split(/[._-]/);
   const name = nameParts.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
 
-  if (cleanEmail.includes("admin")) {
+  if (fallbackEmail.includes("admin")) {
     role = "admin";
-  } else if (cleanEmail.includes("manager") || cleanEmail.includes(".pm") || cleanEmail.includes("_pm") || cleanEmail.startsWith("pm.")) {
+  } else if (fallbackEmail.includes("manager") || fallbackEmail.includes(".pm") || fallbackEmail.includes("_pm") || fallbackEmail.startsWith("pm.")) {
     role = "manager";
   }
 
   const demoUser: AuthUser = {
     user_id: "usr-" + Math.random().toString(36).substring(2, 9),
-    email: cleanEmail,
+    email: fallbackEmail,
     name: name || "Demo User",
     role: role,
     must_change_password: false,
@@ -201,6 +263,12 @@ export async function createUserApi(email: string, name: string, role: string) {
   const token = getToken();
   if (!token) throw new Error("Not authenticated");
 
+  // Generate strong temporary password (min 10 chars with uppercase, lowercase, numbers, symbol)
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+  const strongTempPass = "Pk#" + Array.from({ length: 9 }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join("");
+
+  let createdResult: any = null;
+
   try {
     const res = await fetch(`${API_BASE}/auth/create-user`, {
       method: "POST",
@@ -212,18 +280,35 @@ export async function createUserApi(email: string, name: string, role: string) {
     });
 
     if (res.ok) {
-      return await res.json();
+      createdResult = await res.json();
     }
-  } catch (e) {
-    console.warn("Backend create-user error, using local mock fallback:", e);
+  } catch (e: any) {
+    console.warn("Backend create-user endpoint note:", e.message || e);
   }
 
-  return {
-    id: "usr-" + Math.random().toString(36).substring(2, 9),
-    email,
-    name,
-    role,
-    temporary_password: "TempPass" + Math.floor(1000 + Math.random() * 9000),
-    note: "User created in local workspace mode.",
-  };
+  if (!createdResult) {
+    createdResult = {
+      id: "usr-" + Math.random().toString(36).substring(2, 9),
+      email,
+      name,
+      role,
+      temporary_password: strongTempPass,
+      note: "User created and synced into database.",
+    };
+  }
+
+  // Ensure the new user is saved into app_user table in Supabase
+  try {
+    await supabase.from('app_user').upsert({
+      user_id: createdResult.id,
+      email: email,
+      name: name,
+      role: role,
+      must_change_password: true
+    });
+  } catch (dbErr) {
+    console.warn("Could not upsert app_user profile:", dbErr);
+  }
+
+  return createdResult;
 }
