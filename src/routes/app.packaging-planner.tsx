@@ -456,7 +456,7 @@ function AttachmentPlannerPage() {
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
-  const [methodProps, setMethodProps] = useState<Record<string, any> | null>(null);
+  const [methodProps, setMethodProps] = useState<Record<string, any>>(METHOD_PROPS);
   const [zonePlan, setZonePlan] = useState<ReturnType<typeof buildZonePlan>["plan"]>([]);
   const [recommendedMaterial, setRecommendedMaterial] = useState<string | null>(null);
   const [threshold] = useState(0.15); // Fixed threshold — confidence filtering handled by backend
@@ -473,7 +473,7 @@ function AttachmentPlannerPage() {
 
     async function fetchPredictions() {
       try {
-        const res = await fetch("http://127.0.0.1:8000/api/predict-packaging", {
+        const res = await fetch(`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}/api/predict-packaging`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -515,9 +515,9 @@ function AttachmentPlannerPage() {
           props[d.name] = {
             cost: Number(d.cost_per_gram) || 0,
             laborMins: Number(d.labor_mins) || 0,
-            sustainability: d.sustainability_score || 0,
-            stability: d.stability_score || 0,
-            riskReduction: d.risk_reduction_score || 0
+            sustainability: d.sustainability_score ?? 0,
+            stability: d.stability_score ?? 0,
+            riskReduction: d.risk_reduction_score ?? 0
           };
         });
         setMethodProps(props);
@@ -542,7 +542,7 @@ function AttachmentPlannerPage() {
       saveAnalysis({ ...analysis, attachmentZones: newAttachmentZones });
 
       // Persist plan for Cost & Sustainability page
-      const active = newPlan.filter(z => z.action !== "Remove" && z.recommendedMethod !== "Not needed");
+      const active = newPlan.filter(z => z.action !== "Remove" && z.recommendedMethod !== "Not needed" && z.recommendedMethod !== "No Attachment Required");
       const totalCostVal = parseFloat(active.reduce((s, z) => s + z.cost, 0).toFixed(2));
       const avgStabilityVal = active.length > 0 ? Math.round(active.reduce((s, z) => s + z.stability, 0) / active.length) : 100;
       const avgSustainVal = active.length > 0 ? Math.round(active.reduce((s, z) => s + z.sustainability, 0) / active.length) : 100;
@@ -629,7 +629,7 @@ function AttachmentPlannerPage() {
               if (analysis?.id) {
                 setIsSaving(true);
                 try {
-                  const active = zonePlan.filter(z => z.action !== "Remove" && z.recommendedMethod !== "Not needed");
+                  const active = zonePlan.filter(z => z.action !== "Remove" && z.recommendedMethod !== "Not needed" && z.recommendedMethod !== "No Attachment Required");
                   const totalCostVal = parseFloat(active.reduce((s, z) => s + z.cost, 0).toFixed(2));
                   const asmResult = runAssemblyEngine({
                     weightGrams: analysis.product_weight_g ?? 120,
@@ -652,7 +652,9 @@ function AttachmentPlannerPage() {
                         recommendedMethod: z.recommendedMethod,
                         action: z.action,
                         cost: z.cost,
-                        laborMins: z.laborMins
+                        laborMins: z.laborMins,
+                        sustainability: z.sustainability,
+                        stability: z.stability,
                       }))
                     })
                     .select("plan_id")
@@ -1047,7 +1049,7 @@ function AttachmentPlannerPage() {
                     <div className="flex flex-col gap-3">
                       <textarea
                         readOnly
-                        className="w-full text-xs font-mono p-3 border bg-muted/40 rounded-lg h-24 leading-relaxed text-muted-foreground outline-none cursor-default"
+                        className="w-full text-xs p-3 border bg-muted/40 rounded-lg h-24 leading-relaxed text-muted-foreground outline-none cursor-default"
                         value={`Catalog shot, Barbie ${analysis?.product_family ?? "Fashionistas"} Doll in a ${recBlueprint?.poseName ?? "Compact Stand"} pose inside a cardboard display box, secured with transparent ${recBlueprint?.attachmentPlacements.find(p => p.zone === "Waist")?.method || "PET"} support and ${recBlueprint?.attachmentPlacements.find(p => p.zone === "Head/Hair")?.method || "Elastic"} straps${analysis?.selected_accessories && analysis.selected_accessories.length > 0 ? `, with accessories: ${analysis.selected_accessories.join(", ")}` : ""}, high detail, studio packaging photography --v 6.0`}
                       />
                       <div className="flex justify-end">

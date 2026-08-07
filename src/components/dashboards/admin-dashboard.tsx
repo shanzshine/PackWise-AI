@@ -65,6 +65,8 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
       }
     }
     fetchData();
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   return (

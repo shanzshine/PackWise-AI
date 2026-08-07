@@ -860,9 +860,16 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
         computedComplexity: snapshot.computedComplexity || "High / Dynamic (Arm bent)",
         computedCOG: snapshot.computedCOG || "Center (Hip Midpoint)",
       });
+      const activeZones = (snapshot.zones || []).filter((z: any) => z.action !== "Remove" && z.recommendedMethod !== "Not needed" && z.recommendedMethod !== "No Attachment Required");
+      const zonesHaveSustainability = activeZones.some((z: any) => z.sustainability !== undefined && z.sustainability !== null);
+      // If zones carry per-zone sustainability data, recalculate from them.
+      // Otherwise fall back to the pre-computed avgSustainability baked into the snapshot.
+      const avgSustain = (zonesHaveSustainability && activeZones.length > 0)
+        ? Math.round(activeZones.reduce((sum: number, z: any) => sum + (z.sustainability ?? 100), 0) / activeZones.length)
+        : (snapshot.avgSustainability ?? 100);
       setPlan({
-        totalCost: snapshot.zones?.reduce((sum: number, z: any) => sum + (Number(z.cost) || 0), 0) || 0,
-        avgSustainability: snapshot.zones?.length > 0 ? Math.round(snapshot.zones.reduce((sum: number, z: any) => sum + (z.sustainability || 100), 0) / snapshot.zones.length) : 100,
+        totalCost: activeZones.reduce((sum: number, z: any) => sum + (Number(z.cost) || 0), 0) || 0,
+        avgSustainability: avgSustain,
         recommendedMaterial: snapshot.finalRecommendation?.attachment || "Standard",
         zones: snapshot.zones || []
       });
@@ -879,7 +886,14 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
     }
 
     const a = loadAnalysis() || { productName: "Mock Doll", product_weight_g: 120, height_cm: 29.0, center_of_gravity: "Center", accessory_count: 1, accessory_weight_g: 15.0, poseComplexityScore: 50, poseStabilityScore: 50, accessories: [] };
-    const p = loadPlan() || { totalCost: 0, avgSustainability: 100, recommendedMaterial: "Standard", zones: [] };
+    const p = loadPlan() || { totalCost: 0.46, avgSustainability: 82, avgStability: 86, recommendedMaterial: "Cardboard Support / PET Support", totalLaborMins: 2.5, zones: [
+      { zone: "Hair", currentMethod: "None", recommendedMethod: "Elastic Strap", action: "Add", cvDetected: true, xgbRecommended: true, cost: 0.16, laborMins: 0.8, sustainability: 68, stability: 85, riskReduction: 40, quantity: 2 },
+      { zone: "Waist", currentMethod: "None", recommendedMethod: "PET Support", action: "Add", cvDetected: true, xgbRecommended: true, cost: 0.18, laborMins: 1.2, sustainability: 78, stability: 90, riskReduction: 50, quantity: 1 },
+      { zone: "Right Wrist", currentMethod: "None", recommendedMethod: "EVA Strap", action: "Add", cvDetected: true, xgbRecommended: true, cost: 0.12, laborMins: 0.5, sustainability: 82, stability: 75, riskReduction: 30, quantity: 1 },
+    ]};
+
+    // Trust the stored avgSustainability from Packaging Planner — do NOT recalculate here.
+    // The packaging planner already computed this correctly and saved it.
     setAnalysis(a);
     setPlan(p);
 
@@ -899,11 +913,11 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
         return;
       }
       try {
-        const res = await fetch("http://127.0.0.1:8000/predict", {
+        const res = await fetch(`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}/predict`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({
-            plan_id: Math.floor(Math.random() * 9000) + 1000,
+            plan_id: (p?.plan_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.plan_id)) ? p.plan_id : crypto.randomUUID(),
             product_weight_g: a?.product_weight_g || 120,
             height_cm: a?.height_cm || 29.0,
             fragility_score: 5,
@@ -953,7 +967,7 @@ export default function SubmitPlanContent({ onDataLoaded, snapshot, hideActions 
     accessoryLoss: apiData.categories?.["Accessory Loss Risk"]?.risk_percentage || 0,
     dropSurvival: apiData.categories?.["Drop Test Risk"]?.pass_probability || 0,
     packagingCost: `$${plan.totalCost?.toFixed(2) || "0.00"}`,
-    sustainability: plan.avgSustainability || 100,
+    sustainability: plan.avgSustainability ?? 100,
     confidence: 94,
   };
 

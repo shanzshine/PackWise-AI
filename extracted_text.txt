@@ -1,0 +1,99 @@
+PackWise AI: Intelligent Attachment
+Optimization System for Doll Packaging
+Presented by: Pack Patrol Team
+1.Cristine Valentina
+2.Nasywa Chonifahtun Fiqrihiyah
+3.Shanty
+PT Mattel Indonesia
+The Industry Challenge
+Bottlenecks in Manual Toy Attachment & Packaging Design
+❌ Over-engineered Fasteners
+Excessive wire ties, elastic loops, and
+XPE foam inflate raw material costs &
+create unnecessary packaging waste.
+❌ Transit Damage & Accessory Loss
+Improper attachment locations lead to
+product movement, accessory
+detachment, or damaged display pose.
+❌ High Factory Labor Time
+Complex manual tie configurations
+slow down high-speed assembly line
+workers, increasing cost per unit.
+❌ Subjective Trial-and-Error
+Packaging decisions lack historical
+data analytics, resulting in lengthy
+revision loops between teams.
+System Features & Capabilities
+Comprehensive Modules Tailored for Packaging Engineers
+1. Product & Pose Analysis (YOLO)
+Automated detection of doll pose complexity, joint anatomical support points,
+and attached accessories.
+2. Attachment Recommendation Engine
+Suggests precise strap types (elastic loops, molded pulp, ties), optimal
+quantities, and exact placement coordinates.
+3. Risk & Drop-Test Predictor
+Simulates Master Carton 10-drop and SIOC 17-drop test outcomes,
+movement risk, and accessory loss risk.
+4. Cost & Sustainability Optimizer
+Calculates unit strap cost ($), assembly labor time estimation,
+and recyclability score in real time.
+System Workflow & User Roles
+Role-Based Permissions & End-to-End Approval Lifecycle
+Packaging Engineer
+1. Upload prototype photo   
+    & metadata.
+2. Review AI attachment 
+    coordinates.
+3. Run drop-test & risk 
+    simulation.
+4. Submit packaging plan 
+    for review.
+Product Manager
+1. Receive pending 
+    approval alert.
+2. Evaluate cost and  
+    sustainability impact.
+3. Approve or request 
+    revision.
+4. Lock final specification 
+    for production.
+Administrator
+1. Manage user roles & 
+    access.
+2. Update master strap 
+    pricing database.
+3. Configure system 
+    threshold rules.
+4. Maintain audit logs.
+System Architecture
+Technology Stack 
+Infrastructure & core technologies supporting PackWise AI system architecture.
+FRONTEND
+BACKEND
+AI & ML ENGINE
+DATABASE 
+YOLOv8
+(Ultralytics)
+Roboflow
+Random Forest &
+XGBoost
+Rule-Based
+Inference Engine
+Scikit-Learn
+OpenCV
+React 19 & TypeScript    
+TanStack Start & Router
+Vite & TailwindCSS
+FastAPI (Python)
+REST API & 
+       CORS Middleware
+Pydantic
+Joblib & Pandas 
+Supabase 
+Supabase Auth
+Supabase Storage
+Cloudinary
+Recharts 
+HTML2PDF.js 
+
+THANK YOU

@@ -75,7 +75,7 @@ function AppLayout() {
       } else {
         // For PE, show ones that have been Approved/Rejected
         query = query.neq('status', 'Pending');
-        if (user?.user_id) {
+        if (user?.user_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.user_id)) {
           query = query.eq('pe_id', user.user_id);
         } else {
           query = query.eq('engineer_name', user?.name);

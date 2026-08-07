@@ -44,7 +44,12 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           This page didn't load
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <div className="mt-2 text-left bg-red-50 text-red-900 p-4 rounded-md overflow-auto text-xs font-mono">
+          <strong>Error:</strong> {error.message || "Unknown error"}
+          <br/>
+          {error.stack && <pre className="mt-2 opacity-80 whitespace-pre-wrap">{error.stack}</pre>}
+        </div>
+        <p className="mt-4 text-sm text-muted-foreground">
           Something went wrong on our end. You can try refreshing or head back home.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
@@ -74,14 +79,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "PackWise AI" },
+      { name: "description", content: "AI-powered packaging optimization for toy and collectible manufacturers." },
       { name: "author", content: "PackWise AI" },
       { property: "og:title", content: "PackWise AI" },
       { property: "og:description", content: "AI-powered packaging optimization for toy and collectible manufacturers." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:site", content: "@PackWiseAI" },
     ],
     links: [
       {

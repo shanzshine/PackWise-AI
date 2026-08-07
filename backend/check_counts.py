@@ -8,10 +8,10 @@ key = os.environ.get('SUPABASE_SERVICE_KEY')
 supabase = create_client(url, key)
 
 try:
-    res1 = supabase.table('approval_requests').select('req_id', count='exact').limit(1).execute()
-    print(f"approval_requests count: {res1.count}")
+    res1 = supabase.table('approval').select('req_id', count='exact').limit(1).execute()
+    print(f"approval count: {res1.count}")
 except Exception as e:
-    print("Error fetching approval_requests:", e)
+    print("Error fetching approval:", e)
 
 try:
     res2 = supabase.table('product_analyses').select('id', count='exact').limit(1).execute()

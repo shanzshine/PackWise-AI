@@ -14,7 +14,7 @@ export interface AuthUser {
 
 const USER_KEY = "packwise_user";
 const TOKEN_KEY = "packwise_token";
-const API_BASE = "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 // API Helpers
 export function getToken() {
