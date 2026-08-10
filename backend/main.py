@@ -2,11 +2,6 @@ import os
 import sys
 import subprocess
 
-# HACK: Fix Railway OpenCV headless issue by forcing removal of the GUI version
-try:
-    subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "opencv-python"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-except Exception:
-    pass
 
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware

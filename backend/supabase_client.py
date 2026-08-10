@@ -56,12 +56,25 @@ def save_assessment(plan_id: str, report_dict: dict, input_snapshot: dict,
             "input_snapshot": input_snapshot,
         }
 
-        # Simpan risk summary ke packaging_plan.zones sebagai field tambahan
+        # 1. Simpan risk summary ke packaging_plan.zones sebagai field tambahan
         _client.table("packaging_plan").update({
             "zones": risk_summary
         }).eq("plan_id", plan_id).execute()
 
-        logger.info(f"Risk assessment saved into packaging_plan {plan_id}")
+        # 2. Simpan juga ke tabel risk_assessments jika tabel tersebut ada
+        try:
+            _client.table("risk_assessments").insert({
+                "plan_id": plan_id,
+                "overall_risk_level": report_dict.get("overall_risk_level", "Low Risk"),
+                "drop_test_pass_pct": categories.get("Drop Test Risk", {}).get("risk_percentage"),
+                "movement_risk_pct": categories.get("Movement Risk", {}).get("risk_percentage"),
+                "accessory_loss_risk_pct": categories.get("Accessory Loss Risk", {}).get("risk_percentage"),
+                "triggered_rules": risk_summary.get("triggered_rules", []),
+            }).execute()
+        except Exception as re_err:
+            logger.warning(f"Could not insert into risk_assessments table (ignoring): {re_err}")
+
+        logger.info(f"Risk assessment saved for plan {plan_id}")
         return plan_id  # Return plan_id sebagai pengganti assessment_id
 
     except Exception as e:
