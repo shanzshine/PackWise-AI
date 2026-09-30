@@ -16,7 +16,7 @@ export const Route = createFileRoute("/app/risk-assessment")({
 
     const analysis = loadAnalysis();
     if (!analysis?.id) {
-      throw redirect({ to: "/app/product-analysis" });
+      throw redirect({ to: "/app/analysis-method" });
     }
   },
   component: RiskAssessmentPage,

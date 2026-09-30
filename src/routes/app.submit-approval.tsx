@@ -18,7 +18,7 @@ export const Route = createFileRoute("/app/submit-approval")({
     // Hanya block kalau belum ada analysis sama sekali
     const analysis = loadAnalysis();
     if (!analysis?.id) {
-      throw redirect({ to: "/app/product-analysis" });
+      throw redirect({ to: "/app/analysis-method" });
     }
   },
   component: SubmitApprovalPage,

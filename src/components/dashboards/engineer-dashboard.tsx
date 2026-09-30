@@ -85,7 +85,7 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
         actions={
           <>
             <Button size="sm" asChild>
-              <Link to="/app/product-analysis">
+              <Link to="/app/analysis-method">
                 <Sparkles className="h-4 w-4" /> New analysis
               </Link>
             </Button>
@@ -179,8 +179,8 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
         <CardContent>
           <div className="flex items-center gap-0">
             {[
-              { label: "Product Input", url: "/app/product-analysis", icon: ScanLine, reqA: false },
-              { label: "Analysis Results", url: "/app/product-analysis", icon: ScanLine, reqA: false },
+              { label: "Product Input", url: "/app/analysis-method", icon: ScanLine, reqA: false },
+              { label: "Analysis Results", url: "/app/analysis-method", icon: ScanLine, reqA: false },
               { label: "Attachment Planner", url: "/app/packaging-planner", icon: Link2, reqA: true },
               { label: "Risk Assessment", url: "/app/risk-assessment", icon: ShieldAlert, reqA: true },
               { label: "Cost & Sustainability", url: "/app/cost-analysis", icon: Activity, reqA: true },

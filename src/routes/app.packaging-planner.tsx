@@ -29,7 +29,7 @@ export const Route = createFileRoute("/app/packaging-planner")({
   beforeLoad: () => {
     const analysis = loadAnalysis();
     if (!analysis?.id) {
-      throw redirect({ to: "/app/product-analysis" });
+      throw redirect({ to: "/app/analysis-method" });
     }
   },
   component: AttachmentPlannerPage,
@@ -622,7 +622,7 @@ function AttachmentPlannerPage() {
                 ID: #{analysis.id.split('-')[0].toUpperCase()}
               </Badge>
             )}
-            <Button variant="outline" size="sm" onClick={() => navigate({ to: "/app/product-analysis" })}>
+            <Button variant="outline" size="sm" onClick={() => navigate({ to: "/app/analysis-method" })}>
               <ArrowLeft className="h-4 w-4" /> Back to Analysis
             </Button>
             <Button size="sm" disabled={isSaving} onClick={async () => {

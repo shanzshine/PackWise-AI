@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useRef } from "react";
 import {
-  Sparkles, CheckCircle2, ChevronRight, RotateCcw,
+  Sparkles, CheckCircle2, ChevronRight, RotateCcw, ArrowLeft,
   ScanLine, ShieldAlert, AlertTriangle, Brain, Plus, X, Upload, ImageIcon, Camera,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -683,6 +683,9 @@ function ProductAnalysisPage() {
         description="Upload an image for the YOLO model to detect strap zones, and enter product details."
         actions={
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate({ to: "/app/analysis-method" })}>
+              <ArrowLeft className="mr-1 h-4 w-4" /> Change method
+            </Button>
             <Badge variant="outline" className="border-border/70 font-normal"><Sparkles className="mr-1 h-3 w-3 text-primary" />AI-Powered</Badge>
           </div>
         }
