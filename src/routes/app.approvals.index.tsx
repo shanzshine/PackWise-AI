@@ -163,7 +163,9 @@ function ApprovalsPage() {
           cost: d.est_cost,
           laborTime: d.labor_time,
           status: d.status as any,
-          decidedAt: undefined
+          decidedAt: d.decided_at ? new Date(d.decided_at).toLocaleString() : undefined,
+          feedback: d.reviewer_feedback,
+          reportSnapshot: d.report_snapshot,
         })));
       }
       setIsLoading(false);

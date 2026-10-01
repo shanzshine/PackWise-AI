@@ -24,6 +24,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { clearAllWorkflowData, saveAnalysis, type AnalysisResult, type PackagingPrediction } from "@/lib/workflow-store";
+import { applyRuntimeFeedback, type RuntimeFeedbackRow } from "@/lib/runtime-feedback";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/app/historical-prediction")({
   head: () => ({ meta: [{ title: "Historical ML Prediction - PackWise AI" }] }),
@@ -70,6 +72,24 @@ function isRecommended(value: unknown) {
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value > 0;
   return ["1", "true", "yes", "recommended", "required"].includes(String(value).toLowerCase());
+}
+
+async function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error("Runtime feedback lookup timed out")),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
 
 function HistoricalPredictionPage() {
@@ -161,33 +181,63 @@ function HistoricalPredictionPage() {
     setPrediction(null);
 
     try {
+      const modelInput = {
+        product_family: productFamily,
+        articulation,
+        pose,
+        product_weight_g: weight,
+        height_cm: height,
+        center_of_gravity: centerOfGravity,
+        hair_length: hairLength,
+        dress_length: dressLength,
+        accessory_count: accessoryCount,
+        accessory_weight_g: accessoryWeight,
+        complexity_score: complexityScore,
+        stability_index: stabilityIndex,
+        fragility_score: fragilityScore,
+        attachment_needed: 1,
+        fragile_parts_count: fragileParts,
+      };
       const response = await fetch(`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}/api/predict-packaging`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          product_family: productFamily,
-          articulation,
-          pose,
-          product_weight_g: weight,
-          height_cm: height,
-          center_of_gravity: centerOfGravity,
-          hair_length: hairLength,
-          dress_length: dressLength,
-          accessory_count: accessoryCount,
-          accessory_weight_g: accessoryWeight,
-          complexity_score: complexityScore,
-          stability_index: stabilityIndex,
-          fragility_score: fragilityScore,
-          attachment_needed: 1,
-          fragile_parts_count: fragileParts,
-        }),
+        body: JSON.stringify(modelInput),
       });
 
       if (!response.ok) {
         throw new Error(`Prediction service returned ${response.status}. Please make sure the backend is running.`);
       }
 
-      const data = await response.json() as Prediction;
+      const basePrediction = await response.json() as Prediction;
+      let feedbackResult = {
+        prediction: basePrediction,
+        applied: false,
+        evidenceCount: 0,
+        reasons: [] as string[],
+      };
+
+      try {
+        const { data: memoryRows, error: memoryError } = await withTimeout(
+          supabase
+            .from("runtime_ml_feedback")
+            .select("id, reason_category, reason_text, product_features, corrected_prediction, runtime_weight")
+            .contains("product_features", { product_family: productFamily })
+            .order("created_at", { ascending: false })
+            .limit(50),
+          1200,
+        );
+        if (!memoryError && memoryRows) {
+          feedbackResult = applyRuntimeFeedback(
+            basePrediction,
+            modelInput,
+            memoryRows as RuntimeFeedbackRow[],
+          );
+        }
+      } catch (memoryError) {
+        console.warn("Runtime feedback memory unavailable; using base model prediction.", memoryError);
+      }
+
+      const data = feedbackResult.prediction;
       const nextAnalysis: AnalysisResult = {
         id: crypto.randomUUID(),
         productName: productName.trim(),
@@ -198,6 +248,12 @@ function HistoricalPredictionPage() {
         analysedAt: new Date().toISOString(),
         analysisMode: "historical-ml",
         mlPrediction: data,
+        baseMlPrediction: basePrediction,
+        runtimeFeedback: {
+          applied: feedbackResult.applied,
+          evidenceCount: feedbackResult.evidenceCount,
+          reasons: feedbackResult.reasons,
+        },
         product_family: productFamily,
         articulation,
         pose,
@@ -443,6 +499,15 @@ function HistoricalPredictionPage() {
                     <p className="text-xs text-muted-foreground">Recommended material</p>
                     <p className="mt-1 text-lg font-semibold">{String(prediction.recommended_material ?? "Model default")}</p>
                   </div>
+                  {analysis?.runtimeFeedback?.applied && (
+                    <Alert>
+                      <Database className="h-4 w-4" />
+                      <AlertTitle>Approved feedback applied</AlertTitle>
+                      <AlertDescription>
+                        Adjusted using {analysis.runtimeFeedback.evidenceCount} similar engineer-approved cases. The base model was not retrained.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                   <Button size="lg" className="w-full" onClick={openPlanner}>
                     Open Attachment Planner <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>

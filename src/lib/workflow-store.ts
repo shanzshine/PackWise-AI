@@ -39,6 +39,12 @@ export interface AnalysisResult {
   analysedAt: string;
   analysisMode?: "computer-vision" | "historical-ml";
   mlPrediction?: PackagingPrediction;
+  baseMlPrediction?: PackagingPrediction;
+  runtimeFeedback?: {
+    applied: boolean;
+    evidenceCount: number;
+    reasons: string[];
+  };
 
   // XGBoost features
   product_family: string;

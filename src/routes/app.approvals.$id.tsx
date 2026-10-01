@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
-import { loadAnalysis, loadApprovalRequests, updateApprovalStatus, type AnalysisResult } from "@/lib/workflow-store";
+import { loadAnalysis, loadApprovalRequests, updateApprovalStatus, type AnalysisResult, type PackagingPrediction } from "@/lib/workflow-store";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { getUser } from "@/lib/auth";
@@ -22,12 +22,48 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 
 import SubmitPlanContent from "@/components/SubmitPlanContent";
 
-// Feedback Modal Component
-function FeedbackModal({ mode, onConfirm, onCancel }: { mode: "Approved" | "Rejected", onConfirm: (fb: string) => void, onCancel: () => void }) {
+type DecisionFeedback = {
+  reasonCategory: string;
+  feedback: string;
+  correctedPrediction: PackagingPrediction;
+};
+
+type NumericPredictionKey = Exclude<keyof PackagingPrediction, "recommended_material">;
+
+const PREDICTION_FIELDS: Array<{ key: NumericPredictionKey; label: string }> = [
+  { key: "recommended_head_strap", label: "Head straps" },
+  { key: "recommended_waist_strap", label: "Waist straps" },
+  { key: "recommended_hand_strap", label: "Hand straps" },
+  { key: "recommended_leg_strap", label: "Leg straps" },
+  { key: "recommended_back_support", label: "Back supports" },
+  { key: "recommended_base_support", label: "Base supports" },
+];
+
+const DEFAULT_PREDICTION: PackagingPrediction = {
+  recommended_head_strap: 0,
+  recommended_waist_strap: 0,
+  recommended_hand_strap: 0,
+  recommended_leg_strap: 0,
+  recommended_back_support: 0,
+  recommended_base_support: 0,
+  recommended_material: "rPET",
+};
+
+function FeedbackModal({ mode, snapshot, onConfirm, onCancel }: {
+  mode: "Approved" | "Rejected";
+  snapshot: any;
+  onConfirm: (decision: DecisionFeedback) => void;
+  onCancel: () => void;
+}) {
   const [feedback, setFeedback] = useState("");
+  const [reasonCategory, setReasonCategory] = useState("safety");
+  const [correctedPrediction, setCorrectedPrediction] = useState<PackagingPrediction>(
+    { ...DEFAULT_PREDICTION, ...(snapshot?.modelPrediction ?? snapshot?.baseModelPrediction ?? {}) },
+  );
   const isReject = mode === "Rejected";
 
   return (
@@ -36,16 +72,62 @@ function FeedbackModal({ mode, onConfirm, onCancel }: { mode: "Approved" | "Reje
         <DialogHeader>
           <DialogTitle>{isReject ? "Reject Plan" : "Approve Plan"}</DialogTitle>
           <DialogDescription>
-            {isReject
-              ? "Please provide mandatory feedback explaining why this plan is rejected so the engineer can fix it."
-              : "Optional: Add any final comments or notes before approving this plan."}
+            Review the model quantities, make any corrections, and explain the engineering reason. Approved corrections become reusable feedback memory.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {PREDICTION_FIELDS.map(({ key, label }) => (
+              <div key={key} className="space-y-1.5">
+                <Label htmlFor={key}>{label}</Label>
+                <Input
+                  id={key}
+                  type="number"
+                  min={0}
+                  max={6}
+                  value={Number(correctedPrediction[key])}
+                  onChange={(event) => setCorrectedPrediction((current) => ({
+                    ...current,
+                    [key]: Math.max(0, Number(event.target.value)),
+                  }))}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="approved-material">Approved material</Label>
+            <select
+              id="approved-material"
+              value={correctedPrediction.recommended_material}
+              onChange={(event) => setCorrectedPrediction((current) => ({ ...current, recommended_material: event.target.value }))}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option>Recycled Cardboard + rPET</option>
+              <option>rPET</option>
+              <option>Virgin PET</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="reason-category">Reason category</Label>
+            <select
+              id="reason-category"
+              value={reasonCategory}
+              onChange={(event) => setReasonCategory(event.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="safety">Safety</option>
+              <option value="pose">Pose / placement</option>
+              <option value="accessory">Accessory retention</option>
+              <option value="material">Material</option>
+              <option value="cost">Cost</option>
+              <option value="assembly">Assembly</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
           <div className="space-y-2">
-            <Label>Feedback {isReject ? "*" : "(Optional)"}</Label>
+            <Label>Engineering reason *</Label>
             <Textarea
-              placeholder={isReject ? "e.g., The right wrist zone is too high risk, try using wire tie instead." : "Looks good, ready for production."}
+              placeholder={isReject ? "Explain what must change before approval." : "Explain why this configuration is appropriate or why you corrected it."}
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
               className="min-h-[100px]"
@@ -55,8 +137,8 @@ function FeedbackModal({ mode, onConfirm, onCancel }: { mode: "Approved" | "Reje
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onCancel}>Cancel</Button>
           <Button
-            onClick={() => onConfirm(feedback)}
-            disabled={isReject && feedback.trim().length < 5}
+            onClick={() => onConfirm({ reasonCategory, feedback: feedback.trim(), correctedPrediction })}
+            disabled={feedback.trim().length < 5}
             className={isReject ? "bg-destructive text-white hover:bg-destructive/90" : "bg-[color:var(--success)] text-white hover:bg-[color:var(--success)]/90"}
           >
             Confirm {mode}
@@ -65,6 +147,44 @@ function FeedbackModal({ mode, onConfirm, onCancel }: { mode: "Approved" | "Reje
       </DialogContent>
     </Dialog>
   );
+}
+
+const TARGET_ZONE_MAP: Record<NumericPredictionKey, { zone: string; method: string }> = {
+  recommended_head_strap: { zone: "Head/Hair", method: "Elastic Strap" },
+  recommended_waist_strap: { zone: "Waist", method: "PET Support" },
+  recommended_hand_strap: { zone: "Hands/Wrists", method: "EVA Strap" },
+  recommended_leg_strap: { zone: "Legs/Feet", method: "Elastic Strap" },
+  recommended_back_support: { zone: "Back", method: "Cardboard Support" },
+  recommended_base_support: { zone: "Base", method: "Cardboard Support" },
+};
+
+function applyPredictionToSnapshot(snapshot: any, prediction: PackagingPrediction) {
+  const existingZones = new Map((snapshot?.zones ?? []).map((zone: any) => [zone.zone, zone]));
+  const zones = PREDICTION_FIELDS.map(({ key }) => {
+    const meta = TARGET_ZONE_MAP[key];
+    const existing = existingZones.get(meta.zone) as any;
+    const quantity = Math.max(0, Math.round(Number(prediction[key] ?? 0)));
+    return {
+      ...(existing ?? {}),
+      zone: meta.zone,
+      recommendedMethod: quantity > 0 ? `${meta.method} (${quantity}x)` : "Not needed",
+      action: quantity > 0 ? (existing?.action === "Keep" ? "Keep" : "Add") : "Remove",
+      quantity,
+      cost: existing?.cost ?? 0,
+      laborMins: existing?.laborMins ?? 0,
+      sustainability: existing?.sustainability ?? 100,
+    };
+  });
+
+  return {
+    ...snapshot,
+    zones,
+    approvedPrediction: prediction,
+    finalRecommendation: {
+      ...(snapshot?.finalRecommendation ?? {}),
+      attachment: prediction.recommended_material,
+    },
+  };
 }
 
 export const Route = createFileRoute("/app/approvals/$id")({
@@ -382,6 +502,9 @@ function ApprovalDetailsPage() {
           status: data.status,
           reportSnapshot: data.report_snapshot,
           assessment_id: data.assessment_id,
+          feedback: data.reviewer_feedback,
+          feedbackReasonCategory: data.feedback_reason_category,
+          correctedRecommendation: data.corrected_recommendation,
         });
       }
       
@@ -411,8 +534,8 @@ function ApprovalDetailsPage() {
   const imageUrl = analysis?.imageDataUrl ?? approvalReq?.reportSnapshot?.imageDataUrl;
   const sel = zones.find((z: any) => z.zone === selected);
 
-  const handleDecision = async (status: "Approved" | "Rejected", feedback: string) => {
-    updateApprovalStatus(id, status, feedback || undefined);
+  const handleDecision = async (status: "Approved" | "Rejected", decision: DecisionFeedback) => {
+    updateApprovalStatus(id, status, decision.feedback);
     
     try {
       let dbPmId = null;
@@ -427,12 +550,28 @@ function ApprovalDetailsPage() {
         }
       }
       
+      const originalPrediction: PackagingPrediction = approvalReq?.reportSnapshot?.baseModelPrediction
+        ?? approvalReq?.reportSnapshot?.modelPrediction
+        ?? DEFAULT_PREDICTION;
+      const isHistoricalMlFeedback = approvalReq?.reportSnapshot?.analysisMode === "historical-ml"
+        && Boolean(approvalReq?.reportSnapshot?.baseModelPrediction ?? approvalReq?.reportSnapshot?.modelPrediction);
+      const correctedSnapshot = applyPredictionToSnapshot(
+        approvalReq?.reportSnapshot,
+        decision.correctedPrediction,
+      );
+
       const { error } = await supabase
         .from('approval')
         .update({
           status: status,
           decided_at: new Date().toISOString(),
-          pm_id: dbPmId
+          pm_id: dbPmId,
+          reviewer_feedback: decision.feedback,
+          feedback_reason_category: decision.reasonCategory,
+          original_ml_prediction: originalPrediction,
+          corrected_recommendation: decision.correctedPrediction,
+          feedback_saved_at: new Date().toISOString(),
+          report_snapshot: correctedSnapshot,
         })
         .eq('req_id', id);
         
@@ -440,6 +579,27 @@ function ApprovalDetailsPage() {
         console.warn("[PackWise] Failed to update approval in database:", error.message);
       } else {
         console.log("[PackWise] Approval updated in database ✓");
+      }
+
+      const { error: memoryError } = await supabase
+        .from("ml_feedback_memory")
+        .upsert({
+          approval_req_id: id,
+          reviewer_id: dbPmId,
+          decision_status: status,
+          reason_category: decision.reasonCategory,
+          reason_text: decision.feedback,
+          product_features: approvalReq?.reportSnapshot?.productFeatures ?? {},
+          original_prediction: originalPrediction,
+          corrected_prediction: decision.correctedPrediction,
+          model_version: "random-forest-v1",
+          eligible_for_runtime: status === "Approved" && isHistoricalMlFeedback,
+          runtime_weight: status === "Approved" ? 1 : 0.25,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "approval_req_id" });
+
+      if (memoryError) {
+        console.warn("[PackWise] Failed to save ML feedback memory:", memoryError.message);
       }
     } catch (e) {
       console.warn("[PackWise] Error updating approval in database:", e);
@@ -685,7 +845,8 @@ function ApprovalDetailsPage() {
       {modalMode && (
         <FeedbackModal
           mode={modalMode}
-          onConfirm={(fb) => handleDecision(modalMode, fb)}
+          snapshot={approvalReq?.reportSnapshot}
+          onConfirm={(decision) => handleDecision(modalMode, decision)}
           onCancel={() => setModalMode(null)}
         />
       )}

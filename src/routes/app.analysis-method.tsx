@@ -40,6 +40,7 @@ function MethodCard({
   action,
   onClick,
   highlighted = false,
+  hoverAccent = false,
 }: {
   title: string;
   description: string;
@@ -49,23 +50,28 @@ function MethodCard({
   action: string;
   onClick: () => void;
   highlighted?: boolean;
+  hoverAccent?: boolean;
 }) {
   return (
     <Card
       className={`group relative overflow-hidden border-border/70 shadow-none transition-all hover:-translate-y-0.5 hover:shadow-lg ${
-        highlighted ? "border-primary/40 bg-primary/[0.025]" : ""
+        highlighted
+          ? "border-primary/40 bg-primary/[0.025]"
+          : hoverAccent
+            ? "hover:border-primary/50 hover:bg-primary/[0.025]"
+            : ""
       }`}
     >
       {highlighted && <div className="absolute inset-x-0 top-0 h-1 bg-primary" />}
       <CardHeader className="space-y-4 pb-3">
         <div className="flex items-start justify-between gap-4">
-          <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ${highlighted ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}>
+          <div className={`flex h-14 w-14 items-center justify-center rounded-2xl transition-colors ${highlighted ? "bg-primary text-primary-foreground" : hoverAccent ? "bg-muted text-foreground group-hover:bg-primary group-hover:text-primary-foreground" : "bg-muted text-foreground"}`}>
             {icon}
           </div>
           <Badge variant={highlighted ? "default" : "secondary"}>{badge}</Badge>
         </div>
         <div>
-          <CardTitle className="text-xl">{title}</CardTitle>
+          <CardTitle className={`text-xl transition-colors ${hoverAccent ? "group-hover:text-primary" : ""}`}>{title}</CardTitle>
           <CardDescription className="mt-2 min-h-10 leading-relaxed">{description}</CardDescription>
         </div>
       </CardHeader>
@@ -78,7 +84,12 @@ function MethodCard({
             </div>
           ))}
         </div>
-        <Button size="lg" variant={highlighted ? "default" : "outline"} className="w-full" onClick={onClick}>
+        <Button
+          size="lg"
+          variant={highlighted ? "default" : "outline"}
+          className={`w-full ${hoverAccent ? "group-hover:border-primary group-hover:bg-primary group-hover:text-primary-foreground" : ""}`}
+          onClick={onClick}
+        >
           {action} <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
         </Button>
       </CardContent>
@@ -113,6 +124,7 @@ function AnalysisMethodPage() {
             features={scanFeatures}
             action="Upload or use camera"
             onClick={() => navigate({ to: "/app/product-analysis" })}
+            hoverAccent
           />
           <MethodCard
             title="Historical ML Prediction"
@@ -122,7 +134,7 @@ function AnalysisMethodPage() {
             features={predictionFeatures}
             action="Enter product data"
             onClick={() => navigate({ to: "/app/historical-prediction" })}
-            highlighted
+            hoverAccent
           />
         </div>
 
