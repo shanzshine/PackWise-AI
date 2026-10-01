@@ -11,7 +11,6 @@ import {
   Package,
   DollarSign,
   Leaf,
-  Sparkles,
   ArrowLeft,
   ChevronRight,
   BarChart3,
@@ -643,31 +642,15 @@ function ReportsPage() {
     <div className="space-y-8">
       <PageHeader
         title="Reports"
-        description="Accepted and rejected attachment plan reports from the approval workflow."
-        actions={
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="border-border/70 font-normal text-[color:var(--success)]">
-              <CheckCircle2 className="mr-1 h-3 w-3" /> {approved.length} approved
-            </Badge>
-            <Badge variant="outline" className="border-border/70 font-normal text-destructive">
-              <XCircle className="mr-1 h-3 w-3" /> {rejected.length} rejected
-            </Badge>
-            {isPE && (
-              <Badge variant="outline" className="border-border/70 font-normal text-amber-500">
-                <Clock className="mr-1 h-3 w-3" /> {pending.length} pending
-              </Badge>
-            )}
-          </div>
-        }
+        description="Review plans and their approval decisions."
       />
 
       {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         {[
           { label: "Total Reports", value: reports.length.toString(), icon: FileText, hint: "Decided by manager" },
           { label: "Approved", value: approved.length.toString(), icon: CheckCircle2, hint: "Ready for production" },
           { label: "Rejected", value: rejected.length.toString(), icon: XCircle, hint: "Returned to engineer" },
-          { label: "System Status", value: "Online", icon: Sparkles, hint: "All services operational" },
         ].map(({ label, value, icon: Icon, hint }) => (
           <Card key={label} className="border-border/70 shadow-none">
             <CardContent className="p-5">

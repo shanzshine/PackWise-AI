@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Activity, Sparkles, ShieldAlert, ScanLine, Link2, FileText } from "lucide-react";
+import { Activity, Sparkles, ShieldAlert, ScanLine, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { PageHeader } from "@/components/page-header";
 import type { AuthUser } from "@/lib/auth";
 import { useState, useEffect } from "react";
-import { loadAnalysis, clearAllWorkflowData, type ApprovalRequest } from "@/lib/workflow-store";
+import { clearAllWorkflowData } from "@/lib/workflow-store";
 import { supabase } from "@/lib/supabase";
 import { openReportInNewTab } from "@/lib/report-generator";
 
@@ -29,7 +29,6 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
   const [myApprovals, setMyApprovals] = useState<any[]>([]);
   const [lastAnalysisDate, setLastAnalysisDate] = useState<string>("—");
   const [isLoading, setIsLoading] = useState(true);
-  const analysis: any = null; // Force null since we just cleared it
 
   useEffect(() => {
     async function fetchData() {
@@ -81,7 +80,7 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
     <div className="space-y-8">
       <PageHeader
         title={`Welcome back, ${(user?.name || "User").split(" ")[0]}`}
-        description="Here's your attachment optimization workspace — active projects, risk flags, and AI recommendations."
+        description="Review submitted plans or start a new analysis."
         actions={
           <>
             <Button size="sm" asChild>
@@ -166,47 +165,6 @@ export function EngineerDashboard({ user }: { user: AuthUser }) {
           )}
         </CardContent>
       </Card>
-
-
-
-      {/* Workflow Progress */}
-      {/* Workflow Pipeline */}
-      <Card className="border-border/70 shadow-none">
-        <CardHeader>
-          <CardTitle className="text-base">Start a New Analysis</CardTitle>
-          <CardDescription>Follow the pipeline to generate an AI-driven attachment plan.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-0">
-            {[
-              { label: "Product Input", url: "/app/analysis-method", icon: ScanLine, reqA: false },
-              { label: "Analysis Results", url: "/app/analysis-method", icon: ScanLine, reqA: false },
-              { label: "Attachment Planner", url: "/app/packaging-planner", icon: Link2, reqA: true },
-              { label: "Risk Assessment", url: "/app/risk-assessment", icon: ShieldAlert, reqA: true },
-              { label: "Cost & Sustainability", url: "/app/cost-analysis", icon: Activity, reqA: true },
-            ].map((step, i, arr) => {
-              const isDisabled = step.reqA && !analysis?.id;
-              return (
-                <div key={step.label} className="flex flex-1 items-center">
-                  <Link 
-                    to={isDisabled ? "#" : step.url} 
-                    disabled={isDisabled}
-                    onClick={(e) => isDisabled && e.preventDefault()}
-                    className={`group flex flex-col items-center gap-1.5 px-2 text-center ${isDisabled ? "pointer-events-none opacity-50" : ""}`}
-                  >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-border bg-muted text-muted-foreground group-hover:border-primary/50 transition">
-                      <step.icon className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="text-[10px] font-medium leading-tight text-muted-foreground">{step.label}</span>
-                  </Link>
-                  {i < arr.length - 1 && <div className="h-px flex-1 bg-border" />}
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
     </div>
   );
 }

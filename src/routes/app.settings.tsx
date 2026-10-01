@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { User, Mail, Lock, Eye, EyeOff, Loader2, Shield, KeyRound } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,7 +92,7 @@ function SettingsPage() {
     <div className="space-y-8 max-w-4xl mx-auto px-4 sm:px-6">
       <PageHeader
         title="Account Settings"
-        description="Manage your profile information and security credentials."
+        description="Profile and security."
       />
 
       <div className="space-y-8">
@@ -103,7 +103,6 @@ function SettingsPage() {
             <CardTitle className="text-lg flex items-center gap-2 font-semibold">
               <User className="h-5 w-5 text-primary" /> Profile Info
             </CardTitle>
-            <CardDescription>Your account details & permissions</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6 pt-2">
             {/* Top row: Avatar + Name/Email (large and unconstrained horizontally) */}
@@ -163,7 +162,6 @@ function SettingsPage() {
             <CardTitle className="text-lg flex items-center gap-2 font-semibold">
               <Lock className="h-5 w-5 text-primary" /> Security Settings
             </CardTitle>
-            <CardDescription>Update password to secure your account</CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
             <form onSubmit={handlePasswordChange} className="space-y-6">

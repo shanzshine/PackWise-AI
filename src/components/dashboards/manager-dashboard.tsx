@@ -35,7 +35,7 @@ export function ManagerDashboard({ user }: { user: AuthUser }) {
     <div className="space-y-8">
       <PageHeader
         title="Operations Overview"
-        description={`Executive snapshot for ${user.company ?? "your organization"} — attachment costs, labor trends & sustainability.`}
+        description={`${user.company ?? "Your organization"} packaging activity and approvals.`}
       />
 
       {/* KPI Row */}

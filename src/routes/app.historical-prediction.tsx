@@ -313,7 +313,6 @@ function HistoricalPredictionPage() {
                   <Database className="h-5 w-5 text-primary" />
                   <h2 className="font-semibold">New Product Input</h2>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">About 2 minutes to complete</p>
               </div>
               <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={resetDefaults}>
                 <RefreshCw className="mr-2 h-3.5 w-3.5" /> Reset defaults

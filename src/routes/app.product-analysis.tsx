@@ -563,11 +563,11 @@ function ProductAnalysisPage() {
 
   if (stage === "results") return (
     <div className="space-y-6">
-      <PageHeader title="Analysis Complete" description="Review the detected pose and YOLOv8 skeleton visualization." />
+      <PageHeader title="Analysis complete" description="Review the detected pose and attachments." />
       <WorkflowBar steps={getWorkflowSteps(stage)} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="border-border/70 shadow-none">
-          <CardHeader><CardTitle className="text-base">Skeleton Pose Visualization</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Detected pose</CardTitle></CardHeader>
           <CardContent className="flex justify-center p-4 bg-muted/20">
             {annotatedImage || imageDataUrl ? (
               <img src={annotatedImage || imageDataUrl!} alt="Annotated" className="max-h-96 rounded-lg object-contain border shadow-sm" />
@@ -581,7 +581,7 @@ function ProductAnalysisPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[color:var(--success)] text-white mb-2">
               <CheckCircle2 className="h-4 w-4" />
             </div>
-            <CardTitle className="text-base">Raw AI Detections (As-Is State)</CardTitle>
+            <CardTitle className="text-base">Detection result</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2 mb-2">
@@ -595,7 +595,7 @@ function ProductAnalysisPage() {
             </div>
 
             <div className="pt-2 pb-2 border-t border-border/60 mt-2">
-              <h4 className="text-sm font-medium mb-3 text-foreground flex items-center gap-2"><ScanLine className="h-4 w-4 text-primary" /> Detected Straps (YOLOv8)</h4>
+              <h4 className="text-sm font-medium mb-3 text-foreground flex items-center gap-2"><ScanLine className="h-4 w-4 text-primary" /> Detected attachments</h4>
               <div className="flex flex-wrap gap-2">
                 {detectedStraps && detectedStraps.length > 0 ? detectedStraps.map((strap, idx) => (
                   <Badge key={idx} variant="outline" className="text-sm px-3 py-1 border-[color:var(--primary)] text-primary bg-[color:var(--primary-soft)]/30">
@@ -609,30 +609,31 @@ function ProductAnalysisPage() {
 
 
 
-            <div className="pt-3 pb-2 border-t border-border/60 mt-3 space-y-3">
-              <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
-                <Brain className="h-4 w-4 text-primary" /> Computed Skeleton Metrics
-              </h4>
+            <details className="rounded-lg border border-border/60 bg-background">
+              <summary className="cursor-pointer list-none px-3 py-2.5 text-sm font-medium">
+                Technical detection details
+              </summary>
+              <div className="space-y-3 border-t border-border/60 p-3">
 
               <div className="flex justify-between items-center p-3 border border-border/60 rounded-lg bg-background">
-                <span className="text-sm font-medium">Estimated Height (0.Nose to 15.Ankle)</span>
+                <span className="text-sm font-medium">Estimated height</span>
                 <span className="text-sm font-semibold">{computedHeight}</span>
               </div>
 
               <div className="flex justify-between items-center p-3 border border-border/60 rounded-lg bg-background">
-                <span className="text-sm font-medium">Pose Complexity (Shoulder-Elbow-Wrist)</span>
+                <span className="text-sm font-medium">Pose complexity</span>
                 <span className="text-sm font-semibold text-primary">{computedComplexity}</span>
               </div>
 
               <div className="flex justify-between items-center p-3 border border-border/60 rounded-lg bg-background">
-                <span className="text-sm font-medium">Center of Gravity (Midpoint Hips)</span>
+                <span className="text-sm font-medium">Center of gravity</span>
                 <span className="text-sm font-semibold">{computedCOG}</span>
               </div>
-            </div>
-
-            <p className="text-xs text-muted-foreground mt-2">
-              * Calculated mathematically by comparing relative distances and angles between YOLOv8 keypoints.
-            </p>
+                <p className="text-xs text-muted-foreground">
+                  Calculated from the detected keypoint positions and angles.
+                </p>
+              </div>
+            </details>
             <div className="pt-4 flex gap-3">
               <Button variant="outline" className="w-full" onClick={() => {
                 setStage("form");
@@ -654,7 +655,7 @@ function ProductAnalysisPage() {
 
   if (stage === "analysing") return (
     <div className="space-y-6">
-      <PageHeader title="Computer Vision Inference" description="YOLOv8 is analyzing the image for strap locations..." />
+      <PageHeader title="Analyzing product image" description="Detecting pose and attachment locations…" />
       <WorkflowBar steps={getWorkflowSteps(stage)} />
       <div className="flex min-h-[55vh] flex-col items-center justify-center gap-8">
         <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-[color:var(--primary-soft)]">
@@ -662,7 +663,7 @@ function ProductAnalysisPage() {
           <div className="absolute inset-0 animate-ping rounded-full bg-primary/10" />
         </div>
         <div className="w-full max-w-md space-y-4 text-center">
-          <h2 className="text-xl font-semibold">Running AI Model…</h2>
+          <h2 className="text-xl font-semibold">Analyzing image…</h2>
           <p className="text-sm text-muted-foreground">Detecting optimal strap zones and extracting features.</p>
           <Progress value={progress} className="h-2" />
           <p className="text-xs text-muted-foreground">{progress}% complete</p>

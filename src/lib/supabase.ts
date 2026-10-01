@@ -12,17 +12,19 @@ function createSafeClient(): SupabaseClient {
     return createClient(supabaseUrl, supabaseAnonKey)
   }
   console.warn('[PackWise] Supabase env vars not set — running without database.')
-  // Return a proxy that returns { data: null, error: null } for any call chain
+  // Return a chainable, awaitable query proxy. Every operation remains chainable
+  // (select().eq().order(), auth.signOut(), storage.from().upload(), etc.) and
+  // resolves once it is awaited. This keeps offline/demo mode from hanging.
   const noopResult = { data: null, error: { message: 'Supabase not configured' } }
   const chainable: any = new Proxy({}, {
-    get: () => (..._args: any[]) => chainable,
+    get: (_target, prop) => {
+      if (prop === 'then') {
+        return (resolve: (value: typeof noopResult) => unknown, reject?: (reason: unknown) => unknown) =>
+          Promise.resolve(noopResult).then(resolve, reject)
+      }
+      return (..._args: any[]) => chainable
+    },
   })
-  // Override terminal methods that return promises
-  chainable.then = (resolve: any) => resolve(noopResult)
-  chainable.insert = () => Promise.resolve(noopResult)
-  chainable.select = () => Promise.resolve(noopResult)
-  chainable.update = () => Promise.resolve(noopResult)
-  chainable.delete = () => Promise.resolve(noopResult)
   const handler: ProxyHandler<any> = {
     get(_target, prop) {
       if (prop === 'from') return () => chainable

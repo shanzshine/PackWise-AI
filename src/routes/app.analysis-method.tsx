@@ -1,13 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRight,
-  BarChart3,
   BrainCircuit,
-  Camera,
   CheckCircle2,
-  Database,
   ScanLine,
-  Sparkles,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -103,25 +99,18 @@ function AnalysisMethodPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="How would you like to analyze this product?"
-        description="Choose computer vision for a physical sample, or predict the packaging setup from historical product data."
-        actions={<Badge variant="outline"><Sparkles className="mr-1.5 h-3.5 w-3.5 text-primary" />New product workflow</Badge>}
+        title="Choose an analysis method"
+        description="Use a product image or enter product specifications."
       />
 
       <div className="mx-auto max-w-5xl">
-        <div className="mb-6 grid grid-cols-3 items-center gap-3 rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-center text-xs text-muted-foreground">
-          <div className="flex items-center justify-center gap-2"><Database className="h-4 w-4 text-primary" /> Product input</div>
-          <div className="flex items-center justify-center gap-2"><BrainCircuit className="h-4 w-4 text-primary" /> AI analysis</div>
-          <div className="flex items-center justify-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Attachment plan</div>
-        </div>
-
         <div className="grid gap-6 md:grid-cols-2">
           <MethodCard
             title="Scan Product"
             description="Analyze a product photo with computer vision before generating the attachment plan."
             badge="Image-based"
             icon={<ScanLine className="h-7 w-7" />}
-            features={scanFeatures}
+            features={scanFeatures.slice(0, 2)}
             action="Upload or use camera"
             onClick={() => navigate({ to: "/app/product-analysis" })}
             hoverAccent
@@ -131,16 +120,11 @@ function AnalysisMethodPage() {
             description="Describe a new product and let the trained model predict the required packaging configuration."
             badge="Recommended for new products"
             icon={<BrainCircuit className="h-7 w-7" />}
-            features={predictionFeatures}
+            features={predictionFeatures.slice(0, 2)}
             action="Enter product data"
             onClick={() => navigate({ to: "/app/historical-prediction" })}
             hoverAccent
           />
-        </div>
-
-        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <Camera className="h-3.5 w-3.5" />
-          Both methods continue into the same Attachment Planner, risk, cost, and sustainability workflow.
         </div>
       </div>
     </div>
