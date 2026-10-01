@@ -409,11 +409,29 @@ function getOrGenerateKeypoints(analysis: any): any[] {
     base[15].x = 155; base[15].y = 430;
     base[16].x = 245; base[16].y = 430;
     base[0].x = 188;
-  } else if (p.includes("raised") || p.includes("up") || p.includes("vogue") || p.includes("high")) {
+  } else if (p.includes("two hands up")) {
+    base[9].x = 155; base[9].y = 70;
+    base[7].x = 150; base[7].y = 110;
+    base[10].x = 245; base[10].y = 70;
+    base[8].x = 250; base[8].y = 110;
+  } else if (p.includes("one hand up") || p.includes("raised") || p.includes("vogue") || p.includes("high")) {
     base[9].x = 145; base[9].y = 75;
     base[7].x = 135; base[7].y = 110;
     base[10].x = 245; base[10].y = 220;
     base[8].x = 255; base[8].y = 180;
+  } else if (p.includes("hand on hip")) {
+    base[7].x = 145; base[7].y = 205;
+    base[9].x = 180; base[9].y = 255;
+  } else if (p.includes("one leg bent")) {
+    base[13].x = 165; base[13].y = 335;
+    base[15].x = 150; base[15].y = 395;
+  } else if (p.includes("walking")) {
+    base[9].x = 150; base[9].y = 225;
+    base[10].x = 250; base[10].y = 205;
+    base[13].x = 170; base[13].y = 340;
+    base[14].x = 230; base[14].y = 345;
+    base[15].x = 145; base[15].y = 430;
+    base[16].x = 250; base[16].y = 420;
   } else if (p.includes("sitting") || p.includes("sit")) {
     base[13].x = 145; base[13].y = 280;
     base[14].x = 255; base[14].y = 280;
@@ -472,6 +490,13 @@ function AttachmentPlannerPage() {
     setAnalysis(a);
 
     async function fetchPredictions() {
+      if (a!.analysisMode === "historical-ml" && a!.mlPrediction) {
+        setXgbData(a!.mlPrediction);
+        setRecommendedMaterial(a!.mlPrediction.recommended_material ?? null);
+        setXgbStatus("ok");
+        return;
+      }
+
       try {
         const res = await fetch(`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}/api/predict-packaging`, {
           method: "POST",
@@ -494,6 +519,7 @@ function AttachmentPlannerPage() {
             fragile_parts_count: Math.max(1, Math.floor((a!.accessory_count ?? 1) / 2)),
           })
         });
+        if (!res.ok) throw new Error(`Prediction service returned ${res.status}`);
         const data = await res.json();
         setXgbData(data);
         setRecommendedMaterial(data.recommended_material ?? null);
@@ -574,6 +600,8 @@ function AttachmentPlannerPage() {
   }, [xgbData, analysis, threshold]);
 
   const activeKeypoints = analysis ? getOrGenerateKeypoints(analysis) : [];
+  const hasDetectedSkeleton = Boolean(analysis?.raw_keypoints && analysis.raw_keypoints.length >= 17);
+  const usesParametricSkeleton = analysis?.analysisMode === "historical-ml" && !hasDetectedSkeleton;
   const recBlueprint = (analysis && activeKeypoints.length > 0) ? recommendPose(
     activeKeypoints,
     xgbData,
@@ -730,10 +758,10 @@ function AttachmentPlannerPage() {
                 : <Wifi className="h-4 w-4 animate-pulse" />}
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold">XGBoost Packaging Model</p>
+            <p className="text-xs font-semibold">Historical Packaging Model</p>
             <p className="text-[10px] text-muted-foreground truncate">
               {xgbStatus === "ok" && xgbData
-                ? `✅ Connected — Head:${xgbData.recommended_head_strap} Waist:${xgbData.recommended_waist_strap} Hand:${xgbData.recommended_hand_strap} Leg:${xgbData.recommended_leg_strap} Back:${xgbData.recommended_back_support} Base:${xgbData.recommended_base_support}`
+                ? `${analysis?.analysisMode === "historical-ml" ? "✅ Saved ML result" : "✅ API result"} — Head:${xgbData.recommended_head_strap} Waist:${xgbData.recommended_waist_strap} Hand:${xgbData.recommended_hand_strap} Leg:${xgbData.recommended_leg_strap} Back:${xgbData.recommended_back_support} Base:${xgbData.recommended_base_support}`
                 : xgbStatus === "error"
                   ? `❌ Backend offline — ${xgbError}`
                   : "⏳ Connecting to backend..."}
@@ -742,24 +770,32 @@ function AttachmentPlannerPage() {
         </div>
 
         {/* Skeleton Keypoints Status */}
-        <div className={`flex items-center gap-3 rounded-lg border p-3 ${(analysis?.raw_keypoints && analysis.raw_keypoints.length > 0)
+        <div className={`flex items-center gap-3 rounded-lg border p-3 ${hasDetectedSkeleton
             ? "border-[color:var(--success)]/40 bg-[color:var(--success)]/5"
-            : "border-amber-500/40 bg-amber-500/5"
+            : usesParametricSkeleton
+              ? "border-primary/40 bg-primary/5"
+              : "border-amber-500/40 bg-amber-500/5"
           }`}>
-          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${(analysis?.raw_keypoints && analysis.raw_keypoints.length > 0)
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${hasDetectedSkeleton
               ? "bg-[color:var(--success)]/20 text-[color:var(--success)]"
-              : "bg-amber-500/20 text-amber-500"
+              : usesParametricSkeleton
+                ? "bg-primary/15 text-primary"
+                : "bg-amber-500/20 text-amber-500"
             }`}>
-            {(analysis?.raw_keypoints && analysis.raw_keypoints.length > 0)
+            {hasDetectedSkeleton
               ? <CheckCircle2 className="h-4 w-4" />
-              : <AlertTriangle className="h-4 w-4" />}
+              : usesParametricSkeleton
+                ? <Brain className="h-4 w-4" />
+                : <AlertTriangle className="h-4 w-4" />}
           </div>
           <div className="min-w-0">
             <p className="text-xs font-semibold">Skeleton Keypoints</p>
             <p className="text-[10px] text-muted-foreground truncate">
-              {(analysis?.raw_keypoints && analysis.raw_keypoints.length > 0)
-                ? `✅ ${analysis.raw_keypoints.length} keypoints detected`
-                : "⚠️ No skeleton — run CV analysis first"}
+              {hasDetectedSkeleton
+                ? `✅ ${analysis?.raw_keypoints?.length ?? 0} keypoints detected`
+                : usesParametricSkeleton
+                  ? "Parametric skeleton generated from pose and product inputs"
+                  : "⚠️ No skeleton — run CV analysis first"}
             </p>
           </div>
         </div>
@@ -997,24 +1033,22 @@ function AttachmentPlannerPage() {
                       </h4>
                       <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
                         {recBlueprint?.attachmentPlacements.map((placement, idx) => {
-                          const matchingZone = zonePlan.find(z => z.zone === placement.zone || (z.zone === "Hands/Wrists" && placement.zone === "Hands/Wrists"));
-                          const qty = matchingZone?.quantity ?? 1;
                           const rationale = stringRationales[placement.zone] ?? "Anchor point secures this body region to prevent shifting.";
 
                           return (
                             <div key={idx} className="flex gap-3 p-2 bg-white border rounded-md shadow-sm items-start">
                               <span className="h-4 w-4 shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold text-white mt-0.5" style={{ backgroundColor: placement.color }}>
-                                {qty}
+                                {placement.ordinal}
                               </span>
                               <div className="min-w-0 flex-1">
                                 <div className="flex justify-between items-center">
-                                  <p className="text-xs font-semibold text-foreground">{placement.zone} Retention String</p>
+                                  <p className="text-xs font-semibold text-foreground">{placement.anchorLabel}</p>
                                   <Badge variant="outline" className="text-[8px] px-1 h-4 font-mono font-normal">
                                     KP {placement.keypointIndex}
                                   </Badge>
                                 </div>
                                 <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                                  <strong>{placement.method} ({qty}x)</strong>: {rationale}
+                                  <strong>{placement.method} · anchor {placement.ordinal} of {placement.quantity}</strong>: {rationale}
                                 </p>
                               </div>
                             </div>

@@ -381,6 +381,7 @@ function ProductAnalysisPage() {
         productType: "Doll",
         dimensions: `${heightCm}cm`,
         analysedAt: new Date().toISOString(),
+        analysisMode: "computer-vision",
 
         product_family: productFamily,
         articulation: articulation,
@@ -523,6 +524,7 @@ function ProductAnalysisPage() {
         productType: "Doll",
         dimensions: `${finalHeight}cm`,
         analysedAt: new Date().toISOString(),
+        analysisMode: "computer-vision",
 
         product_family: productFamily,
         articulation: articulation,

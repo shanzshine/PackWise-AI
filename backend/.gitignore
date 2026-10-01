@@ -2,6 +2,7 @@ __pycache__/
 yolov8n-pose.pt
 .env
 venv/
+model_output/
 *.pt
 *.pkl
 uvicorn_log.txt

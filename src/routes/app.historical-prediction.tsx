@@ -14,7 +14,6 @@ import {
   Ruler,
   Scale,
   ShieldCheck,
-  SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
@@ -24,14 +23,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { clearAllWorkflowData, saveAnalysis, type AnalysisResult } from "@/lib/workflow-store";
+import { clearAllWorkflowData, saveAnalysis, type AnalysisResult, type PackagingPrediction } from "@/lib/workflow-store";
 
 export const Route = createFileRoute("/app/historical-prediction")({
   head: () => ({ meta: [{ title: "Historical ML Prediction - PackWise AI" }] }),
   component: HistoricalPredictionPage,
 });
 
-type Prediction = Record<string, string | number | boolean | null>;
+type Prediction = PackagingPrediction;
 type FormStep = 1 | 2 | 3;
 
 const FORM_STEPS: Array<{ id: FormStep; label: string; shortLabel: string }> = [
@@ -46,13 +45,16 @@ const PRODUCT_PRESETS: Record<string, {
   height: number;
   hairLength: string;
   dressLength: string;
+  complexity: number;
+  stability: number;
+  fragility: number;
 }> = {
-  Dreamtopia: { articulation: "Standard", weight: 120, height: 29, hairLength: "Long", dressLength: "Long" },
-  Fashionistas: { articulation: "Standard", weight: 120, height: 29, hairLength: "Short", dressLength: "Short" },
-  Careers: { articulation: "Standard", weight: 125, height: 29, hairLength: "Medium", dressLength: "Knee" },
-  Signature: { articulation: "Standard", weight: 130, height: 29, hairLength: "Long", dressLength: "Long" },
-  Extra: { articulation: "Curvy", weight: 145, height: 29, hairLength: "Very Long", dressLength: "Short" },
-  "Made to Move": { articulation: "Made to Move", weight: 135, height: 29, hairLength: "Medium", dressLength: "Short" },
+  Dreamtopia: { articulation: "Standard", weight: 120, height: 29, hairLength: "Long", dressLength: "Long", complexity: 7, stability: 5, fragility: 4 },
+  Fashionistas: { articulation: "Standard", weight: 120, height: 29, hairLength: "Short", dressLength: "Short", complexity: 3, stability: 8, fragility: 4 },
+  Careers: { articulation: "Standard", weight: 125, height: 29, hairLength: "Medium", dressLength: "Knee", complexity: 5, stability: 7, fragility: 4 },
+  Signature: { articulation: "Standard", weight: 130, height: 29, hairLength: "Long", dressLength: "Long", complexity: 8, stability: 6, fragility: 4 },
+  Extra: { articulation: "Curvy", weight: 145, height: 29, hairLength: "Very Long", dressLength: "Short", complexity: 6, stability: 6, fragility: 4 },
+  "Made to Move": { articulation: "Made to Move", weight: 135, height: 29, hairLength: "Medium", dressLength: "Short", complexity: 7, stability: 5, fragility: 4 },
 };
 
 const recommendationFields = [
@@ -89,10 +91,12 @@ function HistoricalPredictionPage() {
   const [dressLength, setDressLength] = useState("Short");
   const [accessoryCount, setAccessoryCount] = useState(1);
   const [accessoryWeight, setAccessoryWeight] = useState(15);
-  const [complexityScore, setComplexityScore] = useState(5);
-  const [stabilityIndex, setStabilityIndex] = useState(5);
-  const [fragilityScore, setFragilityScore] = useState(5);
   const [fragileParts, setFragileParts] = useState(1);
+
+  const historicalProfile = PRODUCT_PRESETS[productFamily] ?? PRODUCT_PRESETS.Fashionistas;
+  const complexityScore = historicalProfile.complexity;
+  const stabilityIndex = historicalProfile.stability;
+  const fragilityScore = historicalProfile.fragility;
 
   const accessories = useMemo(
     () => Array.from({ length: Math.max(0, accessoryCount) }, (_, index) => `Accessory ${index + 1}`),
@@ -115,9 +119,6 @@ function HistoricalPredictionPage() {
     dressLength,
     accessoryCount,
     accessoryWeight,
-    complexityScore,
-    stabilityIndex,
-    fragilityScore,
     fragileParts,
   ]);
 
@@ -149,9 +150,6 @@ function HistoricalPredictionPage() {
     setCenterOfGravity("Center");
     setAccessoryCount(1);
     setAccessoryWeight(15);
-    setComplexityScore(5);
-    setStabilityIndex(5);
-    setFragilityScore(5);
     setFragileParts(1);
   };
 
@@ -198,6 +196,8 @@ function HistoricalPredictionPage() {
         productType: "Fashion Doll",
         dimensions: `${height} cm height`,
         analysedAt: new Date().toISOString(),
+        analysisMode: "historical-ml",
+        mlPrediction: data,
         product_family: productFamily,
         articulation,
         pose,
@@ -286,10 +286,10 @@ function HistoricalPredictionPage() {
                     <Select value={articulation} onChange={setArticulation} options={["Standard", "Made to Move", "Curvy"]} />
                   </Field>
                   <Field label="Display pose" hint="Main pose inside the retail package">
-                    <Select value={pose} onChange={setPose} options={["Arms Open", "Standing Neutral", "Arms Raised", "Sitting"]} />
+                    <Select value={pose} onChange={setPose} options={["Arms Open", "Standing Straight", "One Hand Up", "Two Hands Up", "One Hand on Hip", "One Leg Bent", "Walking", "Sitting"]} />
                   </Field>
                   <Field label="Center of gravity" hint="Where most of the product weight sits">
-                    <Select value={centerOfGravity} onChange={setCenterOfGravity} options={["Center", "Front", "Back", "Left", "Right"]} />
+                    <Select value={centerOfGravity} onChange={setCenterOfGravity} options={["Center", "Back", "Left"]} />
                   </Field>
                   <NumberField label="Product weight" hint="Product only, without accessories" value={weight} onChange={setWeight} min={1} unit="g" />
                   <NumberField label="Product height" hint="Top to bottom in display pose" value={height} onChange={setHeight} min={1} step={0.1} unit="cm" />
@@ -327,16 +327,11 @@ function HistoricalPredictionPage() {
                   </div>
                 </div>
 
-                <div className="border-t border-border/60 pt-6">
-                  <div className="mb-5 flex items-center gap-2">
-                    <SlidersHorizontal className="h-4 w-4 text-primary" />
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick engineering assessment</p>
-                  </div>
-                  <div className="space-y-4">
-                    <ScoreControl label="Pose complexity" description="How difficult is the pose to hold securely?" lowLabel="Simple" highLabel="Complex" value={complexityScore} onChange={setComplexityScore} />
-                    <ScoreControl label="Product stability" description="How stable is the product when standing in its intended pose?" lowLabel="Unstable" highLabel="Very stable" value={stabilityIndex} onChange={setStabilityIndex} />
-                    <ScoreControl label="Fragility" description="How easily could the product or its details be damaged in transit?" lowLabel="Durable" highLabel="Fragile" value={fragilityScore} onChange={setFragilityScore} />
-                  </div>
+                <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <Database className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Model-only engineering fields are filled from the historical profile for <strong className="text-foreground">{productFamily}</strong>, so you do not need to guess subjective scores.
+                  </p>
                 </div>
               </div>
             )}
@@ -357,9 +352,9 @@ function HistoricalPredictionPage() {
                     <ReviewItem icon={<Scale />} label="Weight" value={`${weight} g`} />
                     <ReviewItem icon={<Ruler />} label="Height" value={`${height} cm`} />
                     <ReviewItem icon={<Package />} label="Accessories" value={`${accessoryCount} items / ${accessoryWeight} g`} />
-                    <ReviewItem icon={<SlidersHorizontal />} label="Complexity" value={`${complexityScore} / 10`} />
-                    <ReviewItem icon={<ShieldCheck />} label="Stability" value={`${stabilityIndex} / 10`} />
-                    <ReviewItem icon={<Sparkles />} label="Fragility" value={`${fragilityScore} / 10`} />
+                    <ReviewItem icon={<Package />} label="Fragile parts" value={`${fragileParts} parts`} />
+                    <ReviewItem icon={<ShieldCheck />} label="Center of gravity" value={centerOfGravity} />
+                    <ReviewItem icon={<Sparkles />} label="Hair / clothing" value={`${hairLength} / ${dressLength}`} />
                   </div>
                 </div>
 
@@ -427,7 +422,8 @@ function HistoricalPredictionPage() {
                 <div className="space-y-4">
                   <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                     {recommendationFields.map(([key, label]) => {
-                      const recommended = isRecommended(prediction[key]);
+                      const quantity = Number(prediction[key] ?? 0);
+                      const recommended = isRecommended(quantity);
                       return (
                         <div key={key} className={`flex items-center gap-3 rounded-lg border p-3 ${recommended ? "border-primary/30 bg-primary/5" : "border-border/60 bg-muted/20"}`}>
                           <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${recommended ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
@@ -435,7 +431,9 @@ function HistoricalPredictionPage() {
                           </div>
                           <div>
                             <p className="text-xs font-medium">{label}</p>
-                            <p className="text-[11px] text-muted-foreground">{recommended ? "Recommended" : "Not required"}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {recommended ? `${quantity} ${quantity === 1 ? "attachment" : "attachments"}` : "Not required"}
+                            </p>
                           </div>
                         </div>
                       );
@@ -526,22 +524,6 @@ function NumberField({ label, hint, value, onChange, min, max, step = 1, unit }:
         {unit && <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs font-medium text-muted-foreground">{unit}</span>}
       </div>
     </Field>
-  );
-}
-
-function ScoreControl({ label, description, lowLabel, highLabel, value, onChange }: { label: string; description: string; lowLabel: string; highLabel: string; value: number; onChange: (value: number) => void }) {
-  return (
-    <div className="rounded-xl border border-border/70 bg-muted/15 p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium">{label}</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">{description}</p>
-        </div>
-        <Badge variant="outline" className="min-w-12 justify-center font-mono text-primary">{value}/10</Badge>
-      </div>
-      <input aria-label={label} type="range" min={1} max={10} value={value} onChange={(event) => onChange(Number(event.target.value))} className="mt-4 h-2 w-full cursor-pointer accent-[hsl(var(--primary))]" />
-      <div className="mt-1 flex justify-between text-[10px] text-muted-foreground"><span>{lowLabel}</span><span>{highLabel}</span></div>
-    </div>
   );
 }
 

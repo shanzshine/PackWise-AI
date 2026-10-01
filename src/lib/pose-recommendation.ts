@@ -35,6 +35,9 @@ export interface AttachmentPlacement {
   offsetX: number; // offset from keypoint (normalized 0-1)
   offsetY: number;
   color: string;
+  anchorLabel: string;
+  ordinal: number;
+  quantity: number;
 }
 
 export interface PoseRecommendation {
@@ -384,17 +387,37 @@ function scorePoseRisk(kps: Keypoint[]): number {
 
 function buildAttachmentPlacements(
   xgbData: Record<string, any> | null,
-  zonePlan: { zone: string; recommendedMethod: string; action: string }[],
+  zonePlan: { zone: string; recommendedMethod: string; action: string; quantity?: number }[],
 ): AttachmentPlacement[] {
   const placements: AttachmentPlacement[] = [];
 
-  const zoneToKeypoint: Record<string, { idx: number; ox: number; oy: number }> = {
-    "Head/Hair":     { idx: 0,  ox: 0,    oy: -0.03 },
-    "Waist":         { idx: 11, ox: 0.02, oy: 0 },
-    "Hands/Wrists":  { idx: 9,  ox: -0.02, oy: 0 },
-    "Legs/Feet":     { idx: 15, ox: 0,    oy: 0.02 },
-    "Back":          { idx: 6,  ox: 0.03, oy: 0.02 },
-    "Base":          { idx: 15, ox: 0,    oy: 0.04 },
+  const zoneToAnchors: Record<string, Array<{ idx: number; ox: number; oy: number; label: string }>> = {
+    "Head/Hair": [
+      { idx: 3, ox: -0.02, oy: -0.02, label: "Left crown" },
+      { idx: 4, ox: 0.02, oy: -0.02, label: "Right crown" },
+    ],
+    "Waist": [
+      { idx: 11, ox: -0.01, oy: -0.01, label: "Left waist" },
+      { idx: 12, ox: 0.01, oy: -0.01, label: "Right waist" },
+      { idx: 11, ox: -0.01, oy: 0.025, label: "Left lower waist" },
+      { idx: 12, ox: 0.01, oy: 0.025, label: "Right lower waist" },
+    ],
+    "Hands/Wrists": [
+      { idx: 9, ox: -0.015, oy: 0, label: "Left wrist" },
+      { idx: 10, ox: 0.015, oy: 0, label: "Right wrist" },
+    ],
+    "Legs/Feet": [
+      { idx: 15, ox: -0.01, oy: 0.02, label: "Left ankle" },
+      { idx: 16, ox: 0.01, oy: 0.02, label: "Right ankle" },
+    ],
+    "Back": [
+      { idx: 5, ox: -0.02, oy: 0.025, label: "Upper back" },
+      { idx: 12, ox: 0.02, oy: -0.025, label: "Lower back" },
+    ],
+    "Base": [
+      { idx: 15, ox: 0.02, oy: 0.05, label: "Base plate" },
+      { idx: 16, ox: -0.02, oy: 0.05, label: "Base plate" },
+    ],
   };
 
   const methodColors: Record<string, string> = {
@@ -407,17 +430,26 @@ function buildAttachmentPlacements(
 
   for (const zone of zonePlan) {
     if (zone.action === "Remove" || zone.recommendedMethod === "Not needed" || zone.recommendedMethod === "No Attachment Required") continue;
-    const mapping = zoneToKeypoint[zone.zone];
-    if (!mapping) continue;
+    const anchors = zoneToAnchors[zone.zone];
+    if (!anchors) continue;
 
-    placements.push({
-      zone: zone.zone,
-      method: zone.recommendedMethod,
-      keypointIndex: mapping.idx,
-      offsetX: mapping.ox,
-      offsetY: mapping.oy,
-      color: methodColors[zone.recommendedMethod] ?? "#22c55e",
-    });
+    const method = zone.recommendedMethod.replace(/\s+\(\d+x\)$/, "");
+    const quantity = Math.max(1, Math.round(Number(zone.quantity ?? 1)));
+    for (let index = 0; index < quantity; index += 1) {
+      const anchor = anchors[index % anchors.length];
+      const overflowOffset = Math.floor(index / anchors.length) * 0.018;
+      placements.push({
+        zone: zone.zone,
+        method,
+        keypointIndex: anchor.idx,
+        offsetX: anchor.ox,
+        offsetY: anchor.oy + overflowOffset,
+        color: methodColors[method] ?? "#22c55e",
+        anchorLabel: anchor.label,
+        ordinal: index + 1,
+        quantity,
+      });
+    }
   }
 
   return placements;
@@ -472,7 +504,7 @@ export function recommendPose(
     descParts.push("");
     descParts.push("ATTACHMENT PLACEMENTS:");
     for (const p of attachmentPlacements) {
-      descParts.push(`🟢 ${p.zone}: ${p.method} (anchored at keypoint ${p.keypointIndex})`);
+      descParts.push(`🟢 ${p.zone} ${p.ordinal}/${p.quantity}: ${p.method} at ${p.anchorLabel} (keypoint ${p.keypointIndex})`);
     }
   }
 

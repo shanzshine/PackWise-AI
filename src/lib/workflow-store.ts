@@ -18,6 +18,16 @@ export interface AttachmentZone {
   impact?: string;
 }
 
+export interface PackagingPrediction {
+  recommended_head_strap: number;
+  recommended_waist_strap: number;
+  recommended_hand_strap: number;
+  recommended_leg_strap: number;
+  recommended_back_support: number;
+  recommended_base_support: number;
+  recommended_material: string;
+}
+
 export interface AnalysisResult {
   // Core identity
   id?: string;
@@ -27,6 +37,8 @@ export interface AnalysisResult {
   productType: string;
   dimensions: string;
   analysedAt: string;
+  analysisMode?: "computer-vision" | "historical-ml";
+  mlPrediction?: PackagingPrediction;
 
   // XGBoost features
   product_family: string;
