@@ -10,7 +10,6 @@ import { Separator } from "@/components/ui/separator";
 import {
   ArrowRight,
   CheckCircle2,
-  CircleAlert,
   Package,
   ShieldCheck,
   Sparkles,
@@ -49,14 +48,13 @@ const SCENARIOS: Record<
     mv: number;
     ac: number;
     dr: number;
-    conf: number;
     icon: typeof Truck;
     conditions: ScenarioConditions;
   }
 > = {
   normal: {
     label: "Normal Shipping", sub: "Baseline ISTA 1A",
-    mv: 1.0, ac: 1.0, dr: 1.0, conf: 0, icon: Truck,
+    mv: 1.0, ac: 1.0, dr: 1.0, icon: Truck,
     conditions: {
       dropHeight: "0.8 m",
       transport: "Palletized · Road",
@@ -68,7 +66,7 @@ const SCENARIOS: Record<
   },
   rough: {
     label: "Rough Handling", sub: "Drop · vibration · 1.2m",
-    mv: 1.35, ac: 1.4, dr: 0.78, conf: -6, icon: Activity,
+    mv: 1.35, ac: 1.4, dr: 0.78, icon: Activity,
     conditions: {
       dropHeight: "1.2 m",
       transport: "Parcel · Multi-modal",
@@ -80,7 +78,7 @@ const SCENARIOS: Record<
   },
   collector: {
     label: "Collector Grade", sub: "Mint-in-box tolerance",
-    mv: 0.85, ac: 0.7, dr: 1.08, conf: 4, icon: ShieldCheck,
+    mv: 0.85, ac: 0.7, dr: 1.08, icon: ShieldCheck,
     conditions: {
       dropHeight: "0.45 m",
       transport: "White-glove · Air",
@@ -92,7 +90,7 @@ const SCENARIOS: Record<
   },
   cost: {
     label: "Cost Optimized", sub: "Reduced foam · thin tray",
-    mv: 1.15, ac: 1.2, dr: 0.92, conf: -3, icon: Gauge,
+    mv: 1.15, ac: 1.2, dr: 0.92, icon: Gauge,
     conditions: {
       dropHeight: "0.8 m",
       transport: "Palletized · Road",
@@ -157,6 +155,12 @@ function dropLevel(score: number): { label: "LOW" | "MEDIUM" | "HIGH"; tone: str
   return { label: "HIGH", tone: "bg-rose-50 text-rose-700 ring-1 ring-rose-200" };
 }
 
+function stabilityLevel(score: number): { label: "WEAK" | "MODERATE" | "STRONG"; tone: string } {
+  if (score >= 75) return { label: "STRONG", tone: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" };
+  if (score >= 55) return { label: "MODERATE", tone: "bg-amber-50 text-amber-700 ring-1 ring-amber-200" };
+  return { label: "WEAK", tone: "bg-rose-50 text-rose-700 ring-1 ring-rose-200" };
+}
+
 const clamp = (n: number, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, n));
 const round = (n: number) => Math.round(n * 10) / 10;
 
@@ -187,7 +191,6 @@ export default function RiskAssessmentContent() {
   const sc = SCENARIOS[scenario];
 
   const [apiData, setApiData] = useState<any>(null);
-  const [analysisId, setAnalysisId] = useState("");
 
   // Live dynamic prediction for Mattel Master Carton & SIOC drop test standards
   const liveMattelDrops = useMemo(() => {
@@ -218,7 +221,6 @@ export default function RiskAssessmentContent() {
   useEffect(() => {
     const a = loadAnalysis();
     if (a) {
-      setAnalysisId(a.id || "");
       setProduct({
         name: a.productName ?? "Example Doll A",
         category: a.category ?? a.productType ?? "Dolls & Collectibles",
@@ -371,11 +373,6 @@ export default function RiskAssessmentContent() {
         return { name: a.name, value: clamp(p) };
       }),
     [accessories],
-  );
-
-  const confidence = useMemo(
-    () => clamp(70 + attachmentCoverage * 0.12 + securedCount * 1.6 + sc.conf),
-    [attachmentCoverage, securedCount, sc.conf],
   );
 
   // Survival timeline — deterministic per-stage probability
@@ -535,49 +532,16 @@ export default function RiskAssessmentContent() {
   return (
     <div className="w-full text-foreground pb-12">
       <main className="mx-auto w-full max-w-full">
-        {/* Title */}
-        <section className="mb-8 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="text-[12px] font-medium uppercase tracking-[0.18em] text-[color:var(--pink)]">
-              Module 04 / Risk Assessment
-            </div>
-            <h1 className="mt-1 text-[34px] font-semibold leading-tight tracking-tight">
-              Predicting in-pack movement, accessory loss & drop survival.
-            </h1>
-            <p className="mt-2 max-w-2xl text-[14px] text-muted-foreground">
-              Deterministic risk inference for the current attachment plan. Adjust inputs to see the explainable model
-              recompute every score live.
-            </p>
-          </div>
-          <div className="flex items-center rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-full bg-[color:var(--pink-soft)]">
-                <ShieldCheck className="h-5 w-5 text-[color:var(--pink)]" />
-              </div>
-              <div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Assessment Score</div>
-                <div className="text-lg font-semibold tabular-nums">{Math.round(confidence)}%</div>
-              </div>
-            </div>
-            <div className="ml-4 h-10 w-px bg-border" />
-            <div className="ml-4">
-              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">ID</div>
-              <div className="text-sm font-medium text-red-500">
-                {analysisId ? (
-                  <span className="text-foreground">#{analysisId.split("-")[0].toUpperCase()}</span>
-                ) : apiData?.error ? (
-                  `Error: ${apiData.error}`
-                ) : (
-                  <span className="text-foreground">Syncing DB...</span>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
-
         <div className="grid grid-cols-12 gap-6">
           {/* Sidebar */}
           <aside className="col-span-12 space-y-6 lg:col-span-3">
+            <details className="group rounded-2xl border border-border bg-card shadow-sm">
+              <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold">
+                Product & plan inputs
+                <span className="text-xs font-normal text-muted-foreground group-open:hidden">View</span>
+                <span className="hidden text-xs font-normal text-muted-foreground group-open:inline">Hide</span>
+              </summary>
+              <div className="space-y-4 border-t border-border/70 p-3">
             <Card className="rounded-2xl border-border shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -652,6 +616,8 @@ export default function RiskAssessmentContent() {
                 ))}
               </CardContent>
             </Card>
+              </div>
+            </details>
           </aside>
 
           {/* Main content */}
@@ -703,48 +669,36 @@ export default function RiskAssessmentContent() {
                           <div className="text-[13px] font-semibold tracking-tight">{s.label}</div>
                         </div>
                         <div className="mt-2 text-[11.5px] text-muted-foreground">{s.sub}</div>
-                        <div className="mt-3 space-y-1 border-t border-border/60 pt-2 text-[11px]">
-                          <ScenarioCondRow k="Drop" v={s.conditions.dropHeight} />
-                          <ScenarioCondRow k="Trans" v={s.conditions.transport} />
-                          <ScenarioCondRow k="Vib" v={s.conditions.vibration} />
-                          <ScenarioCondRow k="Comp" v={s.conditions.compression} />
-                          <ScenarioCondRow k="Temp" v={s.conditions.temperature} />
-                          <ScenarioCondRow k="RH" v={s.conditions.humidity} />
-                        </div>
                       </button>
                     );
                   })}
                 </div>
+                <details className="group mt-4 rounded-xl border border-border/70 bg-muted/20">
+                  <summary className="cursor-pointer list-none px-4 py-3 text-xs font-semibold">
+                    Selected scenario conditions
+                    <span className="ml-2 font-normal text-muted-foreground">Drop, transport, vibration, and environment</span>
+                  </summary>
+                  <div className="grid gap-x-6 gap-y-2 border-t border-border/70 px-4 py-3 text-xs sm:grid-cols-2 lg:grid-cols-3">
+                    <ScenarioCondRow k="Drop" v={sc.conditions.dropHeight} />
+                    <ScenarioCondRow k="Transport" v={sc.conditions.transport} />
+                    <ScenarioCondRow k="Vibration" v={sc.conditions.vibration} />
+                    <ScenarioCondRow k="Compression" v={sc.conditions.compression} />
+                    <ScenarioCondRow k="Temperature" v={sc.conditions.temperature} />
+                    <ScenarioCondRow k="Humidity" v={sc.conditions.humidity} />
+                  </div>
+                </details>
               </CardContent>
             </Card>
 
-            {/* Mattel Drop-Test Verification System (Master Carton vs SIOC) */}
-            <Card className="rounded-2xl border-border shadow-sm overflow-hidden border-l-4 border-l-[color:var(--pink)]">
-              <CardHeader className="bg-muted/30 pb-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="grid h-8 w-8 place-items-center rounded-lg bg-[color:var(--pink-soft)]">
-                      <FileSpreadsheet className="h-4 w-4 text-[color:var(--pink)]" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-[15px] font-semibold tracking-tight">
-                        Mattel Lab Test Benchmark (Actual Data Record)
-                      </CardTitle>
-                      <p className="text-[11.5px] text-muted-foreground">
-                        Official Mattel Lab Master Carton & SIOC Drop-Test Log (Excel Dataset Benchmark)
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Badge variant="outline" className="bg-background text-[11px] font-mono border-border">
-                      Master Carton (1 & 10 Drops)
-                    </Badge>
-                    <Badge variant="outline" className="bg-background text-[11px] font-mono border-border">
-                      SIOC (1 & 17 Drops)
-                    </Badge>
-                  </div>
-                </div>
-              </CardHeader>
+            <details className="group rounded-2xl border border-border bg-card shadow-sm">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
+                <span className="flex items-center gap-2 text-sm font-semibold">
+                  <FileSpreadsheet className="h-4 w-4 text-[color:var(--pink)]" />
+                  Lab benchmark details
+                </span>
+                <span className="text-xs font-normal text-muted-foreground">Master Carton & SIOC tests</span>
+              </summary>
+            <Card className="overflow-hidden rounded-none border-0 border-t border-border/70 shadow-none">
               <CardContent className="space-y-4 pt-4">
                 {/* Drop Test Results & Strap Setup */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -855,18 +809,23 @@ export default function RiskAssessmentContent() {
 
               </CardContent>
             </Card>
+            </details>
 
             {/* Top metric cards */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <MetricCard label="Movement Risk" value={movementRisk} suffix="" tone={level(movementRisk)} hint="Inertial drift score" primaryCause={primaryCauses.mv} />
+              <MetricCard label="Movement Risk" value={movementRisk} suffix="/100" tone={level(movementRisk)} hint="Inertial drift score" primaryCause={primaryCauses.mv} />
               <MetricCard label="Accessory Loss Risk" value={accessoryLoss} suffix="%" tone={level(accessoryLoss)} hint="Loss probability index" primaryCause={primaryCauses.ac} />
-              <MetricCard label="Pose Stability" value={poseStability} suffix="" tone={level(100 - poseStability)} hint="Articulation hold" primaryCause={primaryCauses.ps} />
+              <MetricCard label="Pose Stability" value={poseStability} suffix="/100" tone={stabilityLevel(poseStability)} hint="Articulation hold" primaryCause={primaryCauses.ps} />
               <MetricCard label="Drop-Test Prediction" value={dropScore} suffix="/100" tone={dropLevel(dropScore)} hint="Survival score" primaryCause={primaryCauses.dr} highlight />
             </div>
 
 
-            {/* Survival Timeline */}
-            <Card className="rounded-2xl border-border shadow-sm">
+            <details className="group rounded-2xl border border-border bg-card shadow-sm">
+              <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold">
+                Packaging lifecycle details
+                <span className="ml-2 text-xs font-normal text-muted-foreground">Assembly, warehouse, transport, and shelf</span>
+              </summary>
+            <Card className="rounded-none border-0 border-t border-border/70 shadow-none">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -930,9 +889,14 @@ export default function RiskAssessmentContent() {
                 </div>
               </CardContent>
             </Card>
+            </details>
 
-            {/* Charts row */}
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+            <details className="group rounded-2xl border border-border bg-card shadow-sm">
+              <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold">
+                Detailed risk breakdown
+                <span className="ml-2 text-xs font-normal text-muted-foreground">Body regions, accessories, and drop-test survival</span>
+              </summary>
+            <div className="grid grid-cols-1 gap-6 border-t border-border/70 p-4 xl:grid-cols-3">
               <Card className="rounded-2xl border-border shadow-sm">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
@@ -1046,8 +1010,9 @@ export default function RiskAssessmentContent() {
                 </CardContent>
               </Card>
             </div>
+            </details>
 
-            {/* Critical Failure Zones */}
+            <div className="grid items-start gap-6 xl:grid-cols-2">
             <Card className="rounded-2xl border-border shadow-sm">
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
@@ -1066,40 +1031,26 @@ export default function RiskAssessmentContent() {
                     No critical zones above threshold for this scenario.
                   </div>
                 ) : (
-                  <div className="overflow-hidden rounded-xl border border-border">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50 text-[11px] uppercase tracking-wider text-muted-foreground">
-                        <tr>
-                          <th className="px-4 py-2 text-left font-medium">Body Region / Part</th>
-                          <th className="px-4 py-2 text-left font-medium">Failure Reason</th>
-                          <th className="px-4 py-2 text-left font-medium">Evidence</th>
-                          <th className="px-4 py-2 text-left font-medium">Suggested Rule</th>
-                          <th className="px-4 py-2 text-right font-medium">Severity</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {failureZones.map((z) => {
-                          const lv = level(z.severity);
-                          const ev = evidenceFor(z.region);
-                          return (
-                            <tr key={z.region} className="border-t border-border">
-                              <td className="px-4 py-3 font-semibold">{z.region}</td>
-                              <td className="px-4 py-3 text-muted-foreground">{z.reason}</td>
-                              <td className="px-4 py-3 font-mono text-[12px] text-[color:var(--pink)]">{ev.evidenceId}</td>
-                              <td className="px-4 py-3 text-muted-foreground">{ev.suggestedRule}</td>
-                              <td className="px-4 py-3 text-right">
-                                <div className="inline-flex items-center gap-2">
-                                  <span className="tabular-nums">{round(z.severity)}</span>
-                                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${lv.tone}`}>
-                                    {lv.label}
-                                  </span>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                  <div className="space-y-2">
+                    {failureZones.map((z) => {
+                      const lv = level(z.severity);
+                      const ev = evidenceFor(z.region);
+                      return (
+                        <div key={z.region} className="rounded-xl border border-border p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm font-semibold">{z.region}</span>
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${lv.tone}`}>
+                              {round(z.severity)} · {lv.label}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">{z.reason}</p>
+                          <p className="mt-2 text-xs">
+                            <span className="font-medium">Recommended:</span> {ev.suggestedRule}
+                            <span className="ml-2 font-mono text-[color:var(--pink)]">{ev.evidenceId}</span>
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -1117,29 +1068,14 @@ export default function RiskAssessmentContent() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3">
                   {improvementSuggestions.map((s) => (
                     <Suggestion key={s.title} icon={s.icon} title={s.title} detail={s.detail} benefits={s.benefits} />
                   ))}
                 </div>
-
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-10 w-10 place-items-center rounded-full bg-[color:var(--pink-soft)]">
-                      <CircleAlert className="h-5 w-5 text-[color:var(--pink)]" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold">
-                        Assessment Score {Math.round(confidence)}% · {dropLevel(dropScore).label} drop-failure risk
-                      </div>
-                      <div className="text-[12px] text-muted-foreground">
-                        Based on {accessories.length} accessories, {attachments.length} attachments, complexity {product.complexity}.
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </CardContent>
             </Card>
+            </div>
           </section>
         </div>
       </main>
@@ -1177,29 +1113,24 @@ function MetricCard({
           style={{ backgroundColor: "#d946ef" }}
         />
       )}
-      <CardContent className="p-5">
+      <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${tone.tone}`}>{tone.label}</span>
         </div>
-        <div className="mt-3 flex items-baseline gap-1">
-          <span className="text-[34px] font-semibold tracking-tight tabular-nums">{round(value)}</span>
+        <div className="mt-2 flex items-baseline gap-1">
+          <span className="text-2xl font-semibold tracking-tight tabular-nums">{round(value)}</span>
           {suffix ? <span className="text-sm text-muted-foreground">{suffix}</span> : null}
         </div>
         <Progress
           value={value}
-          className="mt-3 h-1.5 bg-muted [&>[data-slot=progress-indicator]]:bg-[#d946ef]"
+          className="mt-2 h-1.5 bg-muted [&>[data-slot=progress-indicator]]:bg-[#d946ef]"
         />
-        <p className="mt-2 text-[12px] text-muted-foreground">{hint}</p>
+        <p className="mt-1.5 text-[11px] text-muted-foreground">{hint}</p>
         {primaryCause && (
-          <div className="mt-3 border-t border-border pt-2">
-            <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Primary Cause
-            </div>
-            <div className="mt-0.5 text-[12px] font-medium text-[color:var(--pink)]">
-              {primaryCause}
-            </div>
-          </div>
+          <p className="mt-2 truncate border-t border-border pt-2 text-[11px] text-muted-foreground" title={primaryCause}>
+            Cause: <span className="font-medium text-[color:var(--pink)]">{primaryCause}</span>
+          </p>
         )}
       </CardContent>
     </Card>
@@ -1234,18 +1165,15 @@ function Suggestion({
   benefits: { label: string; value: string; positive: boolean }[];
 }) {
   return (
-    <div className="group rounded-xl border border-border bg-card p-4 transition hover:border-[color:var(--pink)]/40 hover:shadow-md">
+    <div className="group rounded-xl border border-border bg-card p-3 transition hover:border-[color:var(--pink)]/40 hover:shadow-md">
       <div className="flex items-center gap-2">
         <div className="grid h-8 w-8 place-items-center rounded-lg bg-[color:var(--pink-soft)]">
           <Icon className="h-4 w-4 text-[color:var(--pink)]" />
         </div>
+        <div className="text-[13.5px] font-semibold tracking-tight">{title}</div>
       </div>
-      <div className="mt-3 text-[13.5px] font-semibold tracking-tight">{title}</div>
-      <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">{detail}</p>
-      <div className="mt-3 space-y-1 rounded-lg bg-muted/40 p-2">
-        <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-          Expected Engineering Benefit
-        </div>
+      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{detail}</p>
+      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg bg-muted/40 p-2">
         {benefits.map((b) => (
           <div key={b.label} className="flex items-center justify-between text-[12px]">
             <span className="text-muted-foreground">{b.label}</span>

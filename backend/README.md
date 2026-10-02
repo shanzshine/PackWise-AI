@@ -1,5 +1,46 @@
 # PackWise Risk Prediction API
 
+## Train the historical-data recommendation models
+
+The repository includes `packaging_dataset.csv` with the product inputs and
+seven recommendation labels used by the ML page. Train a fresh, API-compatible
+set of Random Forest models with:
+
+```powershell
+cd backend
+python -m pip install pandas scikit-learn==1.6.1 joblib
+python train_packaging_models.py
+```
+
+New models and `metrics.json` are written to `backend/model_output/`. This does
+not replace the models currently used by the API. Review the balanced accuracy
+and macro F1 values in `metrics.json` before promoting any model.
+
+When the API and the trained artifacts use the same scikit-learn version, the
+API automatically loads `model_output`. To select a different artifact folder,
+set `PACKAGING_MODEL_DIR` before starting the API.
+
+The included CSV is dummy data. Its metrics show whether the code can learn the
+provided labels; they do not prove that the recommendations work for real
+products. Replace or append rows with engineer-approved historical outcomes as
+they become available, then retrain and compare against the saved metrics.
+
+Train and serve with the same scikit-learn version (`1.6.1` in
+`requirements.txt`); scikit-learn model files are not guaranteed to load
+correctly across versions.
+
+### Run only the historical-ML backend
+
+The lightweight API avoids loading the computer-vision and database services:
+
+```powershell
+cd backend
+python -m pip install fastapi "uvicorn[standard]" pydantic pandas scikit-learn joblib
+python -m uvicorn ml_api:app --host 127.0.0.1 --port 8000
+```
+
+Open `http://127.0.0.1:8000/health` to confirm which model folder is active.
+
 FastAPI service wrapping the `rule_engine` package (Process 5.0 in the
 PackWise DFD) — now with Supabase persistence, so every prediction is
 saved as history.

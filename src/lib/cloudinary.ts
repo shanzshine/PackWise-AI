@@ -8,9 +8,6 @@
 //   3. URL tersebut yang disimpan ke kolom image_url di Supabase
 // ================================================================
 
-const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-
 export interface CloudinaryUploadResult {
   secure_url: string;      // URL HTTPS final yang disimpan ke database
   public_id: string;       // ID unik file di Cloudinary (untuk delete nanti jika perlu)
@@ -31,26 +28,31 @@ export async function uploadToCloudinary(
   file: File,
   folder: string = "packwise/product-images"
 ): Promise<string | null> {
-  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+  if (!cloudName || !uploadPreset || cloudName === "YOUR_CLOUD_NAME_HERE") {
     console.error(
-      "[Cloudinary] VITE_CLOUDINARY_CLOUD_NAME atau VITE_CLOUDINARY_UPLOAD_PRESET belum diset di .env.local"
+      "[Cloudinary] VITE_CLOUDINARY_CLOUD_NAME atau VITE_CLOUDINARY_UPLOAD_PRESET belum diset di .env"
     );
     return null;
   }
 
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  formData.append("upload_preset", uploadPreset);
   formData.append("folder", folder);
+
 
   try {
     const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
       {
         method: "POST",
         body: formData,
       }
     );
+
 
     if (!response.ok) {
       const errText = await response.text();
@@ -78,24 +80,28 @@ export async function uploadBase64ToCloudinary(
   base64DataUrl: string,
   folder: string = "packwise/annotated-images"
 ): Promise<string | null> {
-  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+  if (!cloudName || !uploadPreset || cloudName === "YOUR_CLOUD_NAME_HERE") {
     console.error("[Cloudinary] Env vars belum diset.");
     return null;
   }
 
   const formData = new FormData();
   formData.append("file", base64DataUrl); // Cloudinary menerima base64 string langsung
-  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  formData.append("upload_preset", uploadPreset);
   formData.append("folder", folder);
 
   try {
     const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
       {
         method: "POST",
         body: formData,
       }
     );
+
 
     if (!response.ok) {
       const errText = await response.text();

@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ChevronRight, DollarSign, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ChevronRight, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
-import { loadAnalysis, loadPlan } from "@/lib/workflow-store";
+import { loadAnalysis } from "@/lib/workflow-store";
 import RiskAssessmentContent from "@/components/RiskAssessmentContent";
 import { getUser } from "@/lib/auth";
 
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/app/risk-assessment")({
 
     const analysis = loadAnalysis();
     if (!analysis?.id) {
-      throw redirect({ to: "/app/product-analysis" });
+      throw redirect({ to: "/app/analysis-method" });
     }
   },
   component: RiskAssessmentPage,
@@ -72,23 +72,28 @@ function RiskAssessmentPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       <PageHeader
         title="Risk Assessment"
-        description={`Predictive movement, accessory loss & drop-test analysis — ${productName}`}
+        description={`Movement, accessory retention, and drop-test results — ${productName}`}
         actions={
-          <>
-            <Button variant="outline" size="sm" onClick={() => navigate({ to: "/app/packaging-planner" })}>
-              <ArrowLeft className="h-4 w-4" /> Back to Planner
-            </Button>
-            <Button size="sm" onClick={() => navigate({ to: "/app/cost-analysis" })}>
-              <DollarSign className="h-4 w-4" /> Cost & Sustainability <ChevronRight className="h-4 w-4" />
-            </Button>
-          </>
+          <Button variant="outline" size="sm" onClick={() => navigate({ to: "/app/packaging-planner" })}>
+            <ArrowLeft className="h-4 w-4" /> Back to Planner
+          </Button>
         }
       />
       <WorkflowBar />
       <RiskAssessmentContent />
+
+      <div className="fixed bottom-4 right-4 z-40 flex items-center gap-3 rounded-xl border border-primary/20 bg-background/95 p-2 shadow-xl backdrop-blur sm:right-6">
+        <div className="hidden pl-2 sm:block">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Next step</p>
+          <p className="text-xs font-medium">Review cost and sustainability</p>
+        </div>
+        <Button onClick={() => navigate({ to: "/app/cost-analysis" })}>
+          <DollarSign className="h-4 w-4" /> Continue <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }

@@ -178,7 +178,7 @@ function AttachmentMarkers({
               fontSize={7} fill="#94a3b8"
               fontFamily="system-ui"
             >
-              {p.zone}
+              {p.quantity > 1 ? `${p.zone} ${p.ordinal}/${p.quantity}` : p.zone}
             </text>
           </g>
         );
@@ -300,7 +300,7 @@ export const PoseBlueprint = memo(function PoseBlueprint({
                         fontSize={baseR * 1.2} fontWeight="600" fill={p.color}
                         fontFamily="system-ui"
                       >
-                        {p.method}
+                        {p.quantity > 1 ? `${p.method} ${p.ordinal}/${p.quantity}` : p.method}
                       </text>
                     </g>
                   );

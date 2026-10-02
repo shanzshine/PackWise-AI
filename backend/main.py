@@ -1,6 +1,8 @@
 import os
 import sys
 import subprocess
+import json
+from pathlib import Path
 
 
 from fastapi import FastAPI, File, UploadFile
@@ -13,6 +15,7 @@ from PIL import Image
 import base64
 import joblib
 import pandas as pd
+import sklearn
 from pydantic import BaseModel
 
 import os
@@ -75,27 +78,64 @@ class PackagingRequest(BaseModel):
 
 encoders = {}
 rf_models = {}
+active_packaging_model_dir = None
+
+PACKAGING_MODEL_FILES = {
+    "recommended_head_strap": "head_strap.pkl",
+    "recommended_waist_strap": "waist_strap.pkl",
+    "recommended_hand_strap": "hand_strap.pkl",
+    "recommended_leg_strap": "leg_strap.pkl",
+    "recommended_back_support": "back_support.pkl",
+    "recommended_base_support": "base_support.pkl",
+    "recommended_material": "material.pkl",
+}
+
+
+def _packaging_model_dir() -> Path:
+    backend_dir = Path(__file__).resolve().parent
+    configured_dir = os.getenv("PACKAGING_MODEL_DIR")
+    if configured_dir:
+        return Path(configured_dir).expanduser().resolve()
+
+    trained_dir = backend_dir / "model_output"
+    metrics_file = trained_dir / "metrics.json"
+    required_files = [trained_dir / "label_encoders.pkl"] + [
+        trained_dir / filename for filename in PACKAGING_MODEL_FILES.values()
+    ]
+    if metrics_file.exists() and all(path.exists() for path in required_files):
+        try:
+            metrics = json.loads(metrics_file.read_text(encoding="utf-8"))
+            trained_version = metrics.get("runtime_versions", {}).get("scikit_learn")
+            if trained_version == sklearn.__version__:
+                return trained_dir
+            print(
+                "Ignoring model_output because scikit-learn versions differ: "
+                f"trained={trained_version}, runtime={sklearn.__version__}."
+            )
+        except (OSError, ValueError, TypeError) as exc:
+            print(f"Could not validate model_output metadata: {exc}")
+
+    return backend_dir
 
 @app.on_event("startup")
 def load_models():
-    global encoders, rf_models
+    global encoders, rf_models, active_packaging_model_dir
     try:
-        encoders = joblib.load("label_encoders.pkl")
+        model_dir = _packaging_model_dir()
+        encoders = joblib.load(model_dir / "label_encoders.pkl")
         rf_models = {
-            "recommended_head_strap": joblib.load("head_strap.pkl"),
-            "recommended_waist_strap": joblib.load("waist_strap.pkl"),
-            "recommended_hand_strap": joblib.load("hand_strap.pkl"),
-            "recommended_leg_strap": joblib.load("leg_strap.pkl"),
-            "recommended_back_support": joblib.load("back_support.pkl"),
-            "recommended_base_support": joblib.load("base_support.pkl"),
-            "recommended_material": joblib.load("material.pkl")
+            target: joblib.load(model_dir / filename)
+            for target, filename in PACKAGING_MODEL_FILES.items()
         }
-        print("Successfully loaded RF models and encoders.")
+        active_packaging_model_dir = str(model_dir)
+        print(f"Successfully loaded packaging models from {model_dir}.")
     except Exception as e:
         print(f"Error loading RF models: {e}")
 
 @app.post("/api/predict-packaging")
 async def predict_packaging(req: PackagingRequest):
+    if not rf_models or not encoders:
+        raise HTTPException(status_code=503, detail="Packaging prediction model is not loaded")
     try:
         data = req.model_dump()
     except AttributeError:

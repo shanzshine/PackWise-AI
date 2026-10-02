@@ -24,9 +24,11 @@ import { Route as AppRiskAssessmentRouteImport } from './routes/app.risk-assessm
 import { Route as AppReportsRouteImport } from './routes/app.reports'
 import { Route as AppProductAnalysisRouteImport } from './routes/app.product-analysis'
 import { Route as AppPackagingPlannerRouteImport } from './routes/app.packaging-planner'
+import { Route as AppHistoricalPredictionRouteImport } from './routes/app.historical-prediction'
 import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppCostAnalysisRouteImport } from './routes/app.cost-analysis'
 import { Route as AppApprovalsRouteImport } from './routes/app.approvals'
+import { Route as AppAnalysisMethodRouteImport } from './routes/app.analysis-method'
 import { Route as AppApprovalsIndexRouteImport } from './routes/app.approvals.index'
 import { Route as AppApprovalsIdRouteImport } from './routes/app.approvals.$id'
 
@@ -105,6 +107,11 @@ const AppPackagingPlannerRoute = AppPackagingPlannerRouteImport.update({
   path: '/packaging-planner',
   getParentRoute: () => AppRoute,
 } as any)
+const AppHistoricalPredictionRoute = AppHistoricalPredictionRouteImport.update({
+  id: '/historical-prediction',
+  path: '/historical-prediction',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -118,6 +125,11 @@ const AppCostAnalysisRoute = AppCostAnalysisRouteImport.update({
 const AppApprovalsRoute = AppApprovalsRouteImport.update({
   id: '/approvals',
   path: '/approvals',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAnalysisMethodRoute = AppAnalysisMethodRouteImport.update({
+  id: '/analysis-method',
+  path: '/analysis-method',
   getParentRoute: () => AppRoute,
 } as any)
 const AppApprovalsIndexRoute = AppApprovalsIndexRouteImport.update({
@@ -136,9 +148,11 @@ export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
+  '/app/analysis-method': typeof AppAnalysisMethodRoute
   '/app/approvals': typeof AppApprovalsRouteWithChildren
   '/app/cost-analysis': typeof AppCostAnalysisRoute
   '/app/dashboard': typeof AppDashboardRoute
+  '/app/historical-prediction': typeof AppHistoricalPredictionRoute
   '/app/packaging-planner': typeof AppPackagingPlannerRoute
   '/app/product-analysis': typeof AppProductAnalysisRoute
   '/app/reports': typeof AppReportsRoute
@@ -157,8 +171,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
+  '/app/analysis-method': typeof AppAnalysisMethodRoute
   '/app/cost-analysis': typeof AppCostAnalysisRoute
   '/app/dashboard': typeof AppDashboardRoute
+  '/app/historical-prediction': typeof AppHistoricalPredictionRoute
   '/app/packaging-planner': typeof AppPackagingPlannerRoute
   '/app/product-analysis': typeof AppProductAnalysisRoute
   '/app/reports': typeof AppReportsRoute
@@ -179,9 +195,11 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRoute
+  '/app/analysis-method': typeof AppAnalysisMethodRoute
   '/app/approvals': typeof AppApprovalsRouteWithChildren
   '/app/cost-analysis': typeof AppCostAnalysisRoute
   '/app/dashboard': typeof AppDashboardRoute
+  '/app/historical-prediction': typeof AppHistoricalPredictionRoute
   '/app/packaging-planner': typeof AppPackagingPlannerRoute
   '/app/product-analysis': typeof AppProductAnalysisRoute
   '/app/reports': typeof AppReportsRoute
@@ -203,9 +221,11 @@ export interface FileRouteTypes {
     | '/app'
     | '/change-password'
     | '/login'
+    | '/app/analysis-method'
     | '/app/approvals'
     | '/app/cost-analysis'
     | '/app/dashboard'
+    | '/app/historical-prediction'
     | '/app/packaging-planner'
     | '/app/product-analysis'
     | '/app/reports'
@@ -224,8 +244,10 @@ export interface FileRouteTypes {
     | '/'
     | '/change-password'
     | '/login'
+    | '/app/analysis-method'
     | '/app/cost-analysis'
     | '/app/dashboard'
+    | '/app/historical-prediction'
     | '/app/packaging-planner'
     | '/app/product-analysis'
     | '/app/reports'
@@ -245,9 +267,11 @@ export interface FileRouteTypes {
     | '/app'
     | '/change-password'
     | '/login'
+    | '/app/analysis-method'
     | '/app/approvals'
     | '/app/cost-analysis'
     | '/app/dashboard'
+    | '/app/historical-prediction'
     | '/app/packaging-planner'
     | '/app/product-analysis'
     | '/app/reports'
@@ -377,6 +401,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPackagingPlannerRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/historical-prediction': {
+      id: '/app/historical-prediction'
+      path: '/historical-prediction'
+      fullPath: '/app/historical-prediction'
+      preLoaderRoute: typeof AppHistoricalPredictionRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/dashboard': {
       id: '/app/dashboard'
       path: '/dashboard'
@@ -396,6 +427,13 @@ declare module '@tanstack/react-router' {
       path: '/approvals'
       fullPath: '/app/approvals'
       preLoaderRoute: typeof AppApprovalsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/analysis-method': {
+      id: '/app/analysis-method'
+      path: '/analysis-method'
+      fullPath: '/app/analysis-method'
+      preLoaderRoute: typeof AppAnalysisMethodRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/approvals/': {
@@ -430,9 +468,11 @@ const AppApprovalsRouteWithChildren = AppApprovalsRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppAnalysisMethodRoute: typeof AppAnalysisMethodRoute
   AppApprovalsRoute: typeof AppApprovalsRouteWithChildren
   AppCostAnalysisRoute: typeof AppCostAnalysisRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppHistoricalPredictionRoute: typeof AppHistoricalPredictionRoute
   AppPackagingPlannerRoute: typeof AppPackagingPlannerRoute
   AppProductAnalysisRoute: typeof AppProductAnalysisRoute
   AppReportsRoute: typeof AppReportsRoute
@@ -447,9 +487,11 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAnalysisMethodRoute: AppAnalysisMethodRoute,
   AppApprovalsRoute: AppApprovalsRouteWithChildren,
   AppCostAnalysisRoute: AppCostAnalysisRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppHistoricalPredictionRoute: AppHistoricalPredictionRoute,
   AppPackagingPlannerRoute: AppPackagingPlannerRoute,
   AppProductAnalysisRoute: AppProductAnalysisRoute,
   AppReportsRoute: AppReportsRoute,

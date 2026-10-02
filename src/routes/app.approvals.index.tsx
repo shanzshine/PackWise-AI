@@ -163,7 +163,9 @@ function ApprovalsPage() {
           cost: d.est_cost,
           laborTime: d.labor_time,
           status: d.status as any,
-          decidedAt: undefined
+          decidedAt: d.decided_at ? new Date(d.decided_at).toLocaleString() : undefined,
+          feedback: d.reviewer_feedback,
+          reportSnapshot: d.report_snapshot,
         })));
       }
       setIsLoading(false);
@@ -181,24 +183,11 @@ function ApprovalsPage() {
   const pending = filtered.filter((r) => r.status === "Pending");
   const accepted = filtered.filter((r) => r.status === "Approved" || r.status === "Rejected");
 
-  const pendingCount = all.filter((r) => r.status === "Pending").length;
-  const acceptedCount = all.filter((r) => r.status === "Approved").length;
-
   return (
     <div className="space-y-6">
       <PageHeader
         title="Attachment Approvals"
         description="Review, approve, or reject pending attachment plans submitted by the engineering team."
-        actions={
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="border-border/70 font-normal">
-              <Clock className="mr-1 h-3 w-3" /> {pendingCount} pending
-            </Badge>
-            <Badge variant="outline" className="border-border/70 font-normal text-[color:var(--success)]">
-              <CheckCircle2 className="mr-1 h-3 w-3" /> {acceptedCount} approved
-            </Badge>
-          </div>
-        }
       />
 
       {/* Search */}

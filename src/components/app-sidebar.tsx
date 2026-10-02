@@ -40,7 +40,7 @@ type Item = { title: string; url: string; icon: typeof LayoutDashboard; requires
 const NAV: Record<Role, Item[]> = {
   engineer: [
     { title: "Dashboard",             url: "/app/dashboard",              icon: LayoutDashboard },
-    { title: "Product Analysis",      url: "/app/product-analysis",       icon: ScanLine        },
+    { title: "Product Analysis",      url: "/app/analysis-method",        icon: ScanLine        },
     { title: "Attachment Planner",    url: "/app/packaging-planner",      icon: Link2,          requiresAnalysis: true },
     { title: "Risk Assessment",       url: "/app/risk-assessment",        icon: ShieldAlert,    requiresAnalysis: true },
     { title: "Cost & Sustainability", url: "/app/cost-analysis",          icon: DollarSign,     requiresAnalysis: true },
@@ -61,7 +61,7 @@ const NAV: Record<Role, Item[]> = {
   ],
   "Packaging Engineer": [
     { title: "Dashboard",             url: "/app/dashboard",              icon: LayoutDashboard },
-    { title: "Product Analysis",      url: "/app/product-analysis",       icon: ScanLine        },
+    { title: "Product Analysis",      url: "/app/analysis-method",        icon: ScanLine        },
     { title: "Attachment Planner",    url: "/app/packaging-planner",      icon: Link2,          requiresAnalysis: true },
     { title: "Risk Assessment",       url: "/app/risk-assessment",        icon: ShieldAlert,    requiresAnalysis: true },
     { title: "Cost & Sustainability", url: "/app/cost-analysis",          icon: DollarSign,     requiresAnalysis: true },

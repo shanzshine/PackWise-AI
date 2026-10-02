@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
 import { Send, CheckCircle2, FileText, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
@@ -18,7 +17,7 @@ export const Route = createFileRoute("/app/submit-approval")({
     // Hanya block kalau belum ada analysis sama sekali
     const analysis = loadAnalysis();
     if (!analysis?.id) {
-      throw redirect({ to: "/app/product-analysis" });
+      throw redirect({ to: "/app/analysis-method" });
     }
   },
   component: SubmitApprovalPage,
@@ -106,6 +105,7 @@ function SubmitApprovalPage() {
         cost: z.cost || 0,
         laborMins: z.laborMins || 0,
         sustainability: z.sustainability ?? 100,
+        quantity: z.quantity ?? 0,
       })),
       finalRecommendation: {
         packaging: "—",
@@ -130,6 +130,22 @@ function SubmitApprovalPage() {
       computedComplexity: analysis?.computedComplexity,
       computedCOG: analysis?.computedCOG,
       productName: analysis?.productName,
+      analysisMode: analysis?.analysisMode,
+      modelPrediction: analysis?.mlPrediction,
+      baseModelPrediction: analysis?.baseMlPrediction ?? analysis?.mlPrediction,
+      runtimeFeedback: analysis?.runtimeFeedback,
+      productFeatures: analysis ? {
+        product_family: analysis.product_family,
+        articulation: analysis.articulation,
+        pose: analysis.pose,
+        product_weight_g: analysis.product_weight_g,
+        height_cm: analysis.height_cm,
+        center_of_gravity: analysis.center_of_gravity,
+        hair_length: analysis.hair_length,
+        dress_length: analysis.dress_length,
+        accessory_count: analysis.accessory_count,
+        accessory_weight_g: analysis.accessory_weight_g,
+      } : null,
       triggeredRules: apiData?.categories ? Object.values(apiData.categories).flatMap((v: any) => v.matched_rules || []).length : 0,
       criticalFailureCount: finalRiskLevel.toUpperCase() === "HIGH" ? 2 : 0,
     };
@@ -284,77 +300,6 @@ function SubmitApprovalPage() {
             </CardContent>
           </Card>
 
-          {/* Approval workflow steps */}
-          <Card className="border-border/70 shadow-none">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Approval Workflow</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div className="h-6 w-6 rounded-full bg-[color:var(--success)]/20 text-[color:var(--success)] flex items-center justify-center">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="w-px h-8 bg-border my-1" />
-                </div>
-                <div className="pt-0.5">
-                  <p className="text-sm font-medium">Plan Finalized</p>
-                  <p className="text-xs text-muted-foreground">Cost & risk analysis complete</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div className={`h-6 w-6 rounded-full flex items-center justify-center ${reportGenerated ? "bg-[color:var(--success)]/20 text-[color:var(--success)]" : "bg-muted border border-border"}`}>
-                    {reportGenerated ? <CheckCircle2 className="h-3.5 w-3.5" /> : <div className="h-2 w-2 rounded-full bg-muted-foreground" />}
-                  </div>
-                  <div className="w-px h-8 bg-border my-1" />
-                </div>
-                <div className="pt-0.5">
-                  <p className="text-sm font-medium">Report Generated</p>
-                  <p className="text-xs text-muted-foreground">Engineering report ready for review</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div className={`h-6 w-6 rounded-full flex items-center justify-center ${isSubmitted ? "bg-[color:var(--success)]/20 text-[color:var(--success)]" : reportGenerated ? "bg-primary/20 text-primary" : "bg-muted border border-border"}`}>
-                    {isSubmitted ? <CheckCircle2 className="h-3.5 w-3.5" /> : <div className="h-2 w-2 rounded-full bg-primary" />}
-                  </div>
-                  <div className="w-px h-8 bg-border my-1" />
-                </div>
-                <div className="pt-0.5">
-                  <p className="text-sm font-medium">Submit to Manager</p>
-                  <p className="text-xs text-muted-foreground">Awaiting your submission</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div className="h-6 w-6 rounded-full bg-muted border border-border flex items-center justify-center">
-                    <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
-                  </div>
-                </div>
-                <div className="pt-0.5">
-                  <p className="text-sm font-medium text-muted-foreground">Manager Review</p>
-                  <p className="text-xs text-muted-foreground">Approval required for production</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Summary badge */}
-          {reportGenerated && (
-            <Card className="border-border/70 shadow-none">
-              <CardContent className="p-4 flex items-center gap-3">
-                <CheckCircle2 className="h-5 w-5 text-[color:var(--success)] shrink-0" />
-                <div>
-                  <p className="text-sm font-medium">Report Ready</p>
-                  <p className="text-xs text-muted-foreground">Review the report on the left, then submit.</p>
-                </div>
-                <Badge className="ml-auto bg-[color:var(--success)]/10 text-[color:var(--success)] border-transparent">
-                  Ready
-                </Badge>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
     </div>

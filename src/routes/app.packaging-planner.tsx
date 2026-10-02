@@ -29,7 +29,7 @@ export const Route = createFileRoute("/app/packaging-planner")({
   beforeLoad: () => {
     const analysis = loadAnalysis();
     if (!analysis?.id) {
-      throw redirect({ to: "/app/product-analysis" });
+      throw redirect({ to: "/app/analysis-method" });
     }
   },
   component: AttachmentPlannerPage,
@@ -42,6 +42,20 @@ const WORKFLOW_STEPS = [
   { label: "Risk Assessment", active: false },
   { label: "Cost & Sustainability", active: false },
 ];
+
+async function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      Promise.resolve(promise),
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error("Database sync timed out")), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
 
 
 
@@ -409,11 +423,29 @@ function getOrGenerateKeypoints(analysis: any): any[] {
     base[15].x = 155; base[15].y = 430;
     base[16].x = 245; base[16].y = 430;
     base[0].x = 188;
-  } else if (p.includes("raised") || p.includes("up") || p.includes("vogue") || p.includes("high")) {
+  } else if (p.includes("two hands up")) {
+    base[9].x = 155; base[9].y = 70;
+    base[7].x = 150; base[7].y = 110;
+    base[10].x = 245; base[10].y = 70;
+    base[8].x = 250; base[8].y = 110;
+  } else if (p.includes("one hand up") || p.includes("raised") || p.includes("vogue") || p.includes("high")) {
     base[9].x = 145; base[9].y = 75;
     base[7].x = 135; base[7].y = 110;
     base[10].x = 245; base[10].y = 220;
     base[8].x = 255; base[8].y = 180;
+  } else if (p.includes("hand on hip")) {
+    base[7].x = 145; base[7].y = 205;
+    base[9].x = 180; base[9].y = 255;
+  } else if (p.includes("one leg bent")) {
+    base[13].x = 165; base[13].y = 335;
+    base[15].x = 150; base[15].y = 395;
+  } else if (p.includes("walking")) {
+    base[9].x = 150; base[9].y = 225;
+    base[10].x = 250; base[10].y = 205;
+    base[13].x = 170; base[13].y = 340;
+    base[14].x = 230; base[14].y = 345;
+    base[15].x = 145; base[15].y = 430;
+    base[16].x = 250; base[16].y = 420;
   } else if (p.includes("sitting") || p.includes("sit")) {
     base[13].x = 145; base[13].y = 280;
     base[14].x = 255; base[14].y = 280;
@@ -472,6 +504,13 @@ function AttachmentPlannerPage() {
     setAnalysis(a);
 
     async function fetchPredictions() {
+      if (a!.analysisMode === "historical-ml" && a!.mlPrediction) {
+        setXgbData(a!.mlPrediction);
+        setRecommendedMaterial(a!.mlPrediction.recommended_material ?? null);
+        setXgbStatus("ok");
+        return;
+      }
+
       try {
         const res = await fetch(`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}/api/predict-packaging`, {
           method: "POST",
@@ -494,6 +533,7 @@ function AttachmentPlannerPage() {
             fragile_parts_count: Math.max(1, Math.floor((a!.accessory_count ?? 1) / 2)),
           })
         });
+        if (!res.ok) throw new Error(`Prediction service returned ${res.status}`);
         const data = await res.json();
         setXgbData(data);
         setRecommendedMaterial(data.recommended_material ?? null);
@@ -574,6 +614,8 @@ function AttachmentPlannerPage() {
   }, [xgbData, analysis, threshold]);
 
   const activeKeypoints = analysis ? getOrGenerateKeypoints(analysis) : [];
+  const hasDetectedSkeleton = Boolean(analysis?.raw_keypoints && analysis.raw_keypoints.length >= 17);
+  const usesParametricSkeleton = analysis?.analysisMode === "historical-ml" && !hasDetectedSkeleton;
   const recBlueprint = (analysis && activeKeypoints.length > 0) ? recommendPose(
     activeKeypoints,
     xgbData,
@@ -599,7 +641,6 @@ function AttachmentPlannerPage() {
   // Real computed KPIs from zone plan
   const activeZones = zonePlan.filter(z => z.action !== "Remove" && z.recommendedMethod !== "No Attachment Required" && z.recommendedMethod !== "Not needed");
   const totalCost = activeZones.reduce((s, z) => s + z.cost, 0).toFixed(2);
-  const totalLaborMins = assemblyResult.assembly_time_seconds / 60; // Use DFA Engine instead of simple sum!
   const avgStability = activeZones.length > 0
     ? Math.round(activeZones.reduce((s, z) => s + z.stability, 0) / activeZones.length)
     : 100;
@@ -610,8 +651,57 @@ function AttachmentPlannerPage() {
   const addCount = zonePlan.filter(z => z.action === "Add").length;
   const removeCount = zonePlan.filter(z => z.action === "Remove").length;
 
+  const proceedToRiskAssessment = async () => {
+    if (!analysis?.id) {
+      alert("Missing analysis ID. Please restart from the Product Analysis page.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const totalCostVal = parseFloat(activeZones.reduce((sum, zone) => sum + zone.cost, 0).toFixed(2));
+      const avgSustainVal = activeZones.length > 0
+        ? Math.round(activeZones.reduce((sum, zone) => sum + zone.sustainability, 0) / activeZones.length)
+        : 100;
+      const { data, error } = await withTimeout(
+        supabase
+          .from("packaging_plan")
+          .insert({
+            analysis_id: analysis.id,
+            total_cost: totalCostVal,
+            assembly_time_seconds: assemblyResult.assembly_time_seconds,
+            avg_sustainability: avgSustainVal,
+            zones: zonePlan.map((zone) => ({
+              zone: zone.zone,
+              recommendedMethod: zone.recommendedMethod,
+              action: zone.action,
+              cost: zone.cost,
+              laborMins: zone.laborMins,
+              sustainability: zone.sustainability,
+              stability: zone.stability,
+            })),
+          })
+          .select("plan_id")
+          .single(),
+        1200,
+      );
+
+      if (data) {
+        const currentPlan = loadPlan();
+        if (currentPlan) savePlan({ ...currentPlan, plan_id: data.plan_id } as any);
+      } else if (error) {
+        console.warn("Database unavailable; continuing with the locally saved plan.", error);
+      }
+    } catch (error) {
+      console.warn("Could not sync the plan; continuing with local workflow data.", error);
+    } finally {
+      setIsSaving(false);
+      navigate({ to: "/app/risk-assessment" });
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       <PageHeader
         title="Attachment Planner"
         description={`AI-recommended attachment methods for each attachment zone — ${productName}`}
@@ -622,73 +712,24 @@ function AttachmentPlannerPage() {
                 ID: #{analysis.id.split('-')[0].toUpperCase()}
               </Badge>
             )}
-            <Button variant="outline" size="sm" onClick={() => navigate({ to: "/app/product-analysis" })}>
+            <Button variant="outline" size="sm" onClick={() => navigate({ to: "/app/analysis-method" })}>
               <ArrowLeft className="h-4 w-4" /> Back to Analysis
-            </Button>
-            <Button size="sm" disabled={isSaving} onClick={async () => {
-              if (analysis?.id) {
-                setIsSaving(true);
-                try {
-                  const active = zonePlan.filter(z => z.action !== "Remove" && z.recommendedMethod !== "Not needed" && z.recommendedMethod !== "No Attachment Required");
-                  const totalCostVal = parseFloat(active.reduce((s, z) => s + z.cost, 0).toFixed(2));
-                  const asmResult = runAssemblyEngine({
-                    weightGrams: analysis.product_weight_g ?? 120,
-                    accessories: analysis.selected_accessories ?? [],
-                    skeletonKeypoints: analysis.raw_keypoints ?? [],
-                    poseComplexityScore: analysis.poseComplexityScore ?? 0,
-                  });
-                  const totalLaborMins = asmResult.assembly_time_seconds / 60;
-                  const avgSustainVal = active.length > 0 ? Math.round(active.reduce((s, z) => s + z.sustainability, 0) / active.length) : 100;
-
-                  const { data, error } = await supabase
-                    .from("packaging_plan")
-                    .insert({
-                      analysis_id: analysis.id,
-                      total_cost: totalCostVal,
-                      assembly_time_seconds: totalLaborMins * 60,
-                      avg_sustainability: avgSustainVal,
-                      zones: zonePlan.map(z => ({
-                        zone: z.zone,
-                        recommendedMethod: z.recommendedMethod,
-                        action: z.action,
-                        cost: z.cost,
-                        laborMins: z.laborMins,
-                        sustainability: z.sustainability,
-                        stability: z.stability,
-                      }))
-                    })
-                    .select("plan_id")
-                    .single();
-
-                  if (data) {
-                    const currentPlan = loadPlan();
-                    if (currentPlan) {
-                      savePlan({ ...currentPlan, plan_id: data.plan_id } as any);
-                    }
-                    navigate({ to: "/app/risk-assessment" });
-                  } else if (error) {
-                    console.error("Failed to save packaging plan:", error);
-                    alert("Database Error: " + error.message + "\nMake sure you started a new analysis from the first page so it gets a valid UUID.");
-                  }
-                } catch (e: any) {
-                  console.error("Caught error in Proceed to Risk Assessment:", e);
-                  alert("Error: " + e.message);
-                } finally {
-                  setIsSaving(false);
-                }
-              } else {
-                alert("Missing analysis ID. Please restart from the Product Analysis page.");
-              }
-            }}>
-              {isSaving ? "Saving..." : "Proceed to Risk Assessment"} <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         }
       />
       <WorkflowBar steps={WORKFLOW_STEPS} />
 
-      {/* ── Model Status Bar ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <details className="group rounded-xl border border-border/70 bg-card">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium">
+          <span>Analysis source details <span className="ml-2 text-xs font-normal text-muted-foreground">Model, image detection, and skeleton status</span></span>
+          <span className="flex shrink-0 items-center gap-1 text-xs font-normal text-muted-foreground">
+            <span className="group-open:hidden">Click to expand</span>
+            <span className="hidden group-open:inline">Click to collapse</span>
+            <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
+          </span>
+        </summary>
+        <div className="grid grid-cols-1 gap-3 border-t border-border/70 p-3 sm:grid-cols-3">
         {/* CV YOLO Status */}
         <div className={`flex items-center gap-3 rounded-lg border p-3 ${(analysis?.cvDetections && analysis.cvDetections.length > 0)
             ? "border-[color:var(--success)]/40 bg-[color:var(--success)]/5"
@@ -730,10 +771,10 @@ function AttachmentPlannerPage() {
                 : <Wifi className="h-4 w-4 animate-pulse" />}
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold">XGBoost Packaging Model</p>
+            <p className="text-xs font-semibold">Historical Packaging Model</p>
             <p className="text-[10px] text-muted-foreground truncate">
               {xgbStatus === "ok" && xgbData
-                ? `✅ Connected — Head:${xgbData.recommended_head_strap} Waist:${xgbData.recommended_waist_strap} Hand:${xgbData.recommended_hand_strap} Leg:${xgbData.recommended_leg_strap} Back:${xgbData.recommended_back_support} Base:${xgbData.recommended_base_support}`
+                ? `${analysis?.analysisMode === "historical-ml" ? "Saved historical prediction" : "Prediction service ready"}`
                 : xgbStatus === "error"
                   ? `❌ Backend offline — ${xgbError}`
                   : "⏳ Connecting to backend..."}
@@ -742,28 +783,37 @@ function AttachmentPlannerPage() {
         </div>
 
         {/* Skeleton Keypoints Status */}
-        <div className={`flex items-center gap-3 rounded-lg border p-3 ${(analysis?.raw_keypoints && analysis.raw_keypoints.length > 0)
+        <div className={`flex items-center gap-3 rounded-lg border p-3 ${hasDetectedSkeleton
             ? "border-[color:var(--success)]/40 bg-[color:var(--success)]/5"
-            : "border-amber-500/40 bg-amber-500/5"
+            : usesParametricSkeleton
+              ? "border-primary/40 bg-primary/5"
+              : "border-amber-500/40 bg-amber-500/5"
           }`}>
-          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${(analysis?.raw_keypoints && analysis.raw_keypoints.length > 0)
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${hasDetectedSkeleton
               ? "bg-[color:var(--success)]/20 text-[color:var(--success)]"
-              : "bg-amber-500/20 text-amber-500"
+              : usesParametricSkeleton
+                ? "bg-primary/15 text-primary"
+                : "bg-amber-500/20 text-amber-500"
             }`}>
-            {(analysis?.raw_keypoints && analysis.raw_keypoints.length > 0)
+            {hasDetectedSkeleton
               ? <CheckCircle2 className="h-4 w-4" />
-              : <AlertTriangle className="h-4 w-4" />}
+              : usesParametricSkeleton
+                ? <Brain className="h-4 w-4" />
+                : <AlertTriangle className="h-4 w-4" />}
           </div>
           <div className="min-w-0">
             <p className="text-xs font-semibold">Skeleton Keypoints</p>
             <p className="text-[10px] text-muted-foreground truncate">
-              {(analysis?.raw_keypoints && analysis.raw_keypoints.length > 0)
-                ? `✅ ${analysis.raw_keypoints.length} keypoints detected`
-                : "⚠️ No skeleton — run CV analysis first"}
+              {hasDetectedSkeleton
+                ? `✅ ${analysis?.raw_keypoints?.length ?? 0} keypoints detected`
+                : usesParametricSkeleton
+                  ? "Parametric skeleton generated from pose and product inputs"
+                  : "⚠️ No skeleton — run CV analysis first"}
             </p>
           </div>
         </div>
       </div>
+      </details>
 
       {/* ── Skeleton & CV Analysis (Combined View) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -997,24 +1047,22 @@ function AttachmentPlannerPage() {
                       </h4>
                       <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
                         {recBlueprint?.attachmentPlacements.map((placement, idx) => {
-                          const matchingZone = zonePlan.find(z => z.zone === placement.zone || (z.zone === "Hands/Wrists" && placement.zone === "Hands/Wrists"));
-                          const qty = matchingZone?.quantity ?? 1;
                           const rationale = stringRationales[placement.zone] ?? "Anchor point secures this body region to prevent shifting.";
 
                           return (
                             <div key={idx} className="flex gap-3 p-2 bg-white border rounded-md shadow-sm items-start">
                               <span className="h-4 w-4 shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold text-white mt-0.5" style={{ backgroundColor: placement.color }}>
-                                {qty}
+                                {placement.ordinal}
                               </span>
                               <div className="min-w-0 flex-1">
                                 <div className="flex justify-between items-center">
-                                  <p className="text-xs font-semibold text-foreground">{placement.zone} Retention String</p>
+                                  <p className="text-xs font-semibold text-foreground">{placement.anchorLabel}</p>
                                   <Badge variant="outline" className="text-[8px] px-1 h-4 font-mono font-normal">
                                     KP {placement.keypointIndex}
                                   </Badge>
                                 </div>
                                 <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                                  <strong>{placement.method} ({qty}x)</strong>: {rationale}
+                                  <strong>{placement.method} · anchor {placement.ordinal} of {placement.quantity}</strong>: {rationale}
                                 </p>
                               </div>
                             </div>
@@ -1114,8 +1162,8 @@ function AttachmentPlannerPage() {
               {[
                 { label: "Pose Stability", value: `${avgStability}%` },
                 { label: "Cost / Unit", value: `$${totalCost}` },
+                { label: "Assembly Time", value: `${assemblyResult.assembly_time_seconds}s` },
                 { label: "Sustainability", value: `${avgSustainability}/100` },
-                { label: "Zones Analyzed", value: `${zonePlan.length}` },
               ].map(({ label, value }) => (
                 <div key={label} className="text-center bg-background/50 rounded-lg p-3 border border-border/50">
                   <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -1145,35 +1193,9 @@ function AttachmentPlannerPage() {
                 )}
               </div>
             </div>
-
-            {/* Quick CTA */}
-            <div className="mt-auto pt-3">
-              <Button size="sm" className="w-full" onClick={() => navigate({ to: "/app/risk-assessment" })}>
-                Proceed to Risk Assessment <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* KPI Row */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        {[
-          { label: "Avg. Pose Stability", value: `${avgStability}%`, hint: `${activeZones.length} active attachment zones` },
-          { label: "Total Cost / Unit", value: `$${totalCost}`, hint: removeCount > 0 ? `Saving possible by removing ${removeCount} zone(s)` : "All recommended materials" },
-          { label: "Est. Assembly Time", value: `${assemblyResult.assembly_time_seconds}s`, hint: assemblyResult.is_complex_pose ? "+15% complex pose penalty applied" : "Calculated using DFA standards" },
-          { label: "Action Summary", value: `${keepCount} Keep · ${addCount} Add · ${removeCount} Remove`, hint: `${zonePlan.length} zones analyzed` },
-          { label: "Sustainability Score", value: `${avgSustainability}/100`, hint: "Weighted avg across recommended materials" },
-        ].map(({ label, value, hint }) => (
-          <Card key={label} className="border-border/70 shadow-none">
-            <CardContent className="p-5">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-              <p className="mt-1 text-2xl font-bold tracking-tight text-foreground">{value}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+        </div>
 
       {/* Current vs Recommended Comparison */}
       <Card className="border-border/70 shadow-none">
@@ -1273,52 +1295,15 @@ function AttachmentPlannerPage() {
         </CardContent>
       </Card>
 
-      {/* Charts Row */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Action Legend */}
-        <Card className="border-border/70 shadow-none lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Brain className="h-4 w-4 text-primary" /> How to Read This Comparison
-            </CardTitle>
-            <CardDescription>The system compares what's currently on the product (CV) vs what AI recommends, then suggests an action</CardDescription>
-          </CardHeader>
-          <CardContent className="grid sm:grid-cols-3 gap-4 pt-4">
-
-            <div className="flex flex-col gap-2 rounded-lg border border-[color:var(--success)]/30 bg-[color:var(--success)]/5 p-4">
-              <div className="flex items-center gap-2">
-                <Badge className="bg-[color:var(--success)] hover:bg-[color:var(--success)] text-white shadow-sm border-0 font-medium"><CheckCircle2 className="mr-1 h-3 w-3" /> Keep</Badge>
-              </div>
-              <p className="text-sm font-semibold mt-1">Current = Correct</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                CV detected this attachment on the current product, and the AI model confirms it <strong>should be there</strong>. No change needed.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2 rounded-lg border border-blue-500/30 bg-blue-500/5 p-4">
-              <div className="flex items-center gap-2">
-                <Badge className="bg-blue-500 hover:bg-blue-600 text-white border-0 font-medium shadow-sm">Add</Badge>
-              </div>
-              <p className="text-sm font-semibold mt-1">Missing Attachment</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                CV did <strong>not</strong> detect this on the current product, but the AI model says it <strong>should be added</strong> for safety/stability.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-              <div className="flex items-center gap-2">
-                <Badge variant="destructive" className="font-medium shadow-sm">Remove</Badge>
-              </div>
-              <p className="text-sm font-semibold mt-1">Unnecessary Attachment</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                CV detected this attachment on the current product, but the AI model says it's <strong>not necessary</strong>. Removing it can save cost.
-              </p>
-            </div>
-
-          </CardContent>
-        </Card>
-
-        {/* Radial Chart */}
+      <details className="group rounded-xl border border-border/70 bg-card">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-sm font-semibold">
+          <span>Plan score details <span className="ml-2 text-xs font-normal text-muted-foreground">Pose, drop test, cost, and sustainability</span></span>
+          <span className="flex shrink-0 items-center gap-1 text-xs font-normal text-muted-foreground">
+            <span className="group-open:hidden">Click to expand</span>
+            <span className="hidden group-open:inline">Click to collapse</span>
+            <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
+          </span>
+        </summary>
         <Card className="border-border/70 shadow-none">
           <CardHeader>
             <CardTitle className="text-base">Plan Score Breakdown</CardTitle>
@@ -1343,10 +1328,18 @@ function AttachmentPlannerPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </details>
 
-      {/* All Methods Table */}
-      <Card className="border-border/70 shadow-none">
+      <details className="group rounded-xl border border-border/70 bg-card">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-sm font-semibold">
+          <span>Compare attachment methods <span className="ml-2 text-xs font-normal text-muted-foreground">Cost, labor, stability, and sustainability</span></span>
+          <span className="flex shrink-0 items-center gap-1 text-xs font-normal text-muted-foreground">
+            <span className="group-open:hidden">Click to expand</span>
+            <span className="hidden group-open:inline">Click to collapse</span>
+            <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
+          </span>
+        </summary>
+        <Card className="border-0 shadow-none">
         <CardHeader>
           <CardTitle className="text-base">Attachment Method Comparison</CardTitle>
           <CardDescription>Compare Pose stability, risk reduction & sustainability across all available methods</CardDescription>
@@ -1394,39 +1387,19 @@ function AttachmentPlannerPage() {
             </TableBody>
           </Table>
         </CardContent>
-      </Card>
+        </Card>
+      </details>
 
-      {/* CTA */}
-      <Card className="border-[color:var(--primary)]/30 bg-[color:var(--primary-soft)]/50 shadow-none">
-        <CardContent className="flex items-center justify-between gap-4 p-5">
-          <div>
-            <p className="text-sm font-semibold">Proceed to Risk Assessment</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Analyze potential packaging risks and mitigations based on the plan.</p>
-          </div>
-          <Button size="sm" onClick={async () => {
-            const currentPlan = loadPlan();
-            if (currentPlan && analysis?.id) {
-              const { data, error } = await supabase.from('packaging_plans').insert([{
-                analysis_id: analysis.id,
-                total_cost: currentPlan.totalCost,
-                total_labor_mins: currentPlan.totalLaborMins || 0,
-                avg_sustainability: currentPlan.avgSustainability,
-                zones: currentPlan.zones,
-                created_at: new Date().toISOString()
-              }]).select();
-              if (data && data.length > 0) {
-                currentPlan.plan_id = data[0].id;
-                savePlan(currentPlan);
-              } else if (error) {
-                console.error("Failed to save packaging plan:", error);
-              }
-            }
-            navigate({ to: "/app/risk-assessment" });
-          }} className="shrink-0">
-            Risk Assessment <ChevronRight className="ml-2 h-4 w-4" />
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="fixed bottom-4 right-4 z-40 flex items-center gap-3 rounded-xl border border-primary/20 bg-background/95 p-2 shadow-xl backdrop-blur sm:right-6">
+        <div className="hidden pl-2 sm:block">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Next step</p>
+          <p className="text-xs font-medium">Review packaging risks</p>
+        </div>
+        <Button disabled={isSaving} onClick={proceedToRiskAssessment}>
+          {isSaving ? "Saving…" : "Continue"} <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+
     </div>
   );
 }
